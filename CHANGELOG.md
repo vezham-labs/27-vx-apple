@@ -1,3 +1,14 @@
+# 27.0.0 (2026-11-15)
+
+### 🏡 Chore
+
+- **repo:** update Nx to 24.0.5 ([9cfc761d](https://github.com/vezham-labs/vx-fe-kit/commit/9cfc761d))
+- **workspace:** update v27 dependencies ([b49a0a14](https://github.com/vezham-labs/vx-fe-kit/commit/b49a0a14))
+
+### ❤️ Thank You
+
+- vx-vigneshwaran
+
 ## 27.0.0-alpha.2 (2026-11-14)
 
 ### 🚀 Features

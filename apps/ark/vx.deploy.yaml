@@ -8,3 +8,8 @@ targets:
     bundleIdentifier: app.vezham.ark
     deploymentTarget: '26.0'
     distribution: developer-id
+    release:
+      scheme: ArkMac
+      productName: Ark
+      # Set teamId and sparkle when signing and update hosting are configured.
+      # sparkle: { feedUrl, publicKey, downloadBaseUrl, bucket }

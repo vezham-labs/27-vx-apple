@@ -15,8 +15,15 @@
 set -euo pipefail
 
 repo="${0:A:h:h}"
-bundle_id="app.vezham.ark"
-app="$HOME/Applications/Ark.app"
+source "$repo/../../vx/tools/release-apple/common.zsh"
+setup_project "$repo"
+read_macos_config "$repo"
+product=$(require_mac_setting '.release.productName')
+app=${ARK_INSTALL_PATH:-"$HOME/Applications/$product.app"}
+if [[ -d "$app" && "$(defaults read "$app/Contents/Info.plist" CFBundleIdentifier)" != "$bundle_id" ]]; then
+  echo "The installed app at $app does not match the bundle ID in vx.deploy.yaml." >&2
+  exit 1
+fi
 backups="$HOME/Developer/Ark/backups"
 webkit="$HOME/Developer/ArkWebKit/WebKitBuild/Ark-daily"
 # Everything that holds Ark's state, as installed today (unsandboxed; SandboxMigration moved it out).
@@ -71,7 +78,7 @@ case "${1:-}" in
     echo "Settings › Audio shows which WebKit it's on. To go back: $0 off (quick) or $0 rollback (app and data)."
     ;;
   status)
-    pid=$(pgrep -nf "$app/Contents/MacOS/Ark" || true)
+    pid=$(pgrep -nf "$app/Contents/MacOS/$product" || true)
     [[ -n "$pid" ]] || { echo "Ark isn't running"; exit 0; }
     if lsof -p "$pid" -Fn 2>/dev/null | grep -q "^n$webkit/WebKit.framework/"; then echo "Ark's WebKit ($webkit)"; else echo "system WebKit"; fi
     tail -1 "$HOME/Library/Logs/Ark/webkit.log" 2>/dev/null || true

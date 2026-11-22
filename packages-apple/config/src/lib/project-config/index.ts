@@ -20,8 +20,24 @@ export type AppleDeploymentTarget = {
   distribution: DistributionMethod
 }
 
+export type MacReleaseConfig = {
+  scheme: string
+  productName: string
+  teamId?: string
+  sparkle?: {
+    feedUrl: string
+    publicKey: string
+    downloadBaseUrl: string
+    bucket?: string
+  }
+}
+
 export type AppleDeploymentConfig = {
-  targets: Record<ApplePlatform, AppleDeploymentTarget>
+  targets: {
+    ios: AppleDeploymentTarget
+    macos: AppleDeploymentTarget & { release?: MacReleaseConfig }
+  }
+  filterRulesUrl?: string
 }
 
 export type AppleAppCore = {
@@ -181,10 +197,115 @@ const readAppConfig = (root: string): AppleAppConfig => {
   return { core: core as unknown as AppleAppCore }
 }
 
-const readDeployConfig = (root: string): AppleDeploymentConfig => {
+const readHttpsUrl = (
+  value: unknown,
+  file: string,
+  location: string
+): string => {
+  const input = string(value, file, location)
+  try {
+    const url = new URL(input)
+    if (
+      !input.startsWith('https://') ||
+      !url.hostname ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      /[\s?#"$\\]/.test(input)
+    )
+      throw new Error()
+    return url.href
+  } catch {
+    throw new Error(
+      `${file}: ${location} must be an absolute HTTPS URL without credentials, query or fragment`
+    )
+  }
+}
+
+const readMacRelease = (value: unknown, file: string): MacReleaseConfig => {
+  const location = 'targets.macos.release'
+  const release = object(value, file, location)
+  validateKeys(
+    release,
+    file,
+    location,
+    ['scheme', 'productName'],
+    ['scheme', 'productName', 'teamId', 'sparkle']
+  )
+  const scheme = string(release.scheme, file, `${location}.scheme`)
+  const productName = string(
+    release.productName,
+    file,
+    `${location}.productName`
+  )
+  if (
+    ![scheme, productName].every(
+      value =>
+        /^[A-Za-z0-9][A-Za-z0-9 ._-]*$/.test(value) && value === value.trim()
+    )
+  ) {
+    throw new Error(
+      `${file}: ${location} scheme and productName must be valid names`
+    )
+  }
+  const result: MacReleaseConfig = { scheme, productName }
+  if ('teamId' in release) {
+    const teamId = string(release.teamId, file, `${location}.teamId`)
+    if (!/^[A-Z0-9]{10}$/.test(teamId))
+      throw new Error(
+        `${file}: ${location}.teamId must be a 10-character Apple team ID`
+      )
+    result.teamId = teamId
+  }
+  if ('sparkle' in release) {
+    const key = `${location}.sparkle`
+    const sparkle = object(release.sparkle, file, key)
+    validateKeys(
+      sparkle,
+      file,
+      key,
+      ['feedUrl', 'publicKey', 'downloadBaseUrl'],
+      ['feedUrl', 'publicKey', 'downloadBaseUrl', 'bucket']
+    )
+    const feedUrl = readHttpsUrl(sparkle.feedUrl, file, `${key}.feedUrl`)
+    const downloadBaseUrl = readHttpsUrl(
+      sparkle.downloadBaseUrl,
+      file,
+      `${key}.downloadBaseUrl`
+    )
+    const publicKey = string(sparkle.publicKey, file, `${key}.publicKey`)
+    if (!/^[A-Za-z0-9+/]{43}=$/.test(publicKey))
+      throw new Error(
+        `${file}: ${key}.publicKey must be a base64 Sparkle public key`
+      )
+    result.sparkle = {
+      feedUrl,
+      publicKey,
+      downloadBaseUrl: downloadBaseUrl.endsWith('/')
+        ? downloadBaseUrl
+        : `${downloadBaseUrl}/`
+    }
+    if ('bucket' in sparkle) {
+      const bucket = string(sparkle.bucket, file, `${key}.bucket`)
+      if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(bucket))
+        throw new Error(`${file}: ${key}.bucket is invalid`)
+      result.sparkle.bucket = bucket
+    }
+  }
+  return result
+}
+
+export const readDeployConfig = (root: string): AppleDeploymentConfig => {
   const file = 'vx.deploy.yaml'
   const config = object(readFile(root, file), file, 'top level')
-  validateKeys(config, file, 'top level', ['targets'])
+  validateKeys(
+    config,
+    file,
+    'top level',
+    ['targets'],
+    ['targets', 'filterRulesUrl']
+  )
   const targets = object(config.targets, file, 'targets')
   const platforms: ApplePlatform[] = ['ios', 'macos']
   validateKeys(targets, file, 'targets', platforms)
@@ -192,11 +313,9 @@ const readDeployConfig = (root: string): AppleDeploymentConfig => {
   const validatedTargets = Object.fromEntries(
     platforms.map(platform => {
       const target = object(targets[platform], file, `targets.${platform}`)
-      validateKeys(target, file, `targets.${platform}`, [
-        'bundleIdentifier',
-        'deploymentTarget',
-        'distribution'
-      ])
+      const required = ['bundleIdentifier', 'deploymentTarget', 'distribution']
+      const allowed = platform === 'macos' ? [...required, 'release'] : required
+      validateKeys(target, file, `targets.${platform}`, required, allowed)
       const bundleIdentifier = string(
         target.bundleIdentifier,
         file,
@@ -231,17 +350,35 @@ const readDeployConfig = (root: string): AppleDeploymentConfig => {
           `${file}: targets.${platform}.distribution must be one of: ${distributionMethods[platform].join(', ')}`
         )
       }
-      return [platform, { bundleIdentifier, deploymentTarget, distribution }]
+      const release =
+        'release' in target ? readMacRelease(target.release, file) : undefined
+      return [
+        platform,
+        {
+          bundleIdentifier,
+          deploymentTarget,
+          distribution,
+          ...(release && { release })
+        }
+      ]
     })
   ) as AppleDeploymentConfig['targets']
 
-  return { targets: validatedTargets }
+  const filterRulesUrl =
+    'filterRulesUrl' in config
+      ? readHttpsUrl(config.filterRulesUrl, file, 'filterRulesUrl')
+      : undefined
+  return {
+    targets: validatedTargets,
+    ...(filterRulesUrl && { filterRulesUrl })
+  }
 }
 
 const getXcconfig = (
   platform: ApplePlatform,
-  target: AppleDeploymentTarget,
-  core: AppleAppCore
+  target: AppleDeploymentTarget & { release?: MacReleaseConfig },
+  core: AppleAppCore,
+  filterRulesUrl?: string
 ): string => {
   const versionSetting =
     platform === 'ios'
@@ -263,6 +400,23 @@ const getXcconfig = (
     VX_DISTRIBUTION_METHOD: target.distribution
   }
 
+  // A literal // starts a comment in xcconfig files.
+  const escapedUrl = (url: string): string =>
+    url.replaceAll('//', '$(VX_URL_SLASH)$(VX_URL_SLASH)')
+  if (filterRulesUrl || target.release?.sparkle) settings.VX_URL_SLASH = '/'
+
+  if (target.release) {
+    settings.VX_MAC_PRODUCT_NAME = target.release.productName
+    if (target.release.teamId) settings.DEVELOPMENT_TEAM = target.release.teamId
+    if (target.release.sparkle) {
+      settings.VX_SPARKLE_PUBLIC_KEY = target.release.sparkle.publicKey
+      settings.VX_SPARKLE_FEED_URL = escapedUrl(target.release.sparkle.feedUrl)
+    }
+  }
+  if (filterRulesUrl) {
+    settings.VX_FILTER_RULES_URL = escapedUrl(filterRulesUrl)
+  }
+
   return `// Generated from vx.app.yaml and vx.deploy.yaml. Do not edit.\n${Object.entries(
     settings
   )
@@ -280,7 +434,8 @@ export const getProjectConfigFiles = (projectRoot: string): GeneratedFile[] => {
     content: getXcconfig(
       platform,
       deployConfig.targets[platform],
-      appConfig.core
+      appConfig.core,
+      deployConfig.filterRulesUrl
     )
   }))
 }

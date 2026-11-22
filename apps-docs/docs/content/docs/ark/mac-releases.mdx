@@ -7,11 +7,9 @@ date in the app by [Sparkle](https://sparkle-project.org).
 
 ## Release configuration
 
-Set `ARK_DEVELOPMENT_TEAM` to the Apple team used for Developer ID signing.
-Set `ARK_FEED_URL` to the hosted Sparkle appcast URL, `ARK_DOWNLOAD_PREFIX` to
-the base URL for the release files, and `ARK_SPARKLE_PUBLIC_KEY` to the public
-key for this release channel. Publish with `ARK_RELEASE_BUCKET` set to your
-R2 bucket.
+Set `targets.macos.release.teamId` in `apps/ark/vx.deploy.yaml` to the Apple team used for Developer ID signing. Set `release.sparkle.feedUrl`, `publicKey`, and `downloadBaseUrl` under the macOS target. Set `release.sparkle.bucket` there to publish to R2.
+
+The shared scripts in `vx/tools/release-apple/` read these settings from the Git ref being packaged. Keep signing credentials, the Sparkle private key, and upload tokens in Xcode, the keychain, or CI secrets.
 
 ## Making a release
 
@@ -24,9 +22,9 @@ The script builds a clean export of the ref, then:
 
 1. Archives the Release configuration with `MARKETING_VERSION` set to the version you give,
    `CURRENT_PROJECT_VERSION` set to the commit count (Sparkle needs it to grow every release),
-   and `ARK_UPDATES=YES`.
+   and `VX_SPARKLE_UPDATES=YES`.
 2. Signs it with Developer ID and sends it to Apple's notary service, both through the Xcode
-   account (the team set in ARK_DEVELOPMENT_TEAM). Xcode uses a cloud-managed Developer ID certificate, so nothing
+   account (the team set in `vx.deploy.yaml`). Xcode uses a cloud-managed Developer ID certificate, so nothing
    has to be in the keychain, and no app-specific password or notarytool profile is needed.
 3. Waits for notarisation, staples the ticket and checks Gatekeeper accepts the app.
 4. Zips it into `~/Developer/Ark/releases/mac` (or `ARK_RELEASES_DIR`) for Sparkle.
@@ -106,14 +104,14 @@ standard windows.
 
 ## Testing an update
 
-The feed URL is the `ARK_FEED_URL` build setting, so a test can point Sparkle somewhere else.
+The feed URL is the `VX_SPARKLE_FEED_URL` build setting, so a test can point Sparkle somewhere else.
 Build two versions under a throwaway bundle ID (so they never touch the real app's data), serve a
 feed locally and update one to the other:
 
 ```sh
-xcodebuild … archive MARKETING_VERSION=0.0.1 CURRENT_PROJECT_VERSION=1000 ARK_UPDATES=YES \
+xcodebuild … archive MARKETING_VERSION=0.0.1 CURRENT_PROJECT_VERSION=1000 VX_SPARKLE_UPDATES=YES \
   PRODUCT_BUNDLE_IDENTIFIER=app.vezham.ark.updatetest ARK_APP_NAME="Ark Update Test" \
-  ARK_FEED_URL=http://127.0.0.1:8798/appcast.xml
+  VX_SPARKLE_FEED_URL=http://127.0.0.1:8798/appcast.xml
 ```
 
 (and 0.0.2 / 1001 the same way), export both with Developer ID, zip 0.0.2 into a folder, run
@@ -124,7 +122,7 @@ downloaded it on Install Update, and relaunched as 0.0.2 with its signature inta
 ## The signing key
 
 Sparkle's EdDSA private key lives in the login keychain of the Mac that makes releases (service
-`https://sparkle-project.org`, account `ed25519`). Its public half is supplied as `ARK_SPARKLE_PUBLIC_KEY`.
+`https://sparkle-project.org`, account `ed25519`). Its public half is set in `vx.deploy.yaml` as `release.sparkle.publicKey`.
 Without the private key, no installed copy will accept another update, so keep a backup:
 
 ```sh
@@ -139,7 +137,4 @@ and store that file in 1Password, then delete it.
 tools/publish-mac.sh 1.0.1
 ```
 
-uploads the release to the R2 bucket configured through `ARK_RELEASE_BUCKET`.
-Serve the `mac/` object prefix from the host configured in `ARK_FEED_URL` and
-`ARK_DOWNLOAD_PREFIX`. The publisher uploads the ZIP, deltas and DMGs first and
-the appcast last.
+uploads the release to the R2 bucket recorded when the artifact was packaged. The paths in `downloadBaseUrl` and `feedUrl` determine the upload keys. The publisher uploads the ZIP, deltas and DMGs first and the appcast last.

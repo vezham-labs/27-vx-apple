@@ -4,6 +4,7 @@
   "title": "Vx Apple deployment configuration",
   "type": "object",
   "properties": {
+    "filterRulesUrl": { "$ref": "#/definitions/httpsUrl" },
     "targets": {
       "type": "object",
       "properties": {
@@ -17,6 +18,44 @@
   "required": ["targets"],
   "additionalProperties": false,
   "definitions": {
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "macRelease": {
+      "type": "object",
+      "properties": {
+        "scheme": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._-]*$"
+        },
+        "productName": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._-]*$"
+        },
+        "teamId": { "type": "string", "pattern": "^[A-Z0-9]{10}$" },
+        "sparkle": {
+          "type": "object",
+          "properties": {
+            "feedUrl": { "$ref": "#/definitions/httpsUrl" },
+            "publicKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9+/]{43}=$"
+            },
+            "downloadBaseUrl": { "$ref": "#/definitions/httpsUrl" },
+            "bucket": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$"
+            }
+          },
+          "required": ["feedUrl", "publicKey", "downloadBaseUrl"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["scheme", "productName"],
+      "additionalProperties": false
+    },
     "bundleIdentifier": {
       "type": "string",
       "pattern": "^[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+$"
@@ -46,6 +85,7 @@
     "macosTarget": {
       "type": "object",
       "properties": {
+        "release": { "$ref": "#/definitions/macRelease" },
         "bundleIdentifier": { "$ref": "#/definitions/bundleIdentifier" },
         "deploymentTarget": { "$ref": "#/definitions/deploymentTarget" },
         "distribution": {

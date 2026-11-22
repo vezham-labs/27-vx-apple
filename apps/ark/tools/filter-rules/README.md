@@ -13,4 +13,4 @@ swift run -c release build-rules /tmp/rules   # build only
 ```
 
 To host your own, create an R2 bucket with a public domain, set `BUCKET` for `publish.sh`, and change
-the app build setting `ARK_FILTER_RULES_URL` to your HTTPS URL including `/v1/`.
+`filterRulesUrl` in `vx.deploy.yaml` to your HTTPS URL including `/v1/`.

@@ -209,3 +209,32 @@ firebase-debug.*.log*
 .claude/worktrees
 .claude/settings.local.json
 .vitest
+
+# ============================================================================
+# Apple Apps
+# ============================================================================
+
+# /apps*/ covers apps/ and category folders such as apps-internals/.
+
+# Keep Swift sources visible under the global state/ rule
+!/apps*/**/Mac/Sources/State/
+
+# Swift and XcodeGen
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+/apps*/**/*.xcodeproj/
+
+# App-generated metadata and local tooling
+/apps*/**/App/Info.plist
+/apps*/**/Mac/Info.plist
+/apps*/**/*.generated.entitlements
+/apps*/**/Spike/Info.plist
+/apps*/**/.seed-cache/
+/apps*/**/.autoconsent/
+/apps*/**/.cef/
+/apps*/**/.dev.vars
+/apps*/**/.env
+/apps*/**/.env.*
+/apps*/**/.claude/

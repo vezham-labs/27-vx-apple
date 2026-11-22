@@ -1,0 +1,177 @@
+# vx-bot/NOTE: Generate this project with pnpm nx run ark:generate from the workspace root.
+# vx-bot/NOTE: The .xcodeproj is git-ignored; this file is the source of truth.
+name: Ark
+options:
+  bundleIdPrefix: app.vezham
+  xcodeVersion: '27.2'
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: '6.0'
+    SWIFT_STRICT_CONCURRENCY: complete
+packages:
+  BrowserKit:
+    path: Packages/BrowserKit
+  # vx-bot/NOTE: In-app updates for the Developer ID build (Mac only). See docs/mac-releases.md.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: '2.10.0'
+targets:
+  Ark:
+    type: application
+    platform: iOS
+    configFiles:
+      Debug: Config/Generated/ios.xcconfig
+      Release: Config/Generated/ios.xcconfig
+    sources:
+      - Shared
+      - App/Sources
+      - App/Resources
+    dependencies:
+      - package: BrowserKit
+        product: BrowserCore
+      - package: BrowserKit
+        product: Suggest
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: $(INFOPLIST_KEY_CFBundleDisplayName)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # vx-bot/NOTE: Only uses the system's HTTPS, which is exempt, so uploads skip the export compliance question.
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen: {}
+        # vx-bot/NOTE: Downloads land in Documents/Downloads and show up in the Files app.
+        # vx-bot/NOTE: Audio and picture-in-picture keep going when you leave the app, like Safari.
+        UIBackgroundModes: [audio]
+        NSCameraUsageDescription: Websites you allow can use the camera, for example for video calls.
+        NSMicrophoneUsageDescription: Websites you allow can use the microphone, for example for video calls.
+        NSLocationWhenInUseUsageDescription: Websites you allow can see your location, for example to show nearby places.
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        UIApplicationSupportsMultipleScenes: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # vx-bot/NOTE: Lets the app appear in Settings > Default Browser App once Apple grants the
+        # vx-bot/NOTE: com.apple.developer.web-browser entitlement (request it when you're ready to ship).
+        CFBundleURLTypes:
+          - CFBundleURLName: Web
+            CFBundleURLSchemes: [http, https]
+    settings:
+      base:
+        CURRENT_PROJECT_VERSION: '2'
+        TARGETED_DEVICE_FAMILY: '1,2'
+    scheme:
+      testTargets:
+        - package: BrowserKit/SuggestTests
+        - ArkUITests
+  # vx-bot/NOTE: Ark for Mac: an Arc-style window on the engine-neutral BrowserEngine API (WebKit for now).
+  ArkMac:
+    type: application
+    platform: macOS
+    configFiles:
+      Debug: Config/Generated/macos.xcconfig
+      Release: Config/Generated/macos.xcconfig
+    sources:
+      - Mac/Sources
+      - Mac/Resources
+    dependencies:
+      - package: BrowserKit
+        product: BrowserCore
+      - package: BrowserKit
+        product: Suggest
+      - package: BrowserKit
+        product: BrowserEngine
+      - package: BrowserKit
+        product: WebKitEngine
+      - package: BrowserKit
+        product: Extensibility
+      - package: Sparkle
+    entitlements:
+      path: Mac/Ark.generated.entitlements
+      properties:
+        # vx-bot/NOTE: Not sandboxed: Ark ships outside the App Store (Developer ID), and Radar has to see
+        # vx-bot/NOTE: other processes and project folders to find dev servers. Data that lived in the old
+        # vx-bot/NOTE: container is copied out on first launch (SandboxMigration). Hardened Runtime stays on,
+        # vx-bot/NOTE: and these are its keys for what sites can ask for.
+        com.apple.security.device.camera: true
+        com.apple.security.device.audio-input: true
+        com.apple.security.personal-information.location: true
+    info:
+      path: Mac/Info.plist
+      properties:
+        CFBundleDisplayName: $(ARK_APP_NAME)
+        CFBundleName: $(ARK_APP_NAME)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.productivity
+        ITSAppUsesNonExemptEncryption: false
+        # vx-bot/NOTE: Sparkle. Only builds from tools/release-mac.sh switch updates on (ARK_UPDATES=YES), so
+        # vx-bot/NOTE: Xcode and install-mac.sh builds never replace themselves with a release.
+        ArkUpdates: 'NO'
+        SUEnableAutomaticChecks: true
+        NSCameraUsageDescription: Websites you allow can use the camera, for example for video calls.
+        NSMicrophoneUsageDescription: Websites you allow can use the microphone, for example for video calls.
+        NSLocationUsageDescription: Websites you allow can see your location, for example to show nearby places.
+        # vx-bot/NOTE: Sign-ins can use a passkey on a phone nearby (Bluetooth); without this macOS ends the app.
+        NSBluetoothAlwaysUsageDescription: Sign-ins can use a passkey on your phone nearby.
+        # vx-bot/NOTE: Lets Ark be picked as the default web browser in System Settings > Desktop & Dock.
+        CFBundleURLTypes:
+          - CFBundleURLName: Web
+            CFBundleURLSchemes: [http, https]
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: HTML document
+            CFBundleTypeRole: Viewer
+            LSItemContentTypes: [public.html, public.xhtml]
+    settings:
+      base:
+        PRODUCT_NAME: Ark
+        # vx-bot/NOTE: Only Release builds use it: that's the copy in ~/Applications (tools/install-mac.sh),
+        # vx-bot/NOTE: whose data (~/Library/Application Support/app.vezham.ark, ~/Library/WebKit and
+        # vx-bot/NOTE: ~/Library/HTTPStorages under the same ID) holds your real sign-ins, tabs and extensions.
+        ARK_APP_NAME: $(VX_APP_NAME)
+        # vx-bot/NOTE: Overridden only by the update test (docs/mac-releases.md), which serves its own feed.
+        CURRENT_PROJECT_VERSION: '1'
+        ENABLE_HARDENED_RUNTIME: true
+        COMBINE_HIDPI_IMAGES: true
+        ENABLE_USER_SCRIPT_SANDBOXING: false
+        # vx-bot/NOTE: Room in the executable's header for the load commands that point a copy of it at a bundled WebKit
+        # vx-bot/NOTE: (tools/mac-bundle-webkit.sh, LC_DYLD_ENVIRONMENT).
+        OTHER_LDFLAGS: $(inherited) -Wl,-headerpad,0x4000
+      configs:
+        # vx-bot/NOTE: Xcode runs and test builds get their own ID, so their data lives in a separate container
+        # vx-bot/NOTE: and never touches (or overwrites) the daily-driver app's.
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: $(VX_APP_BUNDLE_IDENTIFIER).dev
+          ARK_APP_NAME: $(VX_APP_NAME) Dev
+    postBuildScripts:
+      # vx-bot/NOTE: Only the daily-driver build offers itself as a web browser. Dev and test builds drop the
+      # vx-bot/NOTE: http/https and HTML handlers, so they never show up in System Settings' default browser list
+      # vx-bot/NOTE: or catch links from other apps.
+      - name: Drop browser handlers outside the release build
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "$PRODUCT_BUNDLE_IDENTIFIER" != "$VX_APP_BUNDLE_IDENTIFIER" ]; then
+            plist="$TARGET_BUILD_DIR/$INFOPLIST_PATH"
+            /usr/libexec/PlistBuddy -c "Delete :CFBundleURLTypes" "$plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Delete :CFBundleDocumentTypes" "$plist" 2>/dev/null || true
+          fi
+  ArkUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - App/UITests
+    dependencies:
+      - target: Ark
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: app.vezham.ark.uitests
+        TARGETED_DEVICE_FAMILY: '1,2'

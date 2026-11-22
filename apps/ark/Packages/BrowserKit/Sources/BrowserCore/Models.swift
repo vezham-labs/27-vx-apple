@@ -1,0 +1,353 @@
+import Foundation
+import CoreGraphics
+import Observation
+import Suggest
+
+@MainActor @Observable
+public final class BrowserTab: Identifiable {
+    public let id: UUID
+    public var url: URL?
+    public var title: String
+    public var isPinned: Bool
+    public var lastActive: Date
+    /// WKWebView.interactionState (back/forward list + scroll), saved when the web view is evicted.
+    public var interactionState: Data?
+    public var isPrivate: Bool
+    /// Set when the tab was opened from a favourite: it belongs to that favourite's tile and stays
+    /// out of the Today list.
+    public var favoriteID: UUID?
+    /// The Mac window this Today tab belongs to, so each window keeps its own Today list (like Arc).
+    /// Pinned and favourite tabs ignore it: every window shares those. Nil, or a window that isn't
+    /// open, means any window may take the tab. iOS has one window and ignores it.
+    public var windowKey: UUID?
+    /// A name you gave the tab (double-click it in the sidebar). Shown instead of the page's title.
+    public var customTitle: String?
+
+    // Live state mirrored from the web view (not persisted).
+    public var estimatedProgress: Double = 0
+    public var isLoading = false
+    public var canGoBack = false
+    public var canGoForward = false
+    /// Bottom bar collapsed to a small pill because the page is being scrolled down.
+    public var isChromeCompact = false
+    /// Set when the last load failed; the page area shows an error page with Retry.
+    public var loadError: LoadError?
+    /// Whether the current page was requested as the desktop site.
+    public var isDesktopSite = false
+    /// The colour WebKit shows beyond the page's edges. Nil until the page says.
+    public var pageBackground: CGColor?
+    /// A new web view hasn't drawn its page yet, so show the tab's last picture over it.
+    public var isAwaitingFirstPaint = false
+    /// The page has the camera or microphone on: the tab is in a call. Nil otherwise.
+    public var call: TabCall?
+    /// The page's zoom (1 = actual size), for the address bar's zoom badge. The engine's own value
+    /// can't be observed, so the Mac app keeps this one in step whenever it zooms.
+    public var pageZoom: Double = 1
+
+    public init(id: UUID = UUID(), url: URL?, title: String = "", isPinned: Bool = false,
+                lastActive: Date = .now, interactionState: Data? = nil, isPrivate: Bool = false) {
+        self.id = id
+        self.url = url
+        self.title = title
+        self.isPinned = isPinned
+        self.lastActive = lastActive
+        self.interactionState = interactionState
+        self.isPrivate = isPrivate
+    }
+
+    public var displayTitle: String {
+        if let customTitle, !customTitle.isEmpty { return customTitle }
+        if !title.isEmpty { return title }
+        if let url { return URLNormalizer.displayHost(url) }
+        return "New Tab"
+    }
+}
+
+/// What a tab in a call is using, for the badge that leads back to it.
+public struct TabCall: Equatable, Sendable {
+    /// The camera is on.
+    public var camera: Bool
+    /// The microphone is on (false when it's muted or off).
+    public var microphone: Bool
+
+    public init(camera: Bool, microphone: Bool) {
+        self.camera = camera
+        self.microphone = microphone
+    }
+}
+
+@MainActor @Observable
+public final class Space: Identifiable {
+    public let id: UUID
+    public var name: String
+    /// SF Symbol name
+    public var symbol: String
+    /// Index into the app's space colour palette.
+    public var colorIndex: Int
+    /// The Mac's space theme, on top of `colorIndex` (the iPhone app keeps to the palette). Nil fields fall
+    /// back to the palette colour's defaults.
+    /// The colour's hue in degrees, 0...360.
+    public var themeHue: Double?
+    /// How light or dark the colour sits, 0 (lighter) to 1 (darker), within the window's light or dark range.
+    public var themeShade: Double?
+    /// "light" or "dark" keeps the space's whole window in that appearance. Nil follows Ark's setting.
+    public var appearance: String?
+    public var pinned: [BrowserTab]
+    public var today: [BrowserTab]
+    public var selectedTabID: UUID?
+    public var isSidebarOpen: Bool
+    /// The Private space: shows in the spaces list only while it has tabs, and is never saved.
+    public let isPrivate: Bool
+
+    public init(id: UUID = UUID(), name: String, symbol: String = "circle.fill", colorIndex: Int = 0,
+                pinned: [BrowserTab] = [], today: [BrowserTab] = [], selectedTabID: UUID? = nil, isSidebarOpen: Bool = true,
+                isPrivate: Bool = false) {
+        self.id = id
+        self.name = name
+        self.symbol = symbol
+        self.colorIndex = colorIndex
+        self.pinned = pinned
+        self.today = today
+        self.selectedTabID = selectedTabID
+        self.isSidebarOpen = isSidebarOpen
+        self.isPrivate = isPrivate
+    }
+
+    public var allTabs: [BrowserTab] { pinned + today }
+
+    /// Today's tabs as the sidebar lists them: without the ones a favourite tile holds.
+    public var listedToday: [BrowserTab] { today.filter { $0.favoriteID == nil } }
+
+    public var selectedTab: BrowserTab? {
+        allTabs.first { $0.id == selectedTabID }
+    }
+}
+
+// MARK: - Settings
+
+public struct BrowserSettings: Codable, Equatable, Sendable {
+    public var searchEngine: SearchEngine = .google
+    /// Send typed text to the search engine for suggestions. Off = local suggestions only.
+    public var remoteSuggestions = true
+    /// Today tabs untouched for this many hours move to the archive.
+    public var archiveAfterHours: Double = 12
+    /// Block ads and trackers with the built-in content rule list.
+    public var blockContent = true
+    /// Where links from other apps open.
+    public var externalLinksSpaceID: UUID?
+    /// Ask for desktop sites on the inner display (like iPad Safari) and mobile sites when folded.
+    public var desktopSitesWhenUnfolded = true
+    /// Per-site "Request Desktop/Mobile Site" choices, keyed by host. true = desktop.
+    public var siteDesktopOverrides: [String: Bool] = [:]
+    /// Remembered camera/microphone/motion answers, keyed by host then permission.
+    public var sitePermissions: [String: [String: Bool]] = [:]
+    /// Click "Reject" on cookie banners automatically (DuckDuckGo's autoconsent).
+    public var declineCookieBanners = true
+    /// Strip tracking parameters (utm_*, fbclid…) from links before they load.
+    public var cleanLinks = true
+    /// Which filter lists feed the ad/tracker blocker, when `blockContent` is on.
+    public var filterGroups: Set<FilterGroup> = Set(FilterGroup.allCases)
+    /// Sites where blocking (ads, trackers, cookie banners) is switched off. Hosts.
+    public var blockingDisabledHosts: Set<String> = []
+
+    public init() {}
+
+    /// True when the user turned blockers off for this host (or a parent domain of it).
+    public func blockingDisabled(for host: String?) -> Bool {
+        guard let host = host?.lowercased(), !host.isEmpty else { return false }
+        return blockingDisabledHosts.contains { host == $0 || host.hasSuffix("." + $0) }
+    }
+
+    public init(from decoder: any Decoder) throws {
+        // Decode field by field so settings saved by older builds still load.
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        searchEngine = try c.decodeIfPresent(SearchEngine.self, forKey: .searchEngine) ?? .google
+        remoteSuggestions = try c.decodeIfPresent(Bool.self, forKey: .remoteSuggestions) ?? true
+        archiveAfterHours = try c.decodeIfPresent(Double.self, forKey: .archiveAfterHours) ?? 12
+        blockContent = try c.decodeIfPresent(Bool.self, forKey: .blockContent) ?? true
+        externalLinksSpaceID = try c.decodeIfPresent(UUID.self, forKey: .externalLinksSpaceID)
+        desktopSitesWhenUnfolded = try c.decodeIfPresent(Bool.self, forKey: .desktopSitesWhenUnfolded) ?? true
+        siteDesktopOverrides = try c.decodeIfPresent([String: Bool].self, forKey: .siteDesktopOverrides) ?? [:]
+        sitePermissions = try c.decodeIfPresent([String: [String: Bool]].self, forKey: .sitePermissions) ?? [:]
+        declineCookieBanners = try c.decodeIfPresent(Bool.self, forKey: .declineCookieBanners) ?? true
+        cleanLinks = try c.decodeIfPresent(Bool.self, forKey: .cleanLinks) ?? true
+        filterGroups = try c.decodeIfPresent(Set<FilterGroup>.self, forKey: .filterGroups) ?? Set(FilterGroup.allCases)
+        blockingDisabledHosts = try c.decodeIfPresent(Set<String>.self, forKey: .blockingDisabledHosts) ?? []
+    }
+}
+
+/// One content blocker. WebKit caps each at 150,000 rules, so the filter lists are split
+/// across several, the way AdGuard for iOS does it.
+public enum FilterGroup: String, Codable, CaseIterable, Sendable, Identifiable {
+    case ads, privacy, annoyances
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .ads: "Ads"
+        case .privacy: "Trackers"
+        case .annoyances: "Annoyances"
+        }
+    }
+
+    public var detail: String {
+        switch self {
+        case .ads: "AdGuard Base and Mobile Ads filters"
+        case .privacy: "AdGuard Tracking Protection and Social Media filters"
+        case .annoyances: "Cookie notices, pop-ups, app banners and widgets"
+        }
+    }
+}
+
+/// Why a page couldn't load, shown in place of the page.
+public struct LoadError: Equatable, Sendable {
+    public enum Kind: Sendable { case offline, notFound, timedOut, insecure, other }
+    public let url: URL?
+    public let kind: Kind
+    public let detail: String
+
+    public var title: String {
+        switch kind {
+        case .offline: "You're offline"
+        case .notFound: "Can't find this site"
+        case .timedOut: "The site took too long to respond"
+        case .insecure: "This connection isn't private"
+        case .other: "Couldn't open this page"
+        }
+    }
+
+    public var symbol: String {
+        switch kind {
+        case .offline: "wifi.slash"
+        case .notFound: "questionmark.app.dashed"
+        case .timedOut: "clock.badge.exclamationmark"
+        case .insecure: "lock.slash"
+        case .other: "exclamationmark.triangle"
+        }
+    }
+
+    /// Certificate problems get "Go Back", never a "Visit anyway".
+    public var canRetry: Bool { kind != .insecure }
+
+    public init(url: URL?, error: NSError) {
+        self.url = url
+        switch (error.domain, error.code) {
+        case (NSURLErrorDomain, NSURLErrorNotConnectedToInternet), (NSURLErrorDomain, NSURLErrorNetworkConnectionLost),
+             (NSURLErrorDomain, NSURLErrorDataNotAllowed), (NSURLErrorDomain, NSURLErrorInternationalRoamingOff):
+            kind = .offline
+        case (NSURLErrorDomain, NSURLErrorCannotFindHost), (NSURLErrorDomain, NSURLErrorDNSLookupFailed),
+             (NSURLErrorDomain, NSURLErrorCannotConnectToHost):
+            kind = .notFound
+        case (NSURLErrorDomain, NSURLErrorTimedOut):
+            kind = .timedOut
+        case (NSURLErrorDomain, NSURLErrorSecureConnectionFailed), (NSURLErrorDomain, NSURLErrorServerCertificateHasBadDate),
+             (NSURLErrorDomain, NSURLErrorServerCertificateUntrusted), (NSURLErrorDomain, NSURLErrorServerCertificateHasUnknownRoot),
+             (NSURLErrorDomain, NSURLErrorServerCertificateNotYetValid), (NSURLErrorDomain, NSURLErrorClientCertificateRejected),
+             (NSURLErrorDomain, NSURLErrorClientCertificateRequired):
+            kind = .insecure
+        default:
+            kind = .other
+        }
+        detail = error.localizedDescription
+    }
+
+    /// Cancellations and "frame load interrupted" (a download took over) aren't failures.
+    public static func isIgnorable(_ error: NSError) -> Bool {
+        (error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled)
+            || (error.domain == "WebKitErrorDomain" && [102, 204].contains(error.code))
+    }
+}
+
+// MARK: - Saved sites
+
+/// A page put aside to read later, from the page menu's Save. A flat list, newest first, like the
+/// saved posts in a social app. No folders.
+public struct SavedSite: Codable, Identifiable, Equatable, Sendable {
+    public let id: UUID
+    public var url: URL
+    public var title: String
+    public var savedAt: Date
+
+    public init(id: UUID = UUID(), url: URL, title: String, savedAt: Date = .now) {
+        self.id = id
+        self.url = url
+        self.title = title
+        self.savedAt = savedAt
+    }
+}
+
+// MARK: - Codable snapshot for persistence
+
+/// The saved form of a tab. Shared by the iOS and Mac apps, so the formats can sync later.
+public struct TabRecord: Codable, Sendable {
+    public var id: UUID, url: URL?, title: String, isPinned: Bool, lastActive: Date, interactionState: Data?
+    /// Missing in state saved before favourites owned their tabs.
+    public var favoriteID: UUID? = nil
+    /// Missing in state saved before each Mac window had its own Today tabs.
+    public var windowKey: UUID? = nil
+    /// Missing in state saved before tabs could be renamed.
+    public var customTitle: String? = nil
+}
+
+public struct SpaceRecord: Codable, Sendable {
+    public var id: UUID, name: String, symbol: String, colorIndex: Int
+    public var pinned: [TabRecord], today: [TabRecord], selectedTabID: UUID?, isSidebarOpen: Bool
+    /// Missing in state saved before Mac space themes (see `Space`).
+    public var themeHue: Double? = nil
+    public var themeShade: Double? = nil
+    public var appearance: String? = nil
+}
+
+public struct BrowserSnapshot: Codable, Sendable {
+    public var spaces: [SpaceRecord]
+    public var selectedSpaceID: UUID?
+    public var favorites: [Favorite]
+    public var archive: [TabRecord]
+    public var settings: BrowserSettings?
+    /// Missing in state saved before Saved Sites existed.
+    public var saved: [SavedSite]?
+
+    public init(spaces: [SpaceRecord], selectedSpaceID: UUID?, favorites: [Favorite], archive: [TabRecord],
+                settings: BrowserSettings?, saved: [SavedSite]?) {
+        self.spaces = spaces
+        self.selectedSpaceID = selectedSpaceID
+        self.favorites = favorites
+        self.archive = archive
+        self.settings = settings
+        self.saved = saved
+    }
+}
+
+extension BrowserTab {
+    public var record: TabRecord {
+        TabRecord(id: id, url: url, title: title, isPinned: isPinned, lastActive: lastActive,
+                  interactionState: interactionState, favoriteID: favoriteID,
+                  windowKey: isPinned || favoriteID != nil ? nil : windowKey, customTitle: customTitle)
+    }
+    public convenience init(_ r: TabRecord) {
+        self.init(id: r.id, url: r.url, title: r.title, isPinned: r.isPinned,
+                  lastActive: r.lastActive, interactionState: r.interactionState)
+        favoriteID = r.favoriteID
+        windowKey = r.windowKey
+        customTitle = r.customTitle
+    }
+}
+
+extension Space {
+    public var record: SpaceRecord {
+        SpaceRecord(id: id, name: name, symbol: symbol, colorIndex: colorIndex,
+                    pinned: pinned.map(\.record),
+                    today: today.filter { !$0.isPrivate }.map(\.record),
+                    selectedTabID: selectedTabID, isSidebarOpen: isSidebarOpen,
+                    themeHue: themeHue, themeShade: themeShade,
+                    appearance: appearance)
+    }
+    public convenience init(_ r: SpaceRecord) {
+        self.init(id: r.id, name: r.name, symbol: r.symbol, colorIndex: r.colorIndex,
+                  pinned: r.pinned.map(BrowserTab.init), today: r.today.map(BrowserTab.init),
+                  selectedTabID: r.selectedTabID, isSidebarOpen: r.isSidebarOpen)
+        themeHue = r.themeHue
+        themeShade = r.themeShade
+        appearance = r.appearance
+    }
+}

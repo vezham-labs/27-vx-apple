@@ -1,0 +1,32 @@
+{
+  "name": "ark",
+  "projectType": "application",
+  "sourceRoot": "apps/ark",
+  "implicitDependencies": ["config-apple"],
+  "targets": {
+    "generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --import tsx ../../packages-apple/config/src/lib/project-config/cli.ts generate . && node --import tsx ../../packages-apple/config/src/lib/navigation/cli.ts generate . && xcodegen generate",
+        "cwd": "apps/ark"
+      },
+      "cache": false
+    },
+    "build-mac": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "xcodebuild -quiet -project Ark.xcodeproj -scheme ArkMac -configuration Debug -derivedDataPath ../../dist/ark CODE_SIGN_IDENTITY=- build",
+        "cwd": "apps/ark"
+      },
+      "dependsOn": ["generate"]
+    },
+    "build-ios": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "xcodebuild -quiet -project Ark.xcodeproj -scheme Ark -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ../../dist/ark-ios CODE_SIGNING_ALLOWED=NO build",
+        "cwd": "apps/ark"
+      },
+      "dependsOn": ["generate"]
+    }
+  }
+}

@@ -257,6 +257,7 @@ const getXcconfig = (
     ),
     MARKETING_VERSION: core.version,
     VX_APP_ID: core.id,
+    VX_APP_BUNDLE_IDENTIFIER: target.bundleIdentifier,
     VX_APP_NAME: validateXcconfigValue(core.name, 'vx.app.yaml', 'core.name'),
     VX_APP_VERSION: core.version,
     VX_DISTRIBUTION_METHOD: target.distribution

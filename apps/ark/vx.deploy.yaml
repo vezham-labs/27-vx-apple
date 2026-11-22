@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=../../vx/schemas/vx.deploy.apple.json
+targets:
+  ios:
+    bundleIdentifier: app.vezham.ark
+    deploymentTarget: '27.1'
+    distribution: app-store-connect
+  macos:
+    bundleIdentifier: app.vezham.ark
+    deploymentTarget: '26.0'
+    distribution: developer-id

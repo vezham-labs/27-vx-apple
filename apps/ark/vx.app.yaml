@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=../../vx/schemas/vx.app.apple.json
+core:
+  id: vezham-ark
+  name: Vezham Ark
+  shortName: Ark
+  version: 1.0.0
+  description: A browser for iPhone, iPad, and Mac
+  publisher:
+    name: Vezham Technologies Private Limited
+    url: https://vezham.com
+  url: https://ark.vezham.com

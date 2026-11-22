@@ -1,0 +1,5 @@
+navigation:
+  - key: settings
+    title: Settings
+    href: /settings
+    icon: gearshape

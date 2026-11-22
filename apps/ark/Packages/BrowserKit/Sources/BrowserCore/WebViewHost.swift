@@ -1,0 +1,115 @@
+#if os(iOS)
+import SwiftUI
+import WebKit
+import OSLog
+
+/// In Console, filter on subsystem app.vezham.ark to line these up with the hinge's reports.
+let webViewLog = Logger(subsystem: "app.vezham.ark", category: "webview")
+
+/// Hosts a tab's live WKWebView. The same WKWebView instance is re-parented when the layout
+/// changes (fold/unfold), so pages never reload because of a posture change.
+public struct WebViewHost: UIViewRepresentable {
+    let session: TabSession
+    /// Space at the top covered by a translucent bar. The page lays out below it and scrolls under.
+    let topObscuredInset: CGFloat
+    /// Space at the bottom covered by floating chrome (the folded bottom bar). The page can scroll
+    /// under it, but its last line can still scroll clear. Kept fixed while the bar collapses, so
+    /// the page never reflows mid-scroll.
+    let bottomObscuredInset: CGFloat
+    /// What the bottom chrome covers right now, which pages pin their fixed footers above (a
+    /// podcast player's controls, say). Follows the bar as it collapses, as in Safari. Defaults
+    /// to `bottomObscuredInset`.
+    let bottomCoveredInset: CGFloat?
+
+    public init(session: TabSession, topObscuredInset: CGFloat = 0, bottomObscuredInset: CGFloat = 0,
+                bottomCoveredInset: CGFloat? = nil) {
+        self.session = session
+        self.topObscuredInset = topObscuredInset
+        self.bottomObscuredInset = bottomObscuredInset
+        self.bottomCoveredInset = bottomCoveredInset
+    }
+
+    public func makeUIView(context: Context) -> ContainerView {
+        let v = ContainerView()
+        v.webView = session.webView
+        return v
+    }
+
+    public func updateUIView(_ uiView: ContainerView, context: Context) {
+        uiView.webView = session.webView
+        uiView.claimIfOrphaned()
+        session.recoverIfNeeded()
+        uiView.topInset = topObscuredInset
+        uiView.bottomInset = bottomObscuredInset
+        uiView.coveredBottomInset = bottomCoveredInset ?? bottomObscuredInset
+        uiView.applyInsets()
+    }
+
+    /// Holds one web view. When the layout changes (a fold, or the inner display switching between
+    /// portrait and the wide layout), the old layout's host can still be on screen, fading out,
+    /// while the new one appears. Both point at the same WKWebView, which can only have one
+    /// superview, so the rule is: the host that most recently arrived in a window owns it.
+    /// A host that's leaving never takes it back, and one that arrives again does. A host that hasn't
+    /// arrived takes nothing: SwiftUI can build one and never show it, which would strand the page.
+    public final class ContainerView: UIView {
+        fileprivate(set) weak var webView: WKWebView?
+        fileprivate var topInset: CGFloat = 0
+        fileprivate var bottomInset: CGFloat = 0
+        fileprivate var coveredBottomInset: CGFloat = 0
+
+        private func claim(_ webView: WKWebView) {
+            guard webView.superview !== self else { return }
+            webViewLog.notice("claim: web view in window \(webView.window != nil, privacy: .public), new host in window \(self.window != nil, privacy: .public)")
+            webView.removeFromSuperview()
+            webView.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(webView)
+            NSLayoutConstraint.activate([
+                webView.leadingAnchor.constraint(equalTo: leadingAnchor),
+                webView.trailingAnchor.constraint(equalTo: trailingAnchor),
+                webView.topAnchor.constraint(equalTo: topAnchor),
+                webView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            ])
+            // Moving between displays can leave WebKit thinking it's still off screen.
+            webView.setNeedsLayout()
+        }
+
+        /// On screen with the web view off screen, because its host left or never arrived.
+        fileprivate func claimIfOrphaned() {
+            guard window != nil, let webView, webView.window == nil else { return }
+            claim(webView)
+        }
+
+        public override func didMoveToWindow() {
+            super.didMoveToWindow()
+            webViewLog.notice("host in window \(self.window != nil, privacy: .public), owns web view \(self.webView?.superview === self, privacy: .public)")
+            if window != nil, let webView { claim(webView) }
+            applyInsets()
+        }
+
+        /// Only the host showing the web view sets its insets. A leaving host can still update after
+        /// the new one has set them, and a layout whose inset never changes wouldn't set them again.
+        fileprivate func applyInsets() {
+            guard window != nil, let webView, webView.superview === self else { return }
+            // Tells WebKit the bar covers this strip, so fixed and sticky page headers sit below it.
+            if #available(iOS 26, *), webView.obscuredContentInsets.top != topInset {
+                webView.obscuredContentInsets.top = topInset
+            }
+            // And the bar at the bottom, so fixed footers sit above it instead of behind it.
+            if #available(iOS 26, *), webView.obscuredContentInsets.bottom != coveredBottomInset {
+                webView.obscuredContentInsets.bottom = coveredBottomInset
+            }
+            let sv = webView.scrollView
+            if sv.contentInset.top != topInset {
+                let wasAtTop = sv.contentOffset.y <= -sv.contentInset.top + 1
+                sv.contentInset.top = topInset
+                sv.verticalScrollIndicatorInsets.top = topInset
+                if wasAtTop { sv.contentOffset.y = -topInset }
+            }
+            if sv.contentInset.bottom != bottomInset {
+                sv.contentInset.bottom = bottomInset
+                sv.verticalScrollIndicatorInsets.bottom = bottomInset
+            }
+        }
+    }
+}
+#endif

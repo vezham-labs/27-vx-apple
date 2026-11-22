@@ -65,8 +65,8 @@ const validateNavigation = (value: unknown, file: string): NavigationItem[] => {
 
 const swiftString = (value: string): string => {
   const escaped = Array.from(value, character => {
-    const codePoint = character.codePointAt(0)!
-    switch (codePoint) {
+    const codeUnit = character.charCodeAt(0)
+    switch (codeUnit) {
       case 0x22:
         return '\\"'
       case 0x5c:
@@ -78,8 +78,8 @@ const swiftString = (value: string): string => {
       case 0x09:
         return '\\t'
       default:
-        return codePoint <= 0x1f || codePoint === 0x7f
-          ? `\\u{${codePoint.toString(16)}}`
+        return codeUnit <= 0x1f || codeUnit === 0x7f
+          ? `\\u{${codeUnit.toString(16)}}`
           : character
     }
   }).join('')
@@ -90,14 +90,14 @@ const getGeneratedNavigation = (items: NavigationItem[]): string => {
   const swiftItems = items
     .map(
       ({ key, title, href, icon }) =>
-        `    SchoolRoute(key: ${swiftString(key)}, title: ${swiftString(title)}, href: ${swiftString(href)}, icon: ${swiftString(icon)})`
+        `    AppleNavigationRoute(key: ${swiftString(key)}, title: ${swiftString(title)}, href: ${swiftString(href)}, icon: ${swiftString(icon)})`
     )
     .join(',\n')
 
   return `// Generated from vx.nav.yaml. Do not edit.
 import Foundation
 
-struct SchoolRoute: Identifiable, Hashable {
+struct AppleNavigationRoute: Identifiable, Hashable {
   let key: String
   let title: String
   let href: String
@@ -106,7 +106,7 @@ struct SchoolRoute: Identifiable, Hashable {
 }
 
 enum GeneratedNavigation {
-  static let routes: [SchoolRoute] = [
+  static let routes: [AppleNavigationRoute] = [
 ${swiftItems}
   ]
 }

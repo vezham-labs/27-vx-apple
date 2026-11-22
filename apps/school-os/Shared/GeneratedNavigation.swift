@@ -1,7 +1,7 @@
 // Generated from vx.nav.yaml. Do not edit.
 import Foundation
 
-struct SchoolRoute: Identifiable, Hashable {
+struct AppleNavigationRoute: Identifiable, Hashable {
   let key: String
   let title: String
   let href: String
@@ -10,11 +10,11 @@ struct SchoolRoute: Identifiable, Hashable {
 }
 
 enum GeneratedNavigation {
-  static let routes: [SchoolRoute] = [
-    SchoolRoute(key: "home", title: "Home", href: "/", icon: "vx:home"),
-    SchoolRoute(key: "academics", title: "Academics", href: "/academics", icon: "vx:book-open"),
-    SchoolRoute(key: "students", title: "Students", href: "/students", icon: "vx:users"),
-    SchoolRoute(key: "attendance", title: "Attendance", href: "/attendance", icon: "vx:calendar-check"),
-    SchoolRoute(key: "fees", title: "Fees", href: "/fees", icon: "vx:receipt")
+  static let routes: [AppleNavigationRoute] = [
+    AppleNavigationRoute(key: "home", title: "Home", href: "/", icon: "vx:home"),
+    AppleNavigationRoute(key: "academics", title: "Academics", href: "/academics", icon: "vx:book-open"),
+    AppleNavigationRoute(key: "students", title: "Students", href: "/students", icon: "vx:users"),
+    AppleNavigationRoute(key: "attendance", title: "Attendance", href: "/attendance", icon: "vx:calendar-check"),
+    AppleNavigationRoute(key: "fees", title: "Fees", href: "/fees", icon: "vx:receipt")
   ]
 }

@@ -32,7 +32,10 @@ const ignores = [
   '**/routeTree.gen.ts',
   '**/src/generated/**',
   '**/vite.config.*.timestamp*',
-  '**/vitest.config.*.timestamp*'
+  '**/vitest.config.*.timestamp*',
+  // vx-bot/NOTE: Ark bundles these resources as-is. Remove these entries when Ark moves out of this workspace.
+  'apps/ark/Mac/Resources/Demo/supper.js',
+  'apps/ark/Packages/BrowserKit/Sources/{BrowserCore,WebKitEngine}/Resources/*.js'
 ]
 
 const vxLintIgnores = [

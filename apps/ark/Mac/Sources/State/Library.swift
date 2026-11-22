@@ -324,12 +324,12 @@ final class Library {
         _ = pageSwaps
         touch(tab.id)
         if let c = controllers[tab.id] { return c }
-        let native = Welcome.isWelcome(tab.url) || LibraryPage.isLibrary(tab.url)
+        let native = Onboarding.isOnboarding(tab.url) || LibraryPage.isLibrary(tab.url)
         let pageEngine = native ? engine : engine(for: tab, url: tab.url)
         let c = TabController(tab: tab, library: self, engineID: pageEngine.info.id) { delegate in
             pageEngine.makePage(options: PageOptions(profile: tab.isPrivate ? .ephemeral : .standard,
                                                  // The welcome tab is native; its page starts blank.
-                                                 url: Welcome.isWelcome(tab.url) || LibraryPage.isLibrary(tab.url) ? nil : tab.url,
+                                                 url: Onboarding.isOnboarding(tab.url) || LibraryPage.isLibrary(tab.url) ? nil : tab.url,
                                                  sessionState: tab.interactionState),
                             delegate: delegate)
         }

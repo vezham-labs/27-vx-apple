@@ -356,7 +356,7 @@ struct TabIcon: View {
                 .font(.system(size: size * 0.75))
                 .foregroundStyle(.secondary)
                 .frame(width: size, height: size)
-        } else if Welcome.isWelcome(tab.url) {
+        } else if Onboarding.isOnboarding(tab.url) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .interpolation(.high)

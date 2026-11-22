@@ -32,6 +32,8 @@ targets:
         product: BrowserCore
       - package: BrowserKit
         product: Suggest
+      - package: BrowserKit
+        product: OnboardingUI
     info:
       path: App/Info.plist
       properties:
@@ -94,6 +96,8 @@ targets:
         product: WebKitEngine
       - package: BrowserKit
         product: Extensibility
+      - package: BrowserKit
+        product: OnboardingUI
       - package: Sparkle
     entitlements:
       path: Mac/Ark.generated.entitlements

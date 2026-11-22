@@ -10,6 +10,7 @@ let package = Package(
         .library(name: "BrowserEngine", targets: ["BrowserEngine"]),
         .library(name: "WebKitEngine", targets: ["WebKitEngine"]),
         .library(name: "Extensibility", targets: ["Extensibility"]),
+        .library(name: "OnboardingUI", targets: ["OnboardingUI"]),
     ],
     targets: [
         // Pure Swift + Foundation. No UIKit/WebKit so it can be unit-tested anywhere.
@@ -52,5 +53,8 @@ let package = Package(
         // engine, so it's testable on its own. See docs/extensibility.md.
         .target(name: "Extensibility"),
         .testTarget(name: "ExtensibilityTests", dependencies: ["Extensibility"]),
+
+        // Shared SwiftUI onboarding surface for iOS/iPadOS and macOS clients.
+        .target(name: "OnboardingUI"),
     ]
 )

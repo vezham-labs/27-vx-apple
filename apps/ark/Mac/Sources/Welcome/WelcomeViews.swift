@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import OnboardingUI
 
 // MARK: - Intro
 
@@ -50,7 +51,7 @@ struct IntroOverlay: View {
                 .clipShape(.rect(cornerRadius: settling ? PageCard.radius : 0, style: .continuous))
                 .offset(x: rect.minX, y: rect.minY)
                 .animation(IntroPhase.settleCurve, value: settling)
-                Text("Welcome to Ark")
+                Text("Welcome to Vezham")
                     .font(.system(size: 60, weight: .semibold))
                     .tracking(-2)
                     .foregroundStyle(.white)
@@ -72,7 +73,7 @@ struct IntroOverlay: View {
             try? await Task.sleep(for: .seconds(IntroPhase.titleDelay))
             withAnimation(.easeOut(duration: 1.2)) { titleShown = true }
         }
-        .accessibilityLabel("Welcome to Ark")
+        .accessibilityLabel("Welcome to Vezham")
         .accessibilityAddTraits(.isButton)
         .accessibilityHint("Skips the introduction")
     }
@@ -281,10 +282,11 @@ struct WelcomeTileAnchors: PreferenceKey {
 /// The welcome tab's page: a title near the middle of the first screen, the level bar and the
 /// stops below it. Each card teaches its stop in place and ticks itself off when you do it.
 /// During the intro the page waits for the metal to start fading, then rises.
-struct WelcomePage: View {
+struct ArkWelcomeTourPage: View {
     @Environment(Browser.self) private var browser
     @State private var progress = WelcomeProgress.shared
     @State private var keyMonitor: Any?
+    @AppStorage(VezhamOnboardingPage.completionPreferenceKey) private var vezhamOnboardingCompleted = false
     /// The pinned header's height, so the cards can fade out where they pass under it.
     @State private var headerHeight: CGFloat = 200
 
@@ -293,6 +295,12 @@ struct WelcomePage: View {
     private var shown: Bool { browser.intro == nil || browser.intro == .cards }
 
     var body: some View {
+        Group {
+            if !vezhamOnboardingCompleted {
+                VezhamOnboardingPage {
+                    vezhamOnboardingCompleted = true
+                }
+            } else {
         GeometryReader { viewport in
             // The icon sits a little above the middle of the first screen and scrolls away; the
             // title and the level bar pin to the top, with the cards fading out under them.
@@ -334,7 +342,7 @@ struct WelcomePage: View {
                 GeometryReader { g in PulseLayer(anchors: anchors, proxy: g) }
             }
         }
-        .coordinateSpace(.named(WelcomePage.space))
+        .coordinateSpace(.named(ArkWelcomeTourPage.space))
         .background(Color(nsColor: .textBackgroundColor))
         .onChange(of: browser.commandBar) { _, mode in
             if mode == .newTab { complete(.newTab) }
@@ -344,6 +352,8 @@ struct WelcomePage: View {
         .onDisappear {
             if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
             keyMonitor = nil
+        }
+            }
         }
     }
 
@@ -754,7 +764,7 @@ private struct GalleryCard: View {
             // Make default: the settings menu in the hero is the control itself.
             .gesture(TapGesture().onEnded {
                 guard !playing else { return }
-                WelcomePage.makeDefaultBrowser()
+                ArkWelcomeTourPage.makeDefaultBrowser()
                 act()
             }, isEnabled: stop == .makeDefault && !done)
             .pointerStyle(stop == .makeDefault && !done ? .link : nil)
@@ -885,7 +895,7 @@ private struct DefaultCard: View {
                 Button {
                     asking = true
                     // Clicking is enough to tick it, whatever the person answers macOS.
-                    WelcomePage.makeDefaultBrowser()
+                    ArkWelcomeTourPage.makeDefaultBrowser()
                     complete()
                     Task { @MainActor in
                         try? await Task.sleep(for: .seconds(2))
@@ -916,10 +926,10 @@ private struct DefaultCard: View {
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.12)))
         .shadow(color: .black.opacity(0.06), radius: 6, y: 3)
         .animation(.smooth(duration: 0.4), value: done)
-        .onAppear { if !done, WelcomePage.isDefaultBrowser { complete() } }
+        .onAppear { if !done, ArkWelcomeTourPage.isDefaultBrowser { complete() } }
         // Made default some other way (System Settings) while away: tick it on return.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            if !done, WelcomePage.isDefaultBrowser { complete() }
+            if !done, ArkWelcomeTourPage.isDefaultBrowser { complete() }
         }
         .onChange(of: WelcomeDebug.shared.act?.id) {
             guard let a = WelcomeDebug.shared.act, a.stop == .makeDefault else { return }

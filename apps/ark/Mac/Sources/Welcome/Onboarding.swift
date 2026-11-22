@@ -2,10 +2,11 @@ import AppKit
 import SwiftUI
 import BrowserCore
 
-/// The welcome tab: a native page, not a web page, that Ark opens on first launch.
-enum Welcome {
-    static let url = URL(string: "ark://welcome")!
-    static func isWelcome(_ url: URL?) -> Bool { url == Welcome.url }
+/// Vezham's onboarding route: a native page, not a web page.
+enum Onboarding {
+    static let url = URL(string: "ark://onboarding")!
+    static let legacyWelcomeURL = URL(string: "ark://welcome")!
+    static func isOnboarding(_ url: URL?) -> Bool { url == Onboarding.url || url == legacyWelcomeURL }
 }
 
 /// The first-launch intro, in order. It plays on the real window, so nothing is swapped at the end:
@@ -40,17 +41,17 @@ extension Browser {
     /// Before the sidebar's turn: its contents and the space tint wait.
     var isIntroHoldingSidebar: Bool { intro.map { $0 < .sidebar } ?? false }
 
-    /// Opens the welcome tab (or goes to the one already open), optionally playing the intro.
-    func openWelcome(playingIntro: Bool) {
+    /// Opens the onboarding tab (or goes to the one already open), optionally playing the intro.
+    func openOnboarding(playingIntro: Bool) {
         Preferences.hasSeenWelcome = true
         let space = currentSpace.isPrivate ? regularSpaces[0] : currentSpace
-        if let existing = space.allTabs.first(where: { lists($0) && Welcome.isWelcome($0.url) }) {
+        if let existing = space.allTabs.first(where: { lists($0) && Onboarding.isOnboarding($0.url) }) {
             select(existing)
         } else {
-            // Inserted without a URL so no web page is made for it, then marked as the welcome tab.
+            // Insert without a URL so no web page is made for the native onboarding route.
             let tab = library.insertTab(url: nil, in: space, for: self)
-            tab.url = Welcome.url
-            tab.title = "Welcome"
+            tab.url = Onboarding.url
+            tab.title = "Vezham Onboarding"
             select(tab)
         }
         if playingIntro { playIntro() }

@@ -184,7 +184,7 @@ struct BrowserCommands: Commands {
         }
 
         CommandGroup(replacing: .help) {
-            Button("Welcome to Ark") { browser?.openWelcome(playingIntro: true) }
+            Button("Vezham Onboarding") { browser?.openOnboarding(playingIntro: true) }
                 .disabled(browser == nil)
         }
 

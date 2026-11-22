@@ -112,7 +112,7 @@ final class Browser {
                 resolveSelection(in: currentSpace)
                 let env = ProcessInfo.processInfo.environment
                 if env["ARK_WELCOME"] == "1" || (!Preferences.hasSeenWelcome && env["ARK_SNAPSHOT"] == nil) {
-                    openWelcome(playingIntro: true)
+                    openOnboarding(playingIntro: true)
                 }
             } else {
                 commandBar = .newTab

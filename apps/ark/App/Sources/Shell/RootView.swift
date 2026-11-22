@@ -1,13 +1,16 @@
 import SwiftUI
 import BrowserCore
 import Suggest
+import OnboardingUI
 
 struct RootView: View {
     @Environment(BrowserState.self) private var browser
     @Environment(\.duoToolbarVerticalEdge) private var verticalBarEdge
+    @AppStorage(VezhamOnboardingPage.completionPreferenceKey) private var onboardingCompleted = false
     @AppStorage(ReaderView.fullScreenKey) private var readerFullScreen = false
     /// Reader is between its sheet and its full-screen cover.
     @State private var readerSwapping = false
+    @State private var showOnboarding = false
 
     var body: some View {
         @Bindable var browser = browser
@@ -47,6 +50,15 @@ struct RootView: View {
         }
         .sheet(isPresented: $browser.isSavedPresented) {
             SavedSitesView()
+        }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            VezhamOnboardingPage {
+                onboardingCompleted = true
+                showOnboarding = false
+            }
+        }
+        .onAppear {
+            if !onboardingCompleted { showOnboarding = true }
         }
         // A light tap when a download lands, like Safari's downloads button bounce.
         .sensoryFeedback(.success, trigger: browser.downloads.lastFinished)

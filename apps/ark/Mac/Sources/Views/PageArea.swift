@@ -11,8 +11,8 @@ struct PageArea: View {
 
     var body: some View {
         ZStack {
-            if browser.currentTab.map({ Welcome.isWelcome($0.url) }) == true {
-                WelcomePage()
+            if browser.currentTab.map({ Onboarding.isOnboarding($0.url) }) == true {
+                ArkWelcomeTourPage()
             } else if browser.currentTab.map({ LibraryPage.isLibrary($0.url) }) == true {
                 LibraryView()
             } else if let tab = browser.currentTab {

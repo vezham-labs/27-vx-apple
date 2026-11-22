@@ -11,7 +11,7 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
 packages:
   BrowserKit:
-    path: Packages/BrowserKit
+    path: ../../packages-apple/browser-kit
   # vx-bot/NOTE: In-app updates for the Developer ID build (Mac only). See Apple Docs under /docs/ark/mac-releases.
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle

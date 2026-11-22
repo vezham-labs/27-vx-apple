@@ -35,7 +35,7 @@ const ignores = [
   '**/vitest.config.*.timestamp*',
   // vx-bot/NOTE: Ark bundles these resources as-is. Remove these entries when Ark moves out of this workspace.
   'apps/ark/Mac/Resources/Demo/supper.js',
-  'apps/ark/Packages/BrowserKit/Sources/{BrowserCore,WebKitEngine}/Resources/*.js',
+  'packages-apple/browser-kit/Sources/{BrowserCore,WebKitEngine}/Resources/*.js',
   // Browsa source and standalone development tools retained with Ark
   'apps/ark/tools/**'
 ]

@@ -3,7 +3,7 @@ title: 'Web engines'
 ---
 
 Ark's Mac app never talks to WKWebView directly. It talks to a small, engine-neutral API in
-`Packages/BrowserKit/Sources/BrowserEngine`, and an engine module implements it. WebKit
+`packages-apple/browser-kit/Sources/BrowserEngine`, and an engine module implements it. WebKit
 (`WebKitEngine`) is the only engine today. The point of the split is that someone could add a
 Chromium engine, and with it Chrome extensions, without touching tabs, spaces, the sidebar, the
 command bar or suggestions.

@@ -238,10 +238,10 @@ xcuserdata/
 /apps*/**/.claude/
 
 # vx-bot/NOTE: Ark bundles these resources as-is. Remove these entries when Ark moves out of this workspace.
-/apps/ark/Packages/BrowserKit/Sources/BrowserCore/Resources/*.js
-/apps/ark/Packages/BrowserKit/Sources/BrowserCore/Resources/blocklist.json
-/apps/ark/Packages/BrowserKit/Sources/Suggest/Resources/seed-sites.json
-/apps/ark/Packages/BrowserKit/Sources/WebKitEngine/Resources/*.js
+/packages-apple/browser-kit/Sources/BrowserCore/Resources/*.js
+/packages-apple/browser-kit/Sources/BrowserCore/Resources/blocklist.json
+/packages-apple/browser-kit/Sources/Suggest/Resources/seed-sites.json
+/packages-apple/browser-kit/Sources/WebKitEngine/Resources/*.js
 
 # Browsa source and standalone development tools retained with Ark
 /apps/ark/tools/

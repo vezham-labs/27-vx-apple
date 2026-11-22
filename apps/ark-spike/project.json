@@ -2,7 +2,7 @@
   "name": "ark-spike",
   "projectType": "application",
   "sourceRoot": "apps/ark-spike/Sources",
-  "implicitDependencies": ["ark"],
+  "implicitDependencies": ["ark", "browser-kit"],
   "targets": {
     "generate": {
       "executor": "nx:run-commands",

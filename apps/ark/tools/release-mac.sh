@@ -33,7 +33,8 @@ download_prefix="${ARK_DOWNLOAD_PREFIX:?Set ARK_DOWNLOAD_PREFIX}"
 work="$HOME/Library/Caches/app.vezham.ark.release"
 (( local_only )) && work="$work-local"
 bundle_webkit=(${=ARK_BUNDLE_WEBKIT:-})
-src="$work/src"
+export_root="$work/src"
+src="$export_root/apps/ark"
 derived="$work/DerivedData"
 archive="$work/Ark.xcarchive"
 
@@ -53,9 +54,9 @@ commit=$(git -C "$repo" rev-parse --short "$ref^{commit}")
 build=$(git -C "$repo" rev-list --count "$commit")
 
 echo "==> Exporting $ref ($commit) as $version ($build)"
-rm -rf "$src" "$archive" "$work/upload" "$work/notarized" "$work/export" && mkdir -p "$src"
+rm -rf "$export_root" "$archive" "$work/upload" "$work/notarized" "$work/export"
 (( local_only )) || mkdir -p "$releases"
-git -C "$repo" archive "$commit:apps/ark" | tar -x -C "$src"
+bash "$repo/tools/export-source.sh" "$commit" "$export_root"
 
 echo "==> Archiving"
 cd "$src"

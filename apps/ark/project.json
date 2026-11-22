@@ -2,7 +2,7 @@
   "name": "ark",
   "projectType": "application",
   "sourceRoot": "apps/ark",
-  "implicitDependencies": ["config-apple"],
+  "implicitDependencies": ["config-apple", "browser-kit"],
   "targets": {
     "generate": {
       "executor": "nx:run-commands",

@@ -37,13 +37,13 @@ commit=$(git -C "$repo" rev-parse --short "$ref^{commit}")
 
 echo "==> Exporting $ref ($commit)"
 rm -rf "$work/export" && mkdir -p "$work/export" "$src"
-git -C "$repo" archive "$commit:apps/ark" | tar -x -C "$work/export"
+bash "$repo/tools/export-source.sh" "$commit" "$work/export"
 # Copy only files that changed, keeping the rest's timestamps so the build stays incremental.
 rsync -rlc --delete --exclude Ark.xcodeproj "$work/export/" "$src/"
 rm -rf "$work/export"
 
 echo "==> Building Ark (Release)"
-cd "$src"
+cd "$src/apps/ark"
 xcodegen generate --quiet
 extra=()
 [[ -z "${ARK_DEVELOPMENT_TEAM:-}" ]] || extra+=(DEVELOPMENT_TEAM="$ARK_DEVELOPMENT_TEAM")

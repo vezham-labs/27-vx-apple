@@ -20,5 +20,5 @@ echo "## Merged pull requests"
 git log --first-parent --reverse --format='- %s' "$from..$to"
 echo
 echo "## Mac commits"
-git log --no-merges --reverse --format='### %h %s%n%n%b' "$from..$to" -- Mac Packages project.yml \
+git log --no-merges --reverse --format='### %h %s%n%n%b' "$from..$to" -- Mac Packages project.yml ../../packages-apple/browser-kit \
   | sed -e '/^Co-Authored-By:/d' -e '/^Claude-Session:/d'

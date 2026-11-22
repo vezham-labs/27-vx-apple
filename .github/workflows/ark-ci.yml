@@ -39,8 +39,7 @@ jobs:
           command -v xcodegen >/dev/null || brew install xcodegen
 
       - name: Test BrowserKit
-        working-directory: apps/ark/Packages/BrowserKit
-        run: swift test --jobs 2
+        run: pnpm nx run browser-kit:test-swift
 
       - name: Build Ark for Mac, iOS Simulator and Spike
         run: pnpm nx run-many -p ark ark-spike -t build-mac build-ios --parallel=1

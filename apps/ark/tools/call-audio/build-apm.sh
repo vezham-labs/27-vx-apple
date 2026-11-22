@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds WebRTC's audio processing module (echo canceller, noise suppressor, gain controller) to
-# WebAssembly for Ark's call audio: Packages/BrowserKit/Sources/WebKitEngine/Resources/call-audio-apm.wasm.
+# WebAssembly for Ark's call audio: packages-apple/browser-kit/Sources/WebKitEngine/Resources/call-audio-apm.wasm.
 #
 # Sources: the freedesktop.org webrtc-audio-processing release (BSD-3-Clause, see its COPYING),
 # pinned below. Needs git and Python 3.10+ (set PYTHON, or have uv or python3.1x on PATH); installs
@@ -9,9 +9,9 @@ set -eu
 TAG=${APM_TAG:-v1.3}
 EMSDK_VERSION=${EMSDK_VERSION:-latest}
 HERE=$(cd "$(dirname "$0")" && pwd)
-REPO=$(cd "$HERE/../.." && pwd)
+WORKSPACE=$(cd "$HERE/../../../.." && pwd)
 WORK=${WORK:-$HOME/Library/Caches/ark-call-audio}
-OUT="$REPO/Packages/BrowserKit/Sources/WebKitEngine/Resources/call-audio-apm.wasm"
+OUT="$WORKSPACE/packages-apple/browser-kit/Sources/WebKitEngine/Resources/call-audio-apm.wasm"
 mkdir -p "$WORK" && cd "$WORK"
 
 # Emscripten needs Python 3.10+; macOS's python3 is 3.9.

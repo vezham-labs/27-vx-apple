@@ -10,12 +10,12 @@ Chrome extension signs in, syncs, fills and does passkeys (tested 2026-11-09).
 
 Where things are:
 
-| What                                                                          | File                                                                     |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Copying an extension and putting the compat script in front of its background | `Packages/BrowserKit/Sources/WebKitEngine/ExtensionCompat.swift`         |
-| The compat script itself                                                      | `Packages/BrowserKit/Sources/WebKitEngine/Resources/extension-compat.js` |
-| Real WebSockets for service workers                                           | `Packages/BrowserKit/Sources/WebKitEngine/ExtensionWebSockets.swift`     |
-| Keep-alive page, no-suspend setting, reserved native-messaging names          | `Packages/BrowserKit/Sources/WebKitEngine/WebKitExtensions.swift`        |
+| What                                                                          | File                                                                            |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Copying an extension and putting the compat script in front of its background | `packages-apple/browser-kit/Sources/WebKitEngine/ExtensionCompat.swift`         |
+| The compat script itself                                                      | `packages-apple/browser-kit/Sources/WebKitEngine/Resources/extension-compat.js` |
+| Real WebSockets for service workers                                           | `packages-apple/browser-kit/Sources/WebKitEngine/ExtensionWebSockets.swift`     |
+| Keep-alive page, no-suspend setting, reserved native-messaging names          | `packages-apple/browser-kit/Sources/WebKitEngine/WebKitExtensions.swift`        |
 
 ## The fixes, and why
 
@@ -129,7 +129,7 @@ after 8 s on the first run, fine on the next).
 ### Bridges (overnight spike, 2026-11-11)
 
 Three stand-ins now do the real thing, through native messages answered in-process
-(`Packages/BrowserKit/Sources/WebKitEngine/ExtensionBridges.swift`):
+(`packages-apple/browser-kit/Sources/WebKitEngine/ExtensionBridges.swift`):
 
 - **`chrome.notifications.create/clear`** post macOS notifications (Ark asks for permission once).
   `onClicked`/`onClosed` don't fire yet; clicking brings Ark forward.

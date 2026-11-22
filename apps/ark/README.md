@@ -4,7 +4,7 @@ Vezham Ark is a browser for iPhone, iPad, and Mac inspired by Arc Browser. We’
 
 ## Development
 
-`App/` contains the mobile client, `Mac/` contains the desktop client, and `Packages/BrowserKit/` holds their shared Swift modules.
+`App/` contains the mobile client, `Mac/` contains the desktop client, and [BrowserKit](../../packages-apple/browser-kit/Package.swift) holds their shared Swift modules.
 
 Edit `vx.app.yaml` for app identity and version, `vx.deploy.yaml` for platform build settings, and `vx.nav.yaml` for the mobile sidebar’s Settings item.
 

@@ -1,0 +1,14 @@
+{
+  "name": "browser-kit",
+  "projectType": "library",
+  "sourceRoot": "packages-apple/browser-kit/Sources",
+  "targets": {
+    "test-swift": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "swift test --jobs 2 --scratch-path ../../dist/browser-kit-tests",
+        "cwd": "packages-apple/browser-kit"
+      }
+    }
+  }
+}

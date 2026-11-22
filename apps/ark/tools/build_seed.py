@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds Packages/BrowserKit/Sources/Suggest/Resources/seed-sites.json.
+"""Builds packages-apple/browser-kit/Sources/Suggest/Resources/seed-sites.json.
 
 Source: Chrome UX Report top lists (real Chrome page loads), cached monthly at
 github.com/zakird/crux-top-lists. CrUX buckets sites by rank magnitude (top 1K, 5K, 10K...)
@@ -20,7 +20,7 @@ list, and keyword patterns. Curated names and aliases live in tools/seed_curated
 import argparse, collections, csv, gzip, io, json, pathlib, re, urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-OUT = ROOT / "Packages/BrowserKit/Sources/Suggest/Resources/seed-sites.json"
+OUT = ROOT.parents[1] / "packages-apple/browser-kit/Sources/Suggest/Resources/seed-sites.json"
 CURATED = ROOT / "tools/seed_curated.json"
 CRUX = "https://raw.githubusercontent.com/zakird/crux-top-lists/main/data"
 COUNTRIES = ("au nz us gb ca ie de fr es it nl se no dk fi pl pt br mx ar in jp kr sg my id ph "

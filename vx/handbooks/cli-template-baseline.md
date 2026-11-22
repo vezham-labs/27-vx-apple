@@ -14,6 +14,10 @@ current Nx build and start commands use the full workspace installation. A Next
 app deployed with a production-only installation must declare `next` as its own
 runtime dependency.
 
+## Apple applications
+
+Generate SwiftUI apps with `pnpm nx g @vx-cli/apple:app field-notes`. Use the same category and directory options as the React app generator. For example, `--category=internal --directory=operations/mobile` creates `apps-internals/operations/mobile/field-notes` with Nx tag `category:internal`. Each app has separate mobile and Mac entry points and one shared source directory. The todo app is the reference for platform-specific toolbars and shared offline state. Edit the generator in the `vx-fe-cli` repository at `packages/cli/apple`. The Apple workspace installs the published `@vx-cli/apple` package from npm.
+
 ## Agreed boundaries
 
 - Keep static shell navigation and toolbar settings in `vx.nav.yaml`; see the

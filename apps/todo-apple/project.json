@@ -1,0 +1,37 @@
+{
+  "name": "todo-apple",
+  "projectType": "application",
+  "sourceRoot": "apps/todo-apple",
+  "targets": {
+    "generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "xcodegen generate",
+        "cwd": "apps/todo-apple"
+      }
+    },
+    "build-mac": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "xcodegen generate && xcodebuild -quiet -project Todos.xcodeproj -scheme TodoMac -configuration Debug -derivedDataPath ../../dist/apple CODE_SIGN_IDENTITY=- build",
+        "cwd": "apps/todo-apple"
+      }
+    },
+    "build-ios": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "xcodegen generate && xcodebuild -quiet -project Todos.xcodeproj -scheme TodoMobile -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ../../dist/apple CODE_SIGNING_ALLOWED=NO build",
+        "cwd": "apps/todo-apple"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "mkdir -p ../../dist && swiftc -parse-as-library Shared/TodoStore.swift Tests/Smoke.swift -o ../../dist/todo-smoke && ../../dist/todo-smoke",
+        "cwd": "apps/todo-apple",
+        "args": []
+      },
+      "cache": false
+    }
+  }
+}

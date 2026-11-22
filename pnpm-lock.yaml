@@ -519,6 +519,9 @@ importers:
       '@vitest/ui':
         specifier: 5.0.5
         version: 5.0.5(vitest@5.0.5)
+      '@vx-cli/apple':
+        specifier: 27.1.0
+        version: 27.1.0(@nx/devkit@24.0.5(nx@24.0.5(@swc-node/register@1.11.1(@swc/core@1.15.41(@swc/helpers@0.5.23))(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3))(@swc/core@1.15.41(@swc/helpers@0.5.23))))(nx@24.0.5(@swc-node/register@1.11.1(@swc/core@1.15.41(@swc/helpers@0.5.23))(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3))(@swc/core@1.15.41(@swc/helpers@0.5.23)))
       '@vx-cli/react':
         specifier: 27.0.0
         version: 27.0.0(@nx/devkit@24.0.5(nx@24.0.5(@swc-node/register@1.11.1(@swc/core@1.15.41(@swc/helpers@0.5.23))(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3))(@swc/core@1.15.41(@swc/helpers@0.5.23))))(nx@24.0.5(@swc-node/register@1.11.1(@swc/core@1.15.41(@swc/helpers@0.5.23))(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3))(@swc/core@1.15.41(@swc/helpers@0.5.23)))
@@ -651,6 +654,8 @@ importers:
       yargs:
         specifier: 17.7.3
         version: 17.7.3
+
+  apps/todo-apple: {}
 
   packages/vx/react: {}
 
@@ -6234,6 +6239,12 @@ packages:
 
   '@vue/shared@3.5.44':
     resolution: {integrity: sha512-H82XLH0DjmSOdbEwO15x3QTo1f5PWEtv237eLpYKc0mqLu+B8hnq16lFWmuBmNurkeiG3wr+oM1FhOll/YVFRg==}
+
+  '@vx-cli/apple@27.1.0':
+    resolution: {integrity: sha512-Z/nqt78myGcl7V2OF1sglDxzcRobseHcIjq8Uh+9jGMzYNL5UMIWTDN7GxMAg3NXc87kZMnKmSkPMBESd+C4qw==}
+    peerDependencies:
+      '@nx/devkit': 24.0.5
+      nx: 24.0.5
 
   '@vx-cli/react@27.0.0':
     resolution: {integrity: sha512-MmDg0lEyabQFJOtDNvSzkNY4MXyaVES8TLDW/OX9qPV/l4bIgp3kiumcorScxQZ1o+rThpNb1XRkYxGRYe1k+A==}
@@ -19114,6 +19125,11 @@ snapshots:
       typescript: 6.0.3
 
   '@vue/shared@3.5.44': {}
+
+  '@vx-cli/apple@27.1.0(@nx/devkit@24.0.5(nx@24.0.5(@swc-node/register@1.11.1(@swc/core@1.15.41(@swc/helpers@0.5.23))(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3))(@swc/core@1.15.41(@swc/helpers@0.5.23))))(nx@24.0.5(@swc-node/register@1.11.1(@swc/core@1.15.41(@swc/helpers@0.5.23))(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3))(@swc/core@1.15.41(@swc/helpers@0.5.23)))':
+    dependencies:
+      '@nx/devkit': 24.0.5(nx@24.0.5(@swc-node/register@1.11.1(@swc/core@1.15.41(@swc/helpers@0.5.23))(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3))(@swc/core@1.15.41(@swc/helpers@0.5.23)))
+      nx: 24.0.5(@swc-node/register@1.11.1(@swc/core@1.15.41(@swc/helpers@0.5.23))(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3))(@swc/core@1.15.41(@swc/helpers@0.5.23))
 
   '@vx-cli/react@27.0.0(@nx/devkit@24.0.5(nx@24.0.5(@swc-node/register@1.11.1(@swc/core@1.15.41(@swc/helpers@0.5.23))(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3))(@swc/core@1.15.41(@swc/helpers@0.5.23))))(nx@24.0.5(@swc-node/register@1.11.1(@swc/core@1.15.41(@swc/helpers@0.5.23))(@swc/types@0.1.28)(supports-color@10.2.2)(typescript@6.0.3))(@swc/core@1.15.41(@swc/helpers@0.5.23)))':
     dependencies:

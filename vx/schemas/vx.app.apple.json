@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vezham.com/schemas/vx.app.apple.json",
+  "title": "Vx Apple application configuration",
+  "type": "object",
+  "properties": {
+    "core": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+        "name": { "$ref": "#/definitions/xcconfigText" },
+        "shortName": { "$ref": "#/definitions/xcconfigText" },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+        },
+        "description": { "type": "string", "minLength": 1 },
+        "publisher": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://"
+            }
+          },
+          "required": ["name", "url"],
+          "additionalProperties": false
+        },
+        "url": { "type": "string", "format": "uri", "pattern": "^https?://" }
+      },
+      "required": [
+        "id",
+        "name",
+        "shortName",
+        "version",
+        "description",
+        "publisher",
+        "url"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": ["core"],
+  "additionalProperties": false,
+  "definitions": {
+    "xcconfigText": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\r\\n/#$\\\\\"]+$"
+    }
+  }
+}

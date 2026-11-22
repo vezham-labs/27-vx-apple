@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=../../vx/schemas/vx.app.apple.json
+core:
+  id: vezham-school-os-apple
+  name: Vezham School OS
+  shortName: School OS
+  version: 1.0.0
+  description: School operations companion
+  publisher:
+    name: Vezham Technologies Private Limited
+    url: https://vezham.com
+  url: https://school-os.vezham.app

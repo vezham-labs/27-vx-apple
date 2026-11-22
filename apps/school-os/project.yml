@@ -1,0 +1,28 @@
+name: SchoolOs
+settings:
+  base:
+    SWIFT_VERSION: '6.0'
+    GENERATE_INFOPLIST_FILE: YES
+    CURRENT_PROJECT_VERSION: 1
+targets:
+  SchoolOsMobile:
+    type: application
+    platform: iOS
+    sources: [Shared, App]
+    configFiles:
+      Debug: Config/Generated/ios.xcconfig
+      Release: Config/Generated/ios.xcconfig
+    settings:
+      INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: 'UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight'
+      INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: 'UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight'
+      TARGETED_DEVICE_FAMILY: '1,2'
+      INFOPLIST_KEY_UILaunchScreen_Generation: YES
+      INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+  SchoolOsMac:
+    type: application
+    platform: macOS
+    sources: [Shared, Mac]
+    configFiles:
+      Debug: Config/Generated/macos.xcconfig
+      Release: Config/Generated/macos.xcconfig
+    settings:

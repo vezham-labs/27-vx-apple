@@ -1,0 +1,33 @@
+{
+  "name": "school-os",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "implicitDependencies": ["config-apple"],
+  "tags": ["category:app"],
+  "targets": {
+    "generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/school-os",
+        "command": "node --import tsx ../../packages-apple/config/src/lib/project-config/cli.ts generate . && node --import tsx ../../packages-apple/config/src/lib/navigation/cli.ts generate . && xcodegen generate"
+      },
+      "cache": false
+    },
+    "build-ios": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/school-os",
+        "command": "xcodebuild -quiet -project SchoolOs.xcodeproj -scheme SchoolOsMobile -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath ../../dist/school-os/Mobile build"
+      },
+      "dependsOn": ["generate"]
+    },
+    "build-mac": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/school-os",
+        "command": "xcodebuild -quiet -project SchoolOs.xcodeproj -scheme SchoolOsMac -configuration Debug -destination 'platform=macOS' -derivedDataPath ../../dist/school-os/Mac build"
+      },
+      "dependsOn": ["generate"]
+    }
+  }
+}

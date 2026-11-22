@@ -18,6 +18,8 @@ runtime dependency.
 
 Generate SwiftUI apps with `pnpm nx g @vx-cli/apple:app field-notes`. Use the same category and directory options as the React app generator. For example, `--category=internal --directory=operations/mobile` creates `apps-internals/operations/mobile/field-notes` with Nx tag `category:internal`. Each app has separate mobile and Mac entry points and one shared source directory. The todo app is the reference for platform-specific toolbars and shared offline state. Edit the generator in the `vx-fe-cli` repository at `packages/cli/apple`. The Apple workspace installs the published `@vx-cli/apple` package from npm.
 
+Native Apple apps use `vx.app.apple.json` for the shared app identity fields in `vx.app.yaml` and `vx.deploy.apple.json` for per-platform bundle IDs, minimum OS versions, and distribution methods in `vx.deploy.yaml`. Nx generation validates those files and emits per-platform Xcode configuration files. Keep signing credentials and provisioning profiles in Xcode or CI secret storage; the distribution method is build metadata for archive/export automation, not a signing credential.
+
 ## Agreed boundaries
 
 - Keep static shell navigation and toolbar settings in `vx.nav.yaml`; see the

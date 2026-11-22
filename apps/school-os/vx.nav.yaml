@@ -1,0 +1,21 @@
+navigation:
+  - key: home
+    title: Home
+    href: /
+    icon: vx:home
+  - key: academics
+    title: Academics
+    href: /academics
+    icon: vx:book-open
+  - key: students
+    title: Students
+    href: /students
+    icon: vx:users
+  - key: attendance
+    title: Attendance
+    href: /attendance
+    icon: vx:calendar-check
+  - key: fees
+    title: Fees
+    href: /fees
+    icon: vx:receipt

@@ -1,0 +1,9 @@
+{
+  "name": "config-apple",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages-apple/config/src",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "to see all targets run: pnpm nx show project config-apple",
+  "targets": {}
+}

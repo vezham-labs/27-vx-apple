@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vezham.com/schemas/vx.deploy.apple.json",
+  "title": "Vx Apple deployment configuration",
+  "type": "object",
+  "properties": {
+    "targets": {
+      "type": "object",
+      "properties": {
+        "ios": { "$ref": "#/definitions/iosTarget" },
+        "macos": { "$ref": "#/definitions/macosTarget" }
+      },
+      "required": ["ios", "macos"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["targets"],
+  "additionalProperties": false,
+  "definitions": {
+    "bundleIdentifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+$"
+    },
+    "deploymentTarget": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$"
+    },
+    "iosTarget": {
+      "type": "object",
+      "properties": {
+        "bundleIdentifier": { "$ref": "#/definitions/bundleIdentifier" },
+        "deploymentTarget": { "$ref": "#/definitions/deploymentTarget" },
+        "distribution": {
+          "enum": [
+            "app-store-connect",
+            "release-testing",
+            "debugging",
+            "enterprise",
+            "validation"
+          ]
+        }
+      },
+      "required": ["bundleIdentifier", "deploymentTarget", "distribution"],
+      "additionalProperties": false
+    },
+    "macosTarget": {
+      "type": "object",
+      "properties": {
+        "bundleIdentifier": { "$ref": "#/definitions/bundleIdentifier" },
+        "deploymentTarget": { "$ref": "#/definitions/deploymentTarget" },
+        "distribution": {
+          "enum": [
+            "app-store-connect",
+            "release-testing",
+            "debugging",
+            "developer-id",
+            "mac-application",
+            "validation"
+          ]
+        }
+      },
+      "required": ["bundleIdentifier", "deploymentTarget", "distribution"],
+      "additionalProperties": false
+    }
+  }
+}

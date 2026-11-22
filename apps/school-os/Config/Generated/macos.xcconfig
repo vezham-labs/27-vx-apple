@@ -1,0 +1,9 @@
+// Generated from vx.app.yaml and vx.deploy.yaml. Do not edit.
+PRODUCT_BUNDLE_IDENTIFIER = app.vezham.school.school-os.mac
+MACOSX_DEPLOYMENT_TARGET = 26.0
+INFOPLIST_KEY_CFBundleDisplayName = School OS
+MARKETING_VERSION = 1.0.0
+VX_APP_ID = vezham-school-os-apple
+VX_APP_NAME = Vezham School OS
+VX_APP_VERSION = 1.0.0
+VX_DISTRIBUTION_METHOD = developer-id

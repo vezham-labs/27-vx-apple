@@ -42,8 +42,8 @@ targets:
     entitlements:
       path: Mac/SpikeArk.generated.entitlements
       properties:
-        # Like Ark itself: not sandboxed (one-click Add to Claude Code runs the claude command).
-        # Its files still live apart, under its own bundle ID.
+        # vx-bot/NOTE: Like Ark itself: not sandboxed (one-click Add to Claude Code runs the claude command).
+        # vx-bot/NOTE: Its files still live apart, under its own bundle ID.
         com.apple.security.device.camera: true
         com.apple.security.device.audio-input: true
     info:
@@ -54,12 +54,12 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.developer-tools
-        # Not the daily driver's 47913, so both can run at once.
+        # vx-bot/NOTE: Not the daily driver's 47913, so both can run at once.
         ArkAgentPort: 47914
         SpikeControlPort: 47930
-        # Adds itself to Claude Code under its own name, never replacing Ark's.
+        # vx-bot/NOTE: Adds itself to Claude Code under its own name, never replacing Ark's.
         ArkMCPName: ark-spike
-        # Never updates itself.
+        # vx-bot/NOTE: Never updates itself.
         ArkUpdates: 'NO'
     settings:
       base:

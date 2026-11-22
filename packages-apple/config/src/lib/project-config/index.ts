@@ -400,7 +400,7 @@ const getXcconfig = (
     VX_DISTRIBUTION_METHOD: target.distribution
   }
 
-  // A literal // starts a comment in xcconfig files.
+  // vx-bot/NOTE: A literal // starts a comment in xcconfig files.
   const escapedUrl = (url: string): string =>
     url.replaceAll('//', '$(VX_URL_SLASH)$(VX_URL_SLASH)')
   if (filterRulesUrl || target.release?.sparkle) settings.VX_URL_SLASH = '/'

@@ -1,3 +1,3 @@
-import { createAppRouter } from '@app/shell';
+import { createAppRouter } from '@app/shell'
 
-export const getRouter = () => createAppRouter();
+export const getRouter = () => createAppRouter()

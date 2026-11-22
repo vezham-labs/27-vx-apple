@@ -14,7 +14,11 @@ current Nx build and start commands use the full workspace installation. A Next
 app deployed with a production-only installation must declare `next` as its own
 runtime dependency.
 
+Keep launcher icons empty for all proof-of-concept apps, including forks, until the user explicitly requests artwork.
+
 ## Apple applications
+
+For simulator checks and preview captures, use only iPhone 18 Pro, iPad Pro 11-inch (M5), and iPhone Duo. Boot, run, capture, and shut down one simulator before starting the next because this workspace runs on an 8 GB MacBook Air. Check the Mac app separately when it applies.
 
 Generate SwiftUI apps with `pnpm nx g @vx-cli/apple:app field-notes`. Use the same category and directory options as the React app generator. For example, `--category=internal --directory=operations/mobile` creates `apps-internals/operations/mobile/field-notes` with Nx tag `category:internal`. Each app has separate mobile and Mac entry points and one shared source directory. The todo app is the reference for platform-specific toolbars and shared offline state. Edit the generator in the `vx-fe-cli` repository at `packages/cli/apple`. The Apple workspace installs the published `@vx-cli/apple` package from npm.
 

@@ -1,16 +1,16 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router'
 
-import { normalizeLocale } from '@vezham/start/runtime/docs';
+import { normalizeLocale } from '@vezham/start/runtime/docs'
 
-import { i18n } from '@app/docs';
-import Page from '@pages/home';
+import { i18n } from '@app/docs'
+import Page from '@pages/home'
 
 const RouteComponent = () => {
-  const { lang } = Route.useParams();
+  const { lang } = Route.useParams()
 
-  return <Page locale={normalizeLocale(i18n, lang)} />;
-};
+  return <Page locale={normalizeLocale(i18n, lang)} />
+}
 
 export const Route = createFileRoute('/{-$lang}/')({
-  component: RouteComponent,
-});
+  component: RouteComponent
+})

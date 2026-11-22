@@ -5,7 +5,12 @@
   "sourceRoot": "apps-docs/docs/src",
   "targets": {
     "build": {
-      "dependsOn": ["metadata:generate", "deploy:generate", "og:generate", "^build"],
+      "dependsOn": [
+        "metadata:generate",
+        "deploy:generate",
+        "og:generate",
+        "^build"
+      ],
       "options": {
         "env": { "NODE_ENV": "production" }
       },

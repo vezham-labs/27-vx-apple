@@ -5,6 +5,7 @@ options:
   bundleIdPrefix: app.vezham
   xcodeVersion: '27.2'
   createIntermediateGroups: true
+  postGenCommand: bash tools/generate-mac-dev-plist.sh
 settings:
   base:
     SWIFT_VERSION: '6.0'
@@ -157,18 +158,7 @@ targets:
         Debug:
           PRODUCT_BUNDLE_IDENTIFIER: $(VX_APP_BUNDLE_IDENTIFIER).dev
           ARK_APP_NAME: $(VX_APP_NAME) Dev
-    postBuildScripts:
-      # vx-bot/NOTE: Only the daily-driver build offers itself as a web browser. Dev and test builds drop the
-      # vx-bot/NOTE: http/https and HTML handlers, so they never show up in System Settings' default browser list
-      # vx-bot/NOTE: or catch links from other apps.
-      - name: Drop browser handlers outside the release build
-        basedOnDependencyAnalysis: false
-        script: |
-          if [ "$PRODUCT_BUNDLE_IDENTIFIER" != "$VX_APP_BUNDLE_IDENTIFIER" ]; then
-            plist="$TARGET_BUILD_DIR/$INFOPLIST_PATH"
-            /usr/libexec/PlistBuddy -c "Delete :CFBundleURLTypes" "$plist" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Delete :CFBundleDocumentTypes" "$plist" 2>/dev/null || true
-          fi
+          INFOPLIST_FILE: Mac/Info.dev.generated.plist
   ArkUITests:
     type: bundle.ui-testing
     platform: iOS

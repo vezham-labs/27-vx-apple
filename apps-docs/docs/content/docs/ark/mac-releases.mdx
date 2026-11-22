@@ -111,6 +111,7 @@ feed locally and update one to the other:
 ```sh
 xcodebuild … archive MARKETING_VERSION=0.0.1 CURRENT_PROJECT_VERSION=1000 VX_SPARKLE_UPDATES=YES \
   PRODUCT_BUNDLE_IDENTIFIER=app.vezham.ark.updatetest ARK_APP_NAME="Ark Update Test" \
+  INFOPLIST_FILE=Mac/Info.dev.generated.plist \
   VX_SPARKLE_FEED_URL=http://127.0.0.1:8798/appcast.xml
 ```
 

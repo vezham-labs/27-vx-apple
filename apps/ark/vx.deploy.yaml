@@ -11,5 +11,5 @@ targets:
     release:
       scheme: ArkMac
       productName: Ark
-      # Set teamId and sparkle when signing and update hosting are configured.
+      # vx-bot/NOTE: Set teamId and sparkle when signing and update hosting are configured.
       # sparkle: { feedUrl, publicKey, downloadBaseUrl, bucket }

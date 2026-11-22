@@ -19,7 +19,7 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "sort-package-json \"package.json\" \"**/package.json\" \"!**/node_modules/**\" --quiet",
+          "sort-package-json \"package.json\" \"**/package.json\" \"!**/{node_modules,dist,.build,DerivedData,.output}/**\" --quiet",
           "prettier . --write --log-level silent --cache --cache-strategy metadata",
           "eslint --cache --cache-strategy metadata",
           "stylelint \"**/*.{css,module.css}\" --allow-empty-input --cache --cache-strategy metadata"
@@ -173,7 +173,7 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "sort-package-json \"package.json\" \"**/package.json\" \"!**/node_modules/**\"",
+          "sort-package-json \"package.json\" \"**/package.json\" \"!**/{node_modules,dist,.build,DerivedData,.output}/**\"",
           "prettier . --write",
           "eslint",
           "stylelint \"**/*.{css,module.css}\" --allow-empty-input"
@@ -187,7 +187,7 @@
         "commands": [
           "prettier . --check --cache",
           "stylelint \"**/*.{css,module.css}\" --allow-empty-input --cache --cache-strategy metadata",
-          "sort-package-json \"package.json\" \"**/package.json\" \"!**/node_modules/**\""
+          "sort-package-json \"package.json\" \"**/package.json\" \"!**/{node_modules,dist,.build,DerivedData,.output}/**\""
         ],
         "parallel": false
       }

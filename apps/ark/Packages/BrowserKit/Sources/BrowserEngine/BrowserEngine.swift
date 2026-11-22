@@ -17,7 +17,7 @@ public typealias PlatformView = UIView
 /// The app never talks to WKWebView (or any other engine) directly. It asks the engine for pages,
 /// shows each page's `view`, and answers the page's questions through `EnginePageDelegate`. That
 /// keeps tabs, spaces, suggestions and every bit of UI engine-neutral, so another engine can be
-/// added beside WebKit without touching them. See docs/engines.md.
+/// added beside WebKit without touching them. See Apple Docs under /docs/ark/engines.
 @MainActor
 public protocol BrowserEngine: AnyObject {
     /// Name, version and what this engine can do. The UI hides features an engine doesn't offer.

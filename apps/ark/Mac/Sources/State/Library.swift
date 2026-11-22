@@ -668,7 +668,7 @@ final class Library {
     func blockingApplied() async { await blockingTask?.value }
 
     func updateFilters(force: Bool) async {
-        guard !filterStatus.isUpdating else { return }
+        guard ContentBlocker.rulesBaseURL != nil, !filterStatus.isUpdating else { return }
         filterStatus.isUpdating = true
         filterStatus.error = nil
         do {

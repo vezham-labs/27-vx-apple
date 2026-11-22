@@ -442,8 +442,7 @@ private struct AgentRequestCard: View {
 private struct TryItCard: View {
     let dismiss: () -> Void
     @State private var copied = false
-    /// browsa.app/demo/ once it's live; the bundled copy before that.
-    @State private var prompt = AgentDemo.prompt
+    private var prompt: String { AgentDemo.prompt }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -472,7 +471,6 @@ private struct TryItCard: View {
         .padding(12)
         .background(Color(nsColor: .textBackgroundColor), in: .rect(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.primary.opacity(0.08)))
-        .task { await AgentDemo.refresh(); prompt = AgentDemo.prompt }
     }
 }
 

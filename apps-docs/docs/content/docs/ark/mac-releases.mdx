@@ -1,0 +1,145 @@
+---
+title: 'Mac releases'
+---
+
+Ark for Mac ships outside the App Store: Developer ID signed, notarised by Apple, and kept up to
+date in the app by [Sparkle](https://sparkle-project.org).
+
+## Release configuration
+
+Set `ARK_DEVELOPMENT_TEAM` to the Apple team used for Developer ID signing.
+Set `ARK_FEED_URL` to the hosted Sparkle appcast URL, `ARK_DOWNLOAD_PREFIX` to
+the base URL for the release files, and `ARK_SPARKLE_PUBLIC_KEY` to the public
+key for this release channel. Publish with `ARK_RELEASE_BUCKET` set to your
+R2 bucket.
+
+## Making a release
+
+```sh
+tools/release-mac.sh 1.0.1              # from HEAD
+tools/release-mac.sh 1.0.1 <git-ref>    # any branch, tag or commit
+```
+
+The script builds a clean export of the ref, then:
+
+1. Archives the Release configuration with `MARKETING_VERSION` set to the version you give,
+   `CURRENT_PROJECT_VERSION` set to the commit count (Sparkle needs it to grow every release),
+   and `ARK_UPDATES=YES`.
+2. Signs it with Developer ID and sends it to Apple's notary service, both through the Xcode
+   account (the team set in ARK_DEVELOPMENT_TEAM). Xcode uses a cloud-managed Developer ID certificate, so nothing
+   has to be in the keychain, and no app-specific password or notarytool profile is needed.
+3. Waits for notarisation, staples the ticket and checks Gatekeeper accepts the app.
+4. Zips it into `~/Developer/Ark/releases/mac` (or `ARK_RELEASES_DIR`) for Sparkle.
+5. Makes the drag-to-Applications DMG for first downloads in `dmg/` underneath, as
+   `Ark-<version>.dmg` and a copy called `Ark.dmg`, which is always the newest. The window
+   art is `Mac/Distribution/dmg-background.tiff` (600×360 pt, @1x and @2x in one file), adapted
+   from the Toolkit app's. It needs `brew install create-dmg`, and the first run asks to let the
+   terminal control Finder. The DMG itself isn't signed or notarised; the app inside is, with
+   its ticket stapled, which is what Gatekeeper checks.
+6. Runs Sparkle's `generate_appcast`, which signs the zip with the EdDSA key, makes delta updates
+   from the previous zips, and rewrites `appcast.xml`.
+
+It publishes nothing. Release notes go in `release-notes/mac/<version>.md`; Sparkle shows them in
+its update window. Write them before you run the script. See `apps/ark/release-notes/mac/README.md` in the workspace.
+has the template, the tone, and `tools/mac-changelog.sh` to list what changed since the last release.
+
+Keep the old zips in the releases folder. `generate_appcast` reads them all to build the appcast's
+history and the delta updates.
+
+## Ark's WebKit inside the app (opt-in)
+
+Ark's call audio (the Ark Audio Engine) lives in its own WebKit build. A release carries it only when
+asked; without `ARK_BUNDLE_WEBKIT` the app is exactly as before and uses Apple's WebKit everywhere. The
+details and the reasoning are in `tools/call-audio/webkit/BUNDLING.md`. (The Chromium call tabs are gone,
+1954f68: the app carries no CEF.)
+
+1. A clean WebKit source tree at `tools/call-audio/webkit/WEBKIT_COMMIT`, with `webkit.patch` applied and
+   the two headers from `tools/call-audio/core` copied in (that folder's README), and **without**
+   `ArkCallAudioRecording.h`, so no call recording code is compiled in. For example a worktree:
+   `git -C ~/Developer/ArkWebKit worktree add --detach ~/Developer/ArkWebKit-release <commit>`.
+2. One release WebKit per macOS major (about an hour and 30 GB each, Apple silicon only):
+
+   ```sh
+   tools/call-audio/webkit/build-release-webkit.sh ~/Developer/ArkWebKit-release 26
+   tools/call-audio/webkit/build-release-webkit.sh ~/Developer/ArkWebKit-release 27
+   ```
+
+   Each lands in `<tree>/WebKitBuild-release-<major>.0/Release`, targets `<major>.0`, is checked for the
+   right minimum macOS and for having no dump code, and is labelled `release <major>.0 …`.
+
+3. Release with them:
+
+   ```sh
+   ARK_BUNDLE_WEBKIT="26=$HOME/Developer/ArkWebKit-release/WebKitBuild-release-26.0/Release 27=$HOME/Developer/ArkWebKit-release/WebKitBuild-release-27.0/Release" \
+     tools/release-mac.sh --local 1.1 HEAD     # first: local only, nothing sent to Apple
+   ARK_BUNDLE_WEBKIT="…same…" tools/release-mac.sh 1.1 HEAD
+   ```
+
+After archiving, `tools/mac-bundle-webkit.sh` turns the archived app into: a small launcher as
+`Contents/MacOS/Ark` that picks, before anything loads, `Ark-webkit-<major>` (the app, arm64, pointed
+at `Contents/Frameworks/WebKit-<major>` by load commands in the signed executable) when this macOS major has a
+bundled WebKit, or `Ark-system` (Apple's WebKit) otherwise: another major, an Intel Mac, or the engine
+switched off in Settings. Each WebKit is stripped; its dSYMs go into the archive. Every executable keeps the
+app's identity, entitlements and Hardened Runtime, with no exception entitlement; only WebKit's WebContent
+service may JIT. It refuses a WebKit with the dump compiled in, and an app with call recording or local-only
+entitlements. Then the export re-signs everything with Developer ID as before.
+
+`tools/mac-check-release.sh <app>` checks the result (the release runs it on every release, bundled or not):
+signature, Developer ID on every executable, Hardened Runtime, entitlements, no call recording, no Chromium,
+and each bundled WebKit's executable and label.
+
+`--local` stops after the Developer ID export to disk (the cloud-managed certificate signs it; nothing goes to
+the notary service), checks it and zips it in `~/Library/Caches/app.vezham.ark.release-local`. Gatekeeper
+rejects that copy as "Unnotarized Developer ID", which is expected.
+
+Still to do before shipping it: the first notarisation of a bundled app (does the notary service accept it, and
+does the WebContent service keep its JIT entitlement after Apple's checks), and runs on a Mac on macOS 26.0 and on
+macOS 27. Each major adds about 57 MB to the download.
+
+## Which builds update themselves
+
+Only builds from `release-mac.sh`. The `ArkUpdates` Info.plist key is `NO` everywhere else,
+so Xcode runs ("Ark Dev") and `tools/install-mac.sh` builds never start Sparkle and never swap
+themselves for a release. With updates on, the app menu has **Check for Updates…** and
+Settings > General has the two automatic-update switches. Everything else is Sparkle's own
+standard windows.
+
+## Testing an update
+
+The feed URL is the `ARK_FEED_URL` build setting, so a test can point Sparkle somewhere else.
+Build two versions under a throwaway bundle ID (so they never touch the real app's data), serve a
+feed locally and update one to the other:
+
+```sh
+xcodebuild … archive MARKETING_VERSION=0.0.1 CURRENT_PROJECT_VERSION=1000 ARK_UPDATES=YES \
+  PRODUCT_BUNDLE_IDENTIFIER=app.vezham.ark.updatetest ARK_APP_NAME="Ark Update Test" \
+  ARK_FEED_URL=http://127.0.0.1:8798/appcast.xml
+```
+
+(and 0.0.2 / 1001 the same way), export both with Developer ID, zip 0.0.2 into a folder, run
+`generate_appcast --download-url-prefix http://127.0.0.1:8798/` on it and serve it with
+`python3 -m http.server 8798 --bind 127.0.0.1`. Last run 2026-11-09: 0.0.1 offered 0.0.2,
+downloaded it on Install Update, and relaunched as 0.0.2 with its signature intact.
+
+## The signing key
+
+Sparkle's EdDSA private key lives in the login keychain of the Mac that makes releases (service
+`https://sparkle-project.org`, account `ed25519`). Its public half is supplied as `ARK_SPARKLE_PUBLIC_KEY`.
+Without the private key, no installed copy will accept another update, so keep a backup:
+
+```sh
+"$HOME/Library/Caches/app.vezham.ark.release/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys" -x ark-sparkle-key.txt
+```
+
+and store that file in 1Password, then delete it.
+
+## Publishing
+
+```sh
+tools/publish-mac.sh 1.0.1
+```
+
+uploads the release to the R2 bucket configured through `ARK_RELEASE_BUCKET`.
+Serve the `mac/` object prefix from the host configured in `ARK_FEED_URL` and
+`ARK_DOWNLOAD_PREFIX`. The publisher uploads the ZIP, deltas and DMGs first and
+the appcast last.

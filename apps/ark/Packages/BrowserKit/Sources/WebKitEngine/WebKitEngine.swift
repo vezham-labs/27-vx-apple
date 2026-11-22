@@ -223,6 +223,7 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
     }
 
     public func updateBlockingRules(force: Bool) async throws -> Date? {
+        guard ContentBlocker.rulesBaseURL != nil else { return nil }
         let blocker = ContentBlocker.shared
         if force || blocker.needsUpdate {
             _ = try await blocker.update(groups: Set(FilterGroup.allCases))

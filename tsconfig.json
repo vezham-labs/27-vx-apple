@@ -10,6 +10,12 @@
     },
     {
       "path": "./packages-apple/config"
+    },
+    {
+      "path": "./apps-docs/docs-e2e"
+    },
+    {
+      "path": "./apps-docs/docs"
     }
   ],
   "compilerOptions": {

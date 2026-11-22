@@ -37,7 +37,7 @@ let package = Package(
         .testTarget(name: "BrowserCoreTests", dependencies: ["BrowserCore"]),
 
         // The engine-neutral page API the Mac app is written against. No WebKit here, so a
-        // Chromium (CEF) engine can sit beside WebKit later. See docs/engines.md.
+        // Chromium (CEF) engine can sit beside WebKit later. See Apple Docs under /docs/ark/engines.
         .target(name: "BrowserEngine"),
 
         // WKWebView behind BrowserEngine. macOS for now; iOS still uses BrowserCore's TabSession.
@@ -49,7 +49,7 @@ let package = Package(
         ),
 
         // Extensions, plugins, Margin notes and the agent (MCP) toolbox. Foundation only, no
-        // engine, so it's testable on its own. See docs/extensibility.md.
+        // engine, so it's testable on its own. See Apple Docs under /docs/ark/extensibility.
         .target(name: "Extensibility"),
         .testTarget(name: "ExtensibilityTests", dependencies: ["Extensibility"]),
     ]

@@ -1,0 +1,14 @@
+{
+  "title": "Vezham Ark",
+  "pages": [
+    "index",
+    "engines",
+    "extensibility",
+    "glance",
+    "library",
+    "mac-releases",
+    "space-routing",
+    "ui-architecture",
+    "web-extensions"
+  ]
+}

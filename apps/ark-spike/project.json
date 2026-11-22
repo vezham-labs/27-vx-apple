@@ -1,0 +1,30 @@
+{
+  "name": "ark-spike",
+  "projectType": "application",
+  "sourceRoot": "apps/ark-spike/Sources",
+  "implicitDependencies": ["ark"],
+  "targets": {
+    "generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "xcodegen generate",
+        "cwd": "apps/ark-spike"
+      },
+      "dependsOn": [
+        {
+          "projects": ["ark"],
+          "target": "generate"
+        }
+      ],
+      "cache": false
+    },
+    "build-mac": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "xcodebuild -quiet -project SpikeArk.xcodeproj -scheme SpikeArk -configuration Debug -derivedDataPath ../../dist/ark-spike CODE_SIGN_IDENTITY=- build",
+        "cwd": "apps/ark-spike"
+      },
+      "dependsOn": ["generate"]
+    }
+  }
+}

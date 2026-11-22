@@ -12,7 +12,7 @@ settings:
 packages:
   BrowserKit:
     path: Packages/BrowserKit
-  # vx-bot/NOTE: In-app updates for the Developer ID build (Mac only). See docs/mac-releases.md.
+  # vx-bot/NOTE: In-app updates for the Developer ID build (Mac only). See Apple Docs under /docs/ark/mac-releases.
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: '2.10.0'
@@ -36,6 +36,7 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: $(INFOPLIST_KEY_CFBundleDisplayName)
+        ArkFilterRulesURL: $(ARK_FILTER_RULES_URL)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         # vx-bot/NOTE: Only uses the system's HTTPS, which is exempt, so uploads skip the export compliance question.
@@ -116,7 +117,10 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         # vx-bot/NOTE: Sparkle. Only builds from tools/release-mac.sh switch updates on (ARK_UPDATES=YES), so
         # vx-bot/NOTE: Xcode and install-mac.sh builds never replace themselves with a release.
-        ArkUpdates: 'NO'
+        ArkUpdates: $(ARK_UPDATES)
+        ArkFilterRulesURL: $(ARK_FILTER_RULES_URL)
+        SUFeedURL: $(ARK_FEED_URL)
+        SUPublicEDKey: $(ARK_SPARKLE_PUBLIC_KEY)
         SUEnableAutomaticChecks: true
         NSCameraUsageDescription: Websites you allow can use the camera, for example for video calls.
         NSMicrophoneUsageDescription: Websites you allow can use the microphone, for example for video calls.
@@ -138,7 +142,8 @@ targets:
         # vx-bot/NOTE: whose data (~/Library/Application Support/app.vezham.ark, ~/Library/WebKit and
         # vx-bot/NOTE: ~/Library/HTTPStorages under the same ID) holds your real sign-ins, tabs and extensions.
         ARK_APP_NAME: $(VX_APP_NAME)
-        # vx-bot/NOTE: Overridden only by the update test (docs/mac-releases.md), which serves its own feed.
+        ARK_UPDATES: 'NO'
+        # vx-bot/NOTE: Overridden only by the update test (Apple Docs under /docs/ark/mac-releases), which serves its own feed.
         CURRENT_PROJECT_VERSION: '1'
         ENABLE_HARDENED_RUNTIME: true
         COMBINE_HIDPI_IMAGES: true

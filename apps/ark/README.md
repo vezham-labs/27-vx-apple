@@ -10,4 +10,12 @@ Edit `vx.app.yaml` for app identity and version, `vx.deploy.yaml` for platform b
 
 From the workspace root, run `pnpm nx run ark:generate` to generate the Xcode project. Open `apps/ark/Ark.xcodeproj` and run the Ark scheme on an iOS simulator or ArkMac on your Mac. The corresponding CLI targets are `ark:build-ios` and `ark:build-mac`.
 
+## Development tools
+
+- Run `pnpm nx run ark-spike:build-mac` to build the [Spike harness](../ark-spike/README.md) with mock browser data.
+- See [CallAudio](tools/call-audio/README.md) for the audio experiments and [WebKit bundling](tools/call-audio/webkit/BUNDLING.md) for building and installing the optional custom engine. The default build uses system WebKit.
+- See the [filter rule builder](tools/filter-rules/README.md) to build and host rules. Ark uses bundled starter rules by default. Set the Xcode build setting `ARK_FILTER_RULES_URL` to enable downloads from your HTTPS rule endpoint.
+- See [Mac releases](../../apps-docs/docs/content/docs/ark/mac-releases.mdx) for signing, notarization, DMGs and Sparkle feeds. The release script requires `ARK_DEVELOPMENT_TEAM`, `ARK_FEED_URL`, `ARK_SPARKLE_PUBLIC_KEY` and `ARK_DOWNLOAD_PREFIX`. Publishing also requires `ARK_RELEASE_BUCKET`. Local development builds leave Sparkle disabled.
+- Run [Ark CI](../../.github/workflows/ark-ci.yml) from the Actions tab for native builds and BrowserKit tests.
+
 [Third-party notices](THIRD-PARTY-NOTICES.md)

@@ -10,21 +10,8 @@ final class AgentDemo {
     private(set) var isRunning = false
     @ObservationIgnored private var task: Task<Void, Never>?
 
-    /// Supper's real home. Every build uses it, so the demo feels like a real site.
-    static let live = URL(string: "https://browsa.app/demo/")!
-    /// The copy the agent endpoint serves from the app bundle: used only when browsa.app/demo/
-    /// can't be reached (offline, or before the website is deployed).
-    static var bundled: URL { URL(string: "http://127.0.0.1:\(AgentBridge.port)/demo")! }
-    /// Where the demo and the Try it prompt point right now. `refresh()` checks.
-    private(set) static var url = live
-
-    /// Checks browsa.app/demo/ answers, else falls back to the bundled copy.
-    static func refresh() async {
-        var request = URLRequest(url: live, timeoutInterval: 3)
-        request.httpMethod = "HEAD"
-        let ok = (try? await URLSession.shared.data(for: request)).map { ($0.1 as? HTTPURLResponse)?.statusCode == 200 } ?? false
-        url = ok ? live : bundled
-    }
+    /// Supper is served from the app bundle by Ark's local demo endpoint.
+    static var url: URL { URL(string: "http://127.0.0.1:\(AgentBridge.port)/demo")! }
 
     /// What to give your own agent, to see it do the same thing its own way.
     static var prompt: String {
@@ -62,20 +49,12 @@ final class AgentDemo {
         if !bridge.isEnabled { bridge.isEnabled = true }
         if bridge.isPaused { bridge.resume() }
         isRunning = true
-        task = Task { [weak self] in
-            await Self.refresh()
-            self?.run(bridge: bridge, in: window)
-        }
-    }
+        // Remove the previous demo's notes and tab before starting again.
+        let home = Self.url
+        let key = MarginStore.pageKey(home)
+        for note in bridge.margin.notes(on: home) where note.author == .agent(Self.agentName) { bridge.margin.delete(note.id) }
+        for tab in bridge.allTabs where tab.url.map(MarginStore.pageKey) == key { window.close(tab) }
 
-    private func run(bridge: AgentBridge, in window: Browser) {
-        // A fresh run each time: the last demo's notes and Supper tab go first.
-        // Either home: an earlier run may have used the other one.
-        for home in [Self.live, Self.bundled] {
-            let key = MarginStore.pageKey(home)
-            for note in bridge.margin.notes(on: home) where note.author == .agent(Self.agentName) { bridge.margin.delete(note.id) }
-            for tab in bridge.allTabs where tab.url.map(MarginStore.pageKey) == key { window.close(tab) }
-        }
         task = Task { [weak self] in
             defer { self?.isRunning = false }
             let session = "ark-demo"

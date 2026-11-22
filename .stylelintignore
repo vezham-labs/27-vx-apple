@@ -115,6 +115,9 @@ testem.log
 .eslintcache
 .stylelintcache
 
+# Browsa reference site and standalone fixtures
+/apps/ark/tools/
+
 # Audit tool output
 state/
 

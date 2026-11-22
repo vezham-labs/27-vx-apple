@@ -29,8 +29,10 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
                     Text("Using the built-in starter list")
-                    Text("Full filters download on Wi-Fi or cellular in the background.")
-                        .font(.caption).foregroundStyle(.secondary)
+                    if ContentBlocker.rulesBaseURL != nil {
+                        Text("Full filters download on Wi-Fi or cellular in the background.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
                 if let error = status.error {
                     Text(error).font(.caption).foregroundStyle(.red)
@@ -39,7 +41,7 @@ struct SettingsView: View {
             Spacer()
             if status.isUpdating {
                 ProgressView()
-            } else {
+            } else if ContentBlocker.rulesBaseURL != nil {
                 Button("Update") { Task { await browser.updateFilters() } }
                     .buttonStyle(.borderless)
             }
@@ -136,8 +138,7 @@ struct SettingsView: View {
                 }
 
                 Section("About") {
-                    Link("Privacy Policy", destination: URL(string: "https://browsa.app/privacy/")!)
-                    Link("Contact", destination: URL(string: "mailto:hello@orriginal.me")!)
+                    Link("Ark Website", destination: URL(string: "https://ark.vezham.com")!)
                     LabeledContent("Version", value: Self.version)
                 }
             }

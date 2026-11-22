@@ -1,0 +1,20 @@
+---
+title: Ark development
+description: Architecture, integration decisions, and release guides for Vezham Ark.
+---
+
+Ark is the Vezham browser for Mac, iPhone, and iPad. The native project lives in `apps/ark`.
+
+## Integration notes
+
+| Source                                                                                   | Status            | Evidence                                                                                                                                      |
+| ---------------------------------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Browsa](https://github.com/jmaorr/Browsa/tree/19eef7990aec8bd5491ef06ffc14928b7a73033f) | Baseline imported | Mac, iOS, and SpikeArk built. The Spike harness launched, 81 BrowserKit tests passed, and the filter builder generated all three rule groups. |
+
+For each repo we bring into Ark, record the source commit, the features adopted, the decisions made, and what we verified. The engine, routing, and extension guides describe the current baseline.
+
+## Release status
+
+Development builds use system WebKit. The custom WebKit build, Developer ID distribution, and hosted Sparkle updates need separate verification. See [Mac releases](/docs/ark/mac-releases).
+
+The Ark guides draw on Browsa's documentation and are retained under its [MIT license](https://github.com/jmaorr/Browsa/blob/19eef7990aec8bd5491ef06ffc14928b7a73033f/LICENSE).

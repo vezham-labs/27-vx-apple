@@ -1,0 +1,46 @@
+name: Ark CI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ark-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+  NX_NO_CLOUD: true
+
+jobs:
+  native:
+    name: Build and test Ark
+    runs-on: xcode-27
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: vezham/vx-deployer/.github/actions/common/setup-checkout@timeline
+        with:
+          GIT_REPO: ${{ github.repository }}
+          GIT_BRANCH: ${{ github.sha }}
+
+      - name: Set up Node and pnpm
+        uses: vezham/vx-deployer/.github/actions/common/setup-install@timeline
+        with:
+          HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
+
+      - name: Check Xcode and install XcodeGen
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+          command -v xcodegen >/dev/null || brew install xcodegen
+
+      - name: Test BrowserKit
+        working-directory: apps/ark/Packages/BrowserKit
+        run: swift test --jobs 2
+
+      - name: Build Ark for Mac, iOS Simulator and Spike
+        run: pnpm nx run-many -p ark ark-spike -t build-mac build-ios --parallel=1

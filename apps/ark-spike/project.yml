@@ -1,0 +1,72 @@
+# vx-bot/NOTE: Generate this project with pnpm nx run ark-spike:generate from the workspace root.
+# vx-bot/NOTE: The .xcodeproj is git-ignored; this file is the source of truth.
+name: SpikeArk
+options:
+  bundleIdPrefix: app.vezham
+  xcodeVersion: '27.2'
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: '6.0'
+    SWIFT_STRICT_CONCURRENCY: complete
+packages:
+  BrowserKit:
+    path: ../ark/Packages/BrowserKit
+  # vx-bot/NOTE: In-app updates for the Developer ID build (Mac only). See Apple Docs under /docs/ark/mac-releases.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: '2.10.0'
+targets:
+  SpikeArk:
+    type: application
+    platform: macOS
+    configFiles:
+      Debug: ../ark/Config/Generated/macos.xcconfig
+      Release: ../ark/Config/Generated/macos.xcconfig
+    sources:
+      - ../ark/Mac/Sources
+      - ../ark/Mac/Resources
+      - Sources
+    dependencies:
+      - package: BrowserKit
+        product: BrowserCore
+      - package: BrowserKit
+        product: Suggest
+      - package: BrowserKit
+        product: BrowserEngine
+      - package: BrowserKit
+        product: WebKitEngine
+      - package: BrowserKit
+        product: Extensibility
+      - package: Sparkle
+    entitlements:
+      path: Mac/SpikeArk.generated.entitlements
+      properties:
+        # Like Ark itself: not sandboxed (one-click Add to Claude Code runs the claude command).
+        # Its files still live apart, under its own bundle ID.
+        com.apple.security.device.camera: true
+        com.apple.security.device.audio-input: true
+    info:
+      path: Mac/Info.plist
+      properties:
+        CFBundleDisplayName: SpikeArk
+        CFBundleName: SpikeArk
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.developer-tools
+        # Not the daily driver's 47913, so both can run at once.
+        ArkAgentPort: 47914
+        SpikeControlPort: 47930
+        # Adds itself to Claude Code under its own name, never replacing Ark's.
+        ArkMCPName: ark-spike
+        # Never updates itself.
+        ArkUpdates: 'NO'
+    settings:
+      base:
+        PRODUCT_NAME: SpikeArk
+        PRODUCT_BUNDLE_IDENTIFIER: app.vezham.ark.spike
+        MARKETING_VERSION: $(VX_APP_VERSION)
+        CURRENT_PROJECT_VERSION: '1'
+        ENABLE_HARDENED_RUNTIME: true
+        COMBINE_HIDPI_IMAGES: true
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) SPIKE

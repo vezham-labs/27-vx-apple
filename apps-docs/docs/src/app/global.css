@@ -1,0 +1,7 @@
+@import 'tailwindcss';
+@import '@vezham/devtools';
+@import '@vezham/react';
+@import '@vezham/styles-v3';
+@import '../../../../packages/vx/styles/docs';
+
+@custom-variant dark (&:is(.dark *));

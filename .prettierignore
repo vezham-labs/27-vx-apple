@@ -229,7 +229,6 @@ xcuserdata/
 /apps*/**/App/Info.plist
 /apps*/**/Mac/Info.plist
 /apps*/**/*.generated.entitlements
-/apps*/**/Spike/Info.plist
 /apps*/**/.seed-cache/
 /apps*/**/.autoconsent/
 /apps*/**/.cef/
@@ -243,3 +242,6 @@ xcuserdata/
 /apps/ark/Packages/BrowserKit/Sources/BrowserCore/Resources/blocklist.json
 /apps/ark/Packages/BrowserKit/Sources/Suggest/Resources/seed-sites.json
 /apps/ark/Packages/BrowserKit/Sources/WebKitEngine/Resources/*.js
+
+# Browsa source and standalone development tools retained with Ark
+/apps/ark/tools/

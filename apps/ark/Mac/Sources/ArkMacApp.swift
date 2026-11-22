@@ -81,7 +81,7 @@ extension FocusedValues {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    /// WebKit is the only engine for now. Another one plugs in here (see docs/engines.md).
+    /// WebKit is the only engine for now. Another one plugs in here (see Apple Docs under /docs/ark/engines).
     lazy var library = AppDelegate.makeLibrary()
     /// Sparkle, in release builds only. Made with the delegate so it starts as the app launches.
     let updates = Updates()

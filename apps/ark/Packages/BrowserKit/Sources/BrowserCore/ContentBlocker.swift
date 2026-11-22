@@ -20,13 +20,28 @@ import WebKit
 @MainActor
 public final class ContentBlocker {
     public static let shared = ContentBlocker()
-    /// Where `tools/filter-rules` publishes. Change this if you host your own.
-    public static let rulesBaseURL = URL(string: "https://rules.browsa.app/v1/")!
+    /// Optional HTTPS endpoint for Ark's published filter rules.
+    public static let rulesBaseURL: URL? = {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "ArkFilterRulesURL") as? String,
+              let url = URL(string: value), url.scheme == "https", let host = url.host, !host.isEmpty,
+              url.user == nil, url.password == nil, url.query == nil, url.fragment == nil else { return nil }
+        return url
+    }()
+
+    /// Scope downloaded rules and metadata to the configured endpoint.
+    private static let sourceKey: String? = rulesBaseURL.map { url in
+        var hasher = StableHash()
+        hasher.combine(url.absoluteString)
+        return String(hasher.value, radix: 16)
+    }
 
     private let store = WKContentRuleListStore.default()!
-    private let directory = AppFolders.support.appending(path: "Filters", directoryHint: .isDirectory)
+    private let directory = ContentBlocker.sourceKey.map {
+        AppFolders.support.appending(path: "Filters", directoryHint: .isDirectory)
+            .appending(path: $0, directoryHint: .isDirectory)
+    }
     private let refreshInterval: TimeInterval = 4 * 24 * 3600
-    private let metadataKey = "duo.filters.metadata"
+    private let metadataKey = ContentBlocker.sourceKey.map { "ark.filters.metadata.\($0)" }
 
     public struct Metadata: Codable, Sendable {
         public var lastUpdated: Date?
@@ -38,13 +53,18 @@ public final class ContentBlocker {
 
     public internal(set) var metadata: Metadata {
         get {
-            UserDefaults.standard.data(forKey: metadataKey)
+            guard let metadataKey else { return Metadata() }
+            return UserDefaults.standard.data(forKey: metadataKey)
                 .flatMap { try? JSONDecoder().decode(Metadata.self, from: $0) } ?? Metadata()
         }
-        set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: metadataKey) }
+        set {
+            guard let metadataKey else { return }
+            UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: metadataKey)
+        }
     }
 
     public var needsUpdate: Bool {
+        guard Self.rulesBaseURL != nil else { return false }
         // No rules at all means the last download was unusable, so don't wait out the interval.
         guard let last = metadata.lastChecked ?? metadata.lastUpdated, metadata.ruleCounts.values.contains(where: { $0 > 0 }) else { return true }
         return Date().timeIntervalSince(last) > refreshInterval
@@ -57,11 +77,13 @@ public final class ContentBlocker {
     public func lists(for groups: Set<FilterGroup>, allowlist: Set<String>) async -> [WKContentRuleList] {
         var out: [WKContentRuleList] = []
         var wanted: Set<String> = []
-        for group in FilterGroup.allCases where groups.contains(group) {
-            guard let json = try? String(contentsOf: jsonURL(group), encoding: .utf8) else { continue }
-            let id = identifier("filters.\(group.rawValue)", allowlist: allowlist)
-            wanted.insert(id)
-            if let list = await compiled(id: id, json: json, allowlist: allowlist) { out.append(list) }
+        if let directory, let source = Self.sourceKey {
+            for group in FilterGroup.allCases where groups.contains(group) {
+                guard let json = try? String(contentsOf: jsonURL(group, in: directory), encoding: .utf8) else { continue }
+                let id = identifier("filters.\(source).\(group.rawValue)", allowlist: allowlist)
+                wanted.insert(id)
+                if let list = await compiled(id: id, json: json, allowlist: allowlist) { out.append(list) }
+            }
         }
         if out.isEmpty, !groups.isEmpty,
            let url = Bundle.module.url(forResource: "blocklist", withExtension: "json"),
@@ -112,7 +134,9 @@ public final class ContentBlocker {
         return body == "[" ? "[\(rule)]" : "\(body),\(rule)]"
     }
 
-    private func jsonURL(_ group: FilterGroup) -> URL { directory.appending(path: "\(group.rawValue).json") }
+    private func jsonURL(_ group: FilterGroup, in directory: URL) -> URL {
+        directory.appending(path: "\(group.rawValue).json")
+    }
 
     // MARK: Updating
 
@@ -127,13 +151,14 @@ public final class ContentBlocker {
 
     /// Downloads every group's rules if a newer version is published. Returns rule counts per group.
     public func update(groups: Set<FilterGroup>) async throws -> [FilterGroup: Int] {
+        guard let baseURL = Self.rulesBaseURL, let directory else { return [:] }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let manifest = try JSONDecoder().decode(Manifest.self, from: await download("manifest.json"))
+        let manifest = try JSONDecoder().decode(Manifest.self, from: await download("manifest.json", from: baseURL))
         let chosen = FilterGroup.allCases.filter(groups.contains)
         var meta = metadata
         meta.lastChecked = .now
         // A group switched on since the last update has no file yet, whatever the version says.
-        let hasAll = chosen.allSatisfy { FileManager.default.fileExists(atPath: jsonURL($0).path()) }
+        let hasAll = chosen.allSatisfy { FileManager.default.fileExists(atPath: jsonURL($0, in: directory).path()) }
         guard manifest.version != meta.version || !hasAll else {
             metadata = meta
             return [:]
@@ -141,7 +166,7 @@ public final class ContentBlocker {
         var counts: [FilterGroup: Int] = [:]
         for group in chosen {
             guard let entry = manifest.groups[group.rawValue] else { continue }
-            try await download(entry.file).write(to: jsonURL(group), options: .atomic)
+            try await download(entry.file, from: baseURL).write(to: jsonURL(group, in: directory), options: .atomic)
             counts[group] = entry.rules
             meta.ruleCounts[group.rawValue] = entry.rules
         }
@@ -151,8 +176,8 @@ public final class ContentBlocker {
         return counts
     }
 
-    private func download(_ file: String) async throws -> Data {
-        var request = URLRequest(url: Self.rulesBaseURL.appending(path: file), timeoutInterval: 30)
+    private func download(_ file: String, from baseURL: URL) async throws -> Data {
+        var request = URLRequest(url: baseURL.appending(path: file), timeoutInterval: 30)
         request.cachePolicy = .reloadRevalidatingCacheData
         let (data, response) = try await URLSession.shared.data(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
@@ -217,17 +242,19 @@ extension BrowserState {
 
     /// Downloads and recompiles the filter lists now.
     public func updateFilters() async {
-        guard !filterStatus.isUpdating else { return }
+        guard ContentBlocker.rulesBaseURL != nil, !filterStatus.isUpdating else { return }
         filterStatus.isUpdating = true
         filterStatus.error = nil
+        var didUpdate = false
         do {
-            _ = try await ContentBlocker.shared.update(groups: Set(FilterGroup.allCases))
+            let updated = try await ContentBlocker.shared.update(groups: Set(FilterGroup.allCases))
+            didUpdate = !updated.isEmpty
         } catch {
             filterStatus.error = "Couldn't update filters. \(error.localizedDescription)"
         }
         filterStatus.isUpdating = false
         refreshFilterStatus()
-        applyContentBlocking()
+        if didUpdate { applyContentBlocking() }
     }
 
     private func refreshFilterStatus() {

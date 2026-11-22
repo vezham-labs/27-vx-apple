@@ -329,8 +329,10 @@ private struct PrivacySettings: View {
                             } else {
                                 Text("Starter list").foregroundStyle(.secondary)
                             }
-                            Button("Update Now") { Task { await browser.updateFilters(force: true) } }
-                                .disabled(browser.filterStatus.isUpdating)
+                            if ContentBlocker.rulesBaseURL != nil {
+                                Button("Update Now") { Task { await browser.updateFilters(force: true) } }
+                                    .disabled(browser.filterStatus.isUpdating)
+                            }
                         }
                     }
                     if let error = browser.filterStatus.error {

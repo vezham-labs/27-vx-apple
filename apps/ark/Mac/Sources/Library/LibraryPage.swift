@@ -40,7 +40,7 @@ extension Browser {
 // MARK: - Catalog
 
 /// A Ark plugin as the Library shows it. Built-in today; the same shape will describe plugins
-/// from a manifest's `ark` block, when that's opened up (see docs/library.md).
+/// from a manifest's `ark` block, when that's opened up (see Apple Docs under /docs/ark/library).
 struct PluginInfo: Identifiable, Hashable {
     enum Kind: Hashable {
         /// A workbench tool: panel, sidebar card, ⌘K rows.
@@ -138,7 +138,7 @@ enum LibraryCatalog {
 
     static let packs = [agentPack, privacyPack]
 
-    /// Bundled today; the same file can come from browsa.app later, so the list grows without an update.
+    /// The verified extension list ships in the app bundle.
     static let verified: [VerifiedExtension] = {
         struct File: Decodable { let extensions: [VerifiedExtension] }
         guard let url = Bundle.main.url(forResource: "verified-extensions", withExtension: "json"),

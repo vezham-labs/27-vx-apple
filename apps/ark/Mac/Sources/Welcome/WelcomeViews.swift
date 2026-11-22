@@ -452,7 +452,7 @@ struct WelcomePage: View {
 
     /// Whether this Ark already opens web links.
     static var isDefaultBrowser: Bool {
-        guard let url = URL(string: "https://browsa.app"),
+        guard let url = URL(string: "https://ark.vezham.com"),
               let app = NSWorkspace.shared.urlForApplication(toOpen: url) else { return false }
         return Bundle(url: app)?.bundleIdentifier == Bundle.main.bundleIdentifier
     }

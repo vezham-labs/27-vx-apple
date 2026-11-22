@@ -86,7 +86,7 @@ final class AgentServer {
             return send(.init(status: 403, body: "Forbidden"), on: connection)
         }
         // Supper, the demo site agents can practise on, from the app bundle: public, read-only and
-        // only on this Mac. (Release builds point the demo at browsa.app/demo/ instead.)
+        // available on this Mac.
         if request.method == "GET", request.path == "/demo" || request.path.hasPrefix("/demo/") {
             return send(Self.demoFile(request.path), on: connection)
         }

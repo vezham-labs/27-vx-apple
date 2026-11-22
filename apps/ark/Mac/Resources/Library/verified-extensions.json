@@ -1,5 +1,5 @@
 {
-  "_about": "Extensions Ark has tested and shows in the Library with one-click Add. To promote one: test it (see docs/library.md), then add an entry here (and to website/public/library/verified-extensions.json once that feed is live). id is the Chrome Web Store id.",
+  "_about": "Extensions Ark has tested and shows in the Library with one-click Add. To promote one: test it (see Apple Docs under /docs/ark/library), then add an entry here. id is the Chrome Web Store id.",
   "extensions": [
     {
       "id": "aeblfdkhhhdcdjpifhhbdiojplfjncoa",

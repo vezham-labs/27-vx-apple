@@ -1,6 +1,6 @@
 import Foundation
 
-/// Ark's own WebKit build (call audio inside WebKit's capture unit, see Spike/CallAudio/webkit): when one is
+/// Ark's own WebKit build (call audio inside WebKit's capture unit, see tools/call-audio/webkit): when one is
 /// on the Mac and this build may load it, Ark starts again on it at launch. The decisions are here, without
 /// any process work, so they can be tested; the Mac app does the relaunch (Mac/Sources/PatchedWebKit.swift).
 public enum PatchedWebKitPolicy {

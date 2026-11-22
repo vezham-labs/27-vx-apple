@@ -3,7 +3,7 @@ import Security
 import WebKit
 import BrowserCore
 
-/// Ark's own WebKit build: WebKit with Ark's call audio in its capture unit (Spike/CallAudio/webkit). When
+/// Ark's own WebKit build: WebKit with Ark's call audio in its capture unit (tools/call-audio/webkit). When
 /// one is at `folder` and this build may load it, Ark starts again on it, straight away at launch: macOS loads
 /// WebKit when the app starts, so the only way onto another one is to run again with `DYLD_FRAMEWORK_PATH` set.
 /// It's the same process (`execve`), so macOS still counts camera and mic as Ark's. Anything missing or
@@ -58,7 +58,7 @@ enum PatchedWebKit {
         return nil
     }
 
-    /// What the app's launcher chose, when Ark ships its WebKit inside the app (Spike/CallAudio/webkit/launcher):
+    /// What the app's launcher chose, when Ark ships its WebKit inside the app (tools/call-audio/webkit/launcher):
     /// used, old-os, new-os, off or missing. Nil for builds without the launcher.
     static let bundledChoice: String? = ProcessInfo.processInfo.environment["ARK_BUNDLED_WEBKIT"]
 

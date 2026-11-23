@@ -239,9 +239,10 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
     public func applyBlocking(_ configuration: BlockingConfiguration) async {
         blocking = configuration
         let groups = Set(configuration.ruleGroups.compactMap(FilterGroup.init(rawValue:)))
-        ruleLists = configuration.isEnabled
+        let lists = configuration.isEnabled
             ? await ContentBlocker.shared.lists(for: groups, allowlist: configuration.allowlist) : []
         guard blocking == configuration else { return }   // a newer call won
+        ruleLists = lists
         for controller in allContentControllers { install(on: controller) }
         markRulesReady()
     }

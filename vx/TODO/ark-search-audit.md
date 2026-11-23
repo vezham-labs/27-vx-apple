@@ -166,3 +166,7 @@ Each value is the median of five optimized runs on the local Mac. The measuremen
 ## Mac command bar measurement
 
 A standalone Swift benchmark used the previous and current `CommandBarModel` on the same 403-command catalog. It verified identical displayed rows, default selection, arrow movement, and Return actions across ten queries. Across seven paired runs of 320 query updates each, the median fell from 3,114.3 ms to 779.3 ms and command-provider evaluations fell from 8,512 to 2,240. These timings cover row generation and selection logic and exclude SwiftUI rendering and remote suggestions.
+
+### Content-blocking updates finishing out of order
+
+Ark's `WebKitEngine.applyBlocking` now assigns compiled rules only after checking that the requested settings are still current. Previously, enabling blocking and then disabling it while compilation was pending could leave stale rules cached for subsequently registered pages even though existing pages had their rules removed. A temporary Swift harness extracted the actual method and used a suspended compiler stub: before the fix the cache contained old rules while installed rules were empty; afterward both remained empty. This verifies the async state transition, not live WebKit network blocking. `pnpm nx run ark:build-mac` passed. No persistent test files or screen-recording access were needed. Search reference remains `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`; this is an Ark engine correctness fix.

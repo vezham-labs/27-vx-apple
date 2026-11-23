@@ -496,6 +496,7 @@ final class Library {
         // and busy pages (a call, playing audio, a half-written message).
         let evictable = { (t: UUID) in
             t != id && !onScreen.contains(t)
+                && self.controllers[t]?.page.state.isLoading != true
                 && self.controllers[t]?.page.state.isBusy != true
                 && self.controllers[t]?.engineID ?? self.engine.info.id == self.engine.info.id
         }

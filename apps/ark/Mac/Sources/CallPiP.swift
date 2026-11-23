@@ -172,7 +172,9 @@ final class CallPiPPanel: NSPanel {
         isReleasedWhenClosed = false
         isOpaque = false
         backgroundColor = .clear
-        hasShadow = true
+        // A shadow forces WindowServer to composite every frame of the live WebKit call view.
+        // Search measured lower GPU time without it on 1080p and 4K video (Float.swift).
+        hasShadow = false
         isMovable = true
         minSize = Self.fullMinSize
 

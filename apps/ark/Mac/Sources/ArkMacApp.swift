@@ -297,7 +297,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Links from other apps, when Ark is the default browser. Handled here so they open as
     /// tabs in the window in use rather than in a new window.
     func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls { library.openExternal(url) }
+        let sender = NSAppleEventManager.shared().currentAppleEvent?.attributeDescriptor(forKeyword: keySenderPIDAttr)?.int32Value
+        let sourceApp = sender.flatMap { $0 > 0 ? NSRunningApplication(processIdentifier: $0)?.bundleIdentifier : nil }
+        for url in urls { library.openExternal(url, sourceApp: sourceApp) }
         // Launched to open a link (clicked in another app while Ark was closed), SwiftUI makes no window of its own,
         // and only a window can ask it for one: the link waited for a window that never came. A reopen (what clicking
         // the Dock icon sends) makes SwiftUI open one, which then picks the link up.

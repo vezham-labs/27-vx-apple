@@ -14,6 +14,7 @@ Sites that always open in a given Space, like Arc's Air Traffic Control and Zen'
   removes it. A set made from Ark's can be restored to Ark's version.
 - **Custom rules**: one address, one Space, each with its own Space picker. They beat sets, and a more
   specific address (with a path, longer host) beats a shorter one.
+- **Source apps**: choose **Add App…** in Routing settings, select an installed Mac app, and pick a destination Space. Its rule takes precedence over site rules for external links when macOS identifies that app. If the sender is unavailable, Ark uses the site rules and the usual external-link fallback. Source-app rules apply to Link Preview and when Ark opens its first window.
 - New tabs (⌘T, ⌘-click, favourites) and links from other apps follow the rules. Links you follow inside a
   tab never move, private tabs never move, and sign-in and checkout pages (accounts.google.com, PayPal,
   Stripe Checkout…) stay next to the tab that opened them.
@@ -21,7 +22,7 @@ Sites that always open in a given Space, like Arc's Air Traffic Control and Zen'
   set (or removes the rule) and moves the tab back. ⌘K › "Stop Routing …" does the same later.
 
 State lives in UserDefaults (`spaceRoutingEnabled`, `spaceRoutingSetList`, `spaceRoutes`,
-`spaceRoutingSeeded`, `spaceRoutingAnnounced`). Code: `Mac/Sources/State/SpaceRouting.swift`, hooks in
-`Browser.newTab` and `Browser.openExternal`.
+`spaceAppRoutes`, `spaceRoutingSeeded`, `spaceRoutingAnnounced`). Code: `Mac/Sources/State/SpaceRouting.swift`, hooks in
+`Browser.newTab` and `Library.openExternal`.
 
-Not yet: route by the app a link came from (Slack → Work), sets pushed by an organisation, sync.
+Organisation-managed sets and routing sync remain open.

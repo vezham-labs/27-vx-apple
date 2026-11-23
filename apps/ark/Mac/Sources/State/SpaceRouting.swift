@@ -69,6 +69,12 @@ struct RouteSet: Codable, Identifiable, Equatable {
 
 @MainActor @Observable
 final class SpaceRouter {
+    struct AppRule: Codable, Identifiable {
+        let id: String
+        let name: String
+        var spaceID: UUID
+    }
+
     static let shared: SpaceRouter = {
         #if DEBUG
         if ProcessInfo.processInfo.environment["ARK_SNAPSHOT_FEATURE_URL"] != nil {
@@ -92,6 +98,7 @@ final class SpaceRouter {
 
     /// Custom rules: one address, one Space. These beat the sets.
     private(set) var rules: [RouteRule] = [] { didSet { save(rules, "spaceRoutes") } }
+    private(set) var appRules: [AppRule] = [] { didSet { save(appRules, "spaceAppRoutes") } }
 
     /// Sites whose first move has been explained with a toast.
     private var announced: Set<String> = [] { didSet { defaults?.set(Array(announced), forKey: "spaceRoutingAnnounced") } }
@@ -111,6 +118,7 @@ final class SpaceRouter {
         isEnabled = defaults.bool(forKey: "spaceRoutingEnabled")
         sets = Self.load(defaults, "spaceRoutingSetList") ?? []
         rules = Self.load(defaults, "spaceRoutes") ?? []
+        appRules = Self.load(defaults, "spaceAppRoutes") ?? []
         announced = Set(defaults.stringArray(forKey: "spaceRoutingAnnounced") ?? [])
     }
 
@@ -240,6 +248,18 @@ final class SpaceRouter {
 
     func remove(_ id: UUID) { rules.removeAll { $0.id == id } }
 
+    func addAppRule(bundleID: String, name: String, to space: Space) {
+        let id = bundleID.lowercased()
+        guard !id.isEmpty, !space.isPrivate else { return }
+        if let index = appRules.firstIndex(where: { $0.id == id }) {
+            appRules[index].spaceID = space.id
+        } else {
+            appRules.append(AppRule(id: id, name: name, spaceID: space.id))
+        }
+    }
+
+    func removeAppRule(_ id: String) { appRules.removeAll { $0.id == id } }
+
     func setRuleSpace(_ id: UUID, to space: Space) {
         if let i = rules.firstIndex(where: { $0.id == id }) { rules[i].spaceID = space.id }
     }
@@ -286,7 +306,14 @@ final class SpaceRouter {
         return best
     }
 
-    func space(for url: URL?, in library: Library) -> Space? { match(for: url, in: library.regularSpaces)?.space }
+    func externalSpace(for url: URL?, sourceApp: String?, in spaces: [Space]) -> Space? {
+        guard isEnabled, let url, RouteRule.allowsRouting(url) else { return nil }
+        if let sourceApp, let rule = appRules.first(where: { $0.id == sourceApp.lowercased() }),
+           let space = spaces.first(where: { $0.id == rule.spaceID && !$0.isPrivate }) {
+            return space
+        }
+        return match(for: url, in: spaces)?.space
+    }
 
     /// True the first time a site moves, so the toast explains it once.
     func shouldAnnounce(_ pattern: String) -> Bool {
@@ -304,6 +331,7 @@ final class SpaceRouter {
     func prune(keeping spaces: [Space]) {
         let ids = Set(spaces.map(\.id))
         if rules.contains(where: { !ids.contains($0.spaceID) }) { rules.removeAll { !ids.contains($0.spaceID) } }
+        if appRules.contains(where: { !ids.contains($0.spaceID) }) { appRules.removeAll { !ids.contains($0.spaceID) } }
         for set in sets where set.spaceID.map({ !ids.contains($0) }) ?? false { update(set.id) { $0.spaceID = nil } }
     }
 
@@ -392,6 +420,31 @@ struct SpaceRoutingSettings: View {
                     Text("Custom rules win over sets, and a more specific address wins over a shorter one. Sign-in and checkout pages always open next to the tab that asked for them.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
+                Section {
+                    ForEach(router.appRules) { rule in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(rule.name)
+                                Text(rule.id).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            SpacePicker(spaces: spaces, selection: rule.spaceID) { id in
+                                if let space = spaces.first(where: { $0.id == id }) {
+                                    router.addAppRule(bundleID: rule.id, name: rule.name, to: space)
+                                }
+                            }
+                            Button("Remove \(rule.name) rule", systemImage: "minus.circle") { router.removeAppRule(rule.id) }
+                                .labelStyle(.iconOnly)
+                                .buttonStyle(.borderless)
+                        }
+                    }
+                    Button("Add App…", systemImage: "plus", action: addAppRule)
+                } header: {
+                    Text("Source apps")
+                } footer: {
+                    Text("For links opened by another app, its rule wins over site rules when macOS identifies the sender.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
             }
         }
         .formStyle(.grouped)
@@ -435,6 +488,21 @@ struct SpaceRoutingSettings: View {
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) else { return }
         if !router.importSet(data) { importFailed = true }
+    }
+
+    private func addAppRule() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.applicationBundle]
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+        guard panel.runModal() == .OK, let url = panel.url, let bundle = Bundle(url: url),
+              let id = bundle.bundleIdentifier, let space = library.activeWindow.flatMap({ window in
+                  spaces.first(where: { $0.id == window.currentSpace.id })
+              }) ?? spaces.first else { return }
+        let name = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+            ?? url.deletingPathExtension().lastPathComponent
+        router.addAppRule(bundleID: id, name: name, to: space)
     }
 }
 

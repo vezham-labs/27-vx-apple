@@ -17,9 +17,8 @@ final class LinkPreviewWindow: NSWindowController, NSWindowDelegate {
         ["http", "https"].contains(url.scheme?.lowercased() ?? "") && url.host() != nil
     }
 
-    init(url: URL?, library: Library, popup: (any EnginePage)? = nil, parent: LinkPreviewWindow? = nil) {
+    init(url: URL?, library: Library, popup: (any EnginePage)? = nil, parent: LinkPreviewWindow? = nil, target: Space) {
         self.library = library
-        let target = library.linkPreviewDestination(for: url)
         destination = parent?.destination ?? target.id
         let profile = parent?.profile ?? library.browsingProfile(in: target)
         self.profile = profile

@@ -113,8 +113,8 @@ final class Browser {
                 if !tab.isPinned, tab.favoriteID == nil { tab.windowKey = windowKey }
                 select(tab)
             }
-        case .url(let url):
-            newTab(url: url)
+        case .externalLink(let url, let spaceID):
+            newTab(url: url, in: regularSpaces.first { $0.id == spaceID }, source: .link)
         case .privateTab:
             newTab(url: nil, isPrivate: true)
             commandBar = .editCurrent
@@ -439,15 +439,6 @@ final class Browser {
         ])
     }
 
-    /// A link from another app (when Ark is the default browser).
-    func openExternal(_ url: URL) {
-        commandBar = nil
-        let target = SpaceRouter.shared.space(for: url, in: library)
-            ?? regularSpaces.first { $0.id == settings.externalLinksSpaceID }
-            ?? (currentSpace.isPrivate ? regularSpaces[0] : currentSpace)
-        newTab(url: url, in: target, source: .link)
-    }
-
     /// Favourites behave like Arc's: the tile holds its own tab, kept out of the Today list. One
     /// click goes back to that tab, or to a tab already showing the site, or opens one.
     func open(_ favorite: Favorite) {
@@ -602,7 +593,7 @@ struct FindState: Equatable {
 /// What a new window should show first.
 enum WindowRequest {
     case tab(BrowserTab)
-    case url(URL)
+    case externalLink(URL, spaceID: UUID)
     case privateTab
 }
 

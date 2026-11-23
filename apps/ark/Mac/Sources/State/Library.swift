@@ -292,23 +292,30 @@ final class Library {
     }
 
     /// A link from another app, in the window in use, or a new one when none is open.
-    func openExternal(_ url: URL, inLinkWindow: Bool = Preferences.externalLinksInPreview) {
-        if inLinkWindow, LinkPreviewWindow.supports(url) {
-            showLinkPreview(url)
+    func openExternal(_ url: URL, sourceApp: String? = nil, inLinkWindow: Bool = Preferences.externalLinksInPreview) {
+        let window = activeWindow
+        let opensPreview = inLinkWindow && LinkPreviewWindow.supports(url)
+        let launchSpace = window == nil && !opensPreview ? regularSpaces.first { $0.id == launchSpaceID } : nil
+        let target = externalLinkDestination(for: url, sourceApp: sourceApp, fallback: launchSpace)
+        if opensPreview {
+            showLinkPreview(url, destination: target)
             return
         }
-        if let window = activeWindow {
-            window.openExternal(url)
+        if let window {
+            window.commandBar = nil
+            window.newTab(url: url, in: target, source: .link)
             NSApp.activate()
             window.nsWindow?.makeKeyAndOrderFront(nil)
         } else {
-            openWindow(.url(url))
+            openWindow(.externalLink(url, spaceID: target.id))
         }
     }
 
     @discardableResult
-    func showLinkPreview(_ url: URL?, popup: (any EnginePage)? = nil, from parent: LinkPreviewWindow? = nil) -> LinkPreviewWindow {
-        let preview = LinkPreviewWindow(url: url, library: self, popup: popup, parent: parent)
+    func showLinkPreview(_ url: URL?, popup: (any EnginePage)? = nil, from parent: LinkPreviewWindow? = nil,
+                         destination: Space? = nil) -> LinkPreviewWindow {
+        let preview = LinkPreviewWindow(url: url, library: self, popup: popup, parent: parent,
+                                        target: destination ?? externalLinkDestination(for: url))
         if let last = linkWindows.values.first(where: { $0.window?.isKeyWindow == true }),
            let position = last.window?.frame.origin {
             preview.window?.setFrameOrigin(NSPoint(x: position.x + 20, y: position.y - 20))
@@ -319,10 +326,10 @@ final class Library {
         return preview
     }
 
-    func linkPreviewDestination(for url: URL?) -> Space {
-        let routed = SpaceRouter.shared.space(for: url, in: self)
+    private func externalLinkDestination(for url: URL?, sourceApp: String? = nil, fallback: Space? = nil) -> Space {
+        let routed = SpaceRouter.shared.externalSpace(for: url, sourceApp: sourceApp, in: regularSpaces)
             ?? regularSpaces.first { $0.id == settings.externalLinksSpaceID }
-        return routed ?? activeWindow.flatMap { $0.currentSpace.isPrivate ? nil : $0.currentSpace } ?? regularSpaces[0]
+        return routed ?? activeWindow.flatMap { $0.currentSpace.isPrivate ? nil : $0.currentSpace } ?? fallback ?? regularSpaces[0]
     }
 
     func keepLinkPreview(_ controller: TabController, destination: UUID, profile: BrowsingProfile) {

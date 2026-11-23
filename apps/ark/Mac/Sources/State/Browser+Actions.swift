@@ -65,6 +65,8 @@ extension Browser {
                 out.append(BrowserCommand(id: ShortcutAction.pictureInPicture.rawValue,
                                           title: ShortcutAction.pictureInPicture.title,
                                           keywords: ["video", "float", "mini player", "pip"]))
+                out.append(BrowserCommand(id: "mini-player", title: "Mini Player",
+                                          keywords: ["video", "float", "mini player", "controls"]))
                 out.append(BrowserCommand(id: "tab-window", title: "Move Tab to New Window", keywords: ["window", "detach"]))
                 out.append(BrowserCommand(id: "zoom-in", title: "Zoom In", keywords: ["bigger", "larger", "text size"]))
                 out.append(BrowserCommand(id: "zoom-out", title: "Zoom Out", keywords: ["smaller", "text size"]))
@@ -165,7 +167,7 @@ extension Browser {
         "move": "arrow.right.square", "restore": "archivebox", "ext": "puzzlepiece.extension",
         "copy-markdown": "link.badge.plus", "copy-page-image": "camera.viewfinder", "copy-page-area": "viewfinder",
         "copy-page-element": "scope",
-        "clear-today": "xmark.circle", "inspector": "hammer",
+        "clear-today": "xmark.circle", "inspector": "hammer", "mini-player": "pip.enter",
     ]
 
     func run(command id: String) {
@@ -212,6 +214,8 @@ extension Browser {
         case "blockers": toggleBlockingForCurrentSite()
         case ShortcutAction.pictureInPicture.rawValue:
             if let tab = currentTab { library.videoPictureInPicture.toggle(for: tab, in: self) }
+        case "mini-player":
+            if let tab = currentTab { library.videoMiniPlayer.toggle(for: tab, in: self) }
         case "share": shareCurrentPage()
         case "close-others": if let t = currentTab { closeOtherTabs(than: t) }
         case "reopen": reopenClosedTab()

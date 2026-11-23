@@ -87,6 +87,7 @@ final class Library {
     var pipTabID: UUID?
     var pipClosedFor: Set<UUID> = []
     @ObservationIgnored let videoPictureInPicture = VideoPictureInPicture()
+    @ObservationIgnored let videoMiniPlayer = VideoMiniPlayer()
     let history: HistoryStore
     let profileHistory: ProfileHistoryStores
     @ObservationIgnored private let suggestionSeeds = SeedProvider.bundled()
@@ -451,7 +452,10 @@ final class Library {
     func swapEngine(of tab: BrowserTab, to url: URL, source: Frecency.VisitSource = .link) {
         let target = engine(for: tab, url: url)
         videoPictureInPicture.beforeTabUnload(tab.id) { [weak self] in
-            self?.finishEngineSwap(of: tab, to: url, using: target, source: source)
+            guard let self else { return }
+            self.videoMiniPlayer.beforeTabUnload(tab.id) {
+                self.finishEngineSwap(of: tab, to: url, using: target, source: source)
+            }
         }
     }
 
@@ -502,7 +506,10 @@ final class Library {
 
     /// Saves a page's back/forward list onto its tab and lets the page go.
     private func unload(_ id: UUID) {
-        videoPictureInPicture.beforeTabUnload(id) { [weak self] in self?.finishUnload(id) }
+        videoPictureInPicture.beforeTabUnload(id) { [weak self] in
+            guard let self else { return }
+            self.videoMiniPlayer.beforeTabUnload(id) { self.finishUnload(id) }
+        }
     }
 
     private func finishUnload(_ id: UUID) {

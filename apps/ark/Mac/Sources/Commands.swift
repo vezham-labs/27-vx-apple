@@ -107,6 +107,12 @@ struct BrowserCommands: Commands {
             }
             .keyboardShortcut(keys.shortcut(.pictureInPicture))
             .disabled(!hasPage)
+            Button("Mini Player") {
+                if let browser, let tab = browser.currentTab {
+                    browser.library.videoMiniPlayer.toggle(for: tab, in: browser)
+                }
+            }
+            .disabled(!hasPage)
             Button(browser?.isReaderShowing == true ? "Hide Reader" : "Show Reader") { browser?.toggleReader() }
                 .keyboardShortcut(keys.shortcut(.reader))
                 .disabled(!hasPage)

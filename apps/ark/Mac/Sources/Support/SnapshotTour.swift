@@ -151,6 +151,10 @@ struct SnapshotTour {
         guard let window = browser.nsWindow else { note("missing window"); return }
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        if ProcessInfo.processInfo.environment["ARK_MINI_PLAYER_PREVIEW"] == "1" {
+            await miniPlayerPreview(browser, base: base)
+            return
+        }
         await namedProfileCheck()
         await spaceProfileCheck(browser)
         let first = base.appending(path: "atlas.html")
@@ -259,6 +263,95 @@ struct SnapshotTour {
         }
         await baselinePreviews(browser, window: window, atlas: atlas, otherPage: second)
         await settingsPreviews(browser, window: window)
+    }
+
+    private func miniPlayerPreview(_ browser: Browser, base: URL) async {
+        let videoTab = browser.newTab(url: base.appending(path: "mini-player.html"))
+        let page = browser.library.existingController(for: videoTab)?.page
+        let fixtureState = try? await page?.evaluate("""
+            const v = document.querySelector('video');
+            if (!v) return JSON.stringify({ reason: 'no-video-element', ready: document.readyState,
+                url: location.href, title: document.title, body: document.body?.innerText?.slice(0, 160) });
+            const r = v.getBoundingClientRect();
+            return JSON.stringify({ readyState: v.readyState, paused: v.paused, ended: v.ended,
+                videoWidth: v.videoWidth, videoHeight: v.videoHeight, rect: [r.width, r.height],
+                duration: v.duration, muted: v.muted, currentSrc: v.currentSrc });
+            """, inWorld: "ark.preview") as? String
+        note("mini-player fixture video: \(fixtureState ?? "unavailable")")
+        var playingBefore = false
+        for _ in 0..<60 {
+            if let state = try? await page?.evaluate("""
+                const v = document.querySelector('video');
+                return !!v && v.readyState >= 2 && !v.paused;
+                """, inWorld: "ark.preview") as? Bool, state {
+                playingBefore = true
+                break
+            }
+            await pause(0.25)
+        }
+        guard playingBefore else { note("mini-player fixture did not start playback"); return }
+
+        let playingState = try? await page?.evaluate("""
+            const v = document.querySelector('video');
+            if (!v) return 'no-video-element';
+            const r = v.getBoundingClientRect();
+            return JSON.stringify({ readyState: v.readyState, paused: v.paused, ended: v.ended,
+                videoWidth: v.videoWidth, videoHeight: v.videoHeight, rect: [r.width, r.height],
+                duration: v.duration, muted: v.muted, currentSrc: v.currentSrc });
+            """, inWorld: "ark.preview") as? String
+        note("mini-player playing fixture state: \(playingState ?? "unavailable")")
+
+        note("mini-player fixture selected as current tab: \(browser.currentTab?.id == videoTab.id)")
+        browser.run(command: "mini-player")
+        for _ in 0..<80 where !browser.library.videoMiniPlayer.isShowing { await pause(0.1) }
+        let opened = browser.library.videoMiniPlayer.isShowing
+        guard opened else {
+            note("mini-player command did not open the panel; toast: \(browser.toast ?? "none"); \(browser.library.videoMiniPlayer.previewFailure ?? "no diagnostic")")
+            return
+        }
+        guard browser.library.videoMiniPlayer.isShowing,
+              let panel = browser.library.videoMiniPlayer.previewWindow else {
+            note("mini-player command did not open its floating panel; toast: \(browser.toast ?? "none")")
+            return
+        }
+        browser.library.videoMiniPlayer.revealControlsForPreview()
+        await pause(5.1)
+        // Capture the native panel view tree directly. Avoid WindowServer screen
+        // recording permission prompts in this local-only fixture.
+        save("mini-player", in: panel)
+        await saveImage(await page?.snapshot(), "mini-player-page")
+        let floating = try? await page?.evaluate("""
+            const v = document.querySelector('video');
+            return !!v && document.documentElement.classList.contains('office-floating') && !v.paused;
+            """, inWorld: "ark.preview") as? Bool
+        let frameState = try? await page?.evaluate("""
+            const v = document.querySelector('video');
+            if (!v) return 'no-video-element';
+            const c = document.createElement('canvas'); c.width = 16; c.height = 9;
+            const x = c.getContext('2d'); x.drawImage(v, 0, 0, c.width, c.height);
+            const p = x.getImageData(0, 0, c.width, c.height).data;
+            const avg = [0, 0, 0];
+            for (let i = 0; i < p.length; i += 4) for (let j = 0; j < 3; j++) avg[j] += p[i + j];
+            return JSON.stringify({ averageRGB: avg.map(n => Math.round(n / (p.length / 4))),
+                visibility: getComputedStyle(v).visibility, opacity: getComputedStyle(v).opacity,
+                dimensions: [v.videoWidth, v.videoHeight], currentTime: v.currentTime });
+            """, inWorld: "ark.preview") as? String
+        note("mini-player rendered frame: \(frameState ?? "unavailable")")
+
+        let otherTab = browser.newTab(url: base.appending(path: "field-notes.html"))
+        await pause(0.3)
+        browser.select(videoTab)
+        var returned = false
+        for _ in 0..<40 {
+            returned = (try? await page?.evaluate("""
+                const v = document.querySelector('video');
+                return !!v && !document.documentElement.classList.contains('office-floating') && !v.paused;
+                """, inWorld: "ark.preview") as? Bool) == true
+            if returned { break }
+            await pause(0.1)
+        }
+        note("mini-player opens playing video: \(floating == true); selecting its tab restores inline playback: \(returned == true)")
+        browser.close(otherTab)
     }
 
     private func namedProfileCheck() async {

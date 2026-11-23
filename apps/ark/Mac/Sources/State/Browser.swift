@@ -276,6 +276,7 @@ final class Browser {
             lastUsedTabIDs[space.id] = previous
         }
         tabSelection[space.id] = tab?.id
+        library.videoMiniPlayer.selected(tab, in: self)
         if var split = splitBySpace[space.id] {
             split.isOpen = tab.map { split.contains($0.id) && canShowSplit(split, in: space) } ?? false
             if let tab, split.isOpen { split.focused = tab.id }

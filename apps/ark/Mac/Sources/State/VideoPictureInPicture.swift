@@ -36,6 +36,7 @@ final class VideoPictureInPicture {
             view = nil
             for id in hidden {
                 guard !Task.isCancelled, Preferences.automaticVideoPiP else { return }
+                guard library.videoMiniPlayer.tabID != id else { continue }
                 guard let tab = library.tab(id: id), !tab.isPrivate, tab.call == nil,
                       !library.agents.isInAgentSpace(tab), library.window(showing: tab) == nil,
                       let page = library.existingController(for: tab)?.page,

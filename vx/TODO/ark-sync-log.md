@@ -194,3 +194,13 @@ Mobile uses the same tab actions to pair a pin or Today web tab with the focused
 **Add Pane** in Split View options adds up to four live web tabs from the current Space, following Search’s ordered groups in `Split.swift`. Dividers resize adjacent panes. Closing a pane preserves the group and focuses its neighbor when the closing pane was focused. Existing two-pane state decodes with its original orientation, focus, and size.
 
 A temporary local Mac fixture verified four live views in order, neighbor-only resizing, saved proportions, and closing one pane while keeping the remaining three. A standalone Swift check verified legacy state and divider bounds. The [Mac preview](../../preview/ark/mac/features/four-pane-split-view.png) shows the resized four-pane layout. The temporary fixture stayed outside the commit. Multiple mobile panes beyond two and Mac relaunch verification remain open.
+
+### Four-pane mobile Split View
+
+**Add Pane** in the page menu and **Add to Split View** in the tab context menu can add up to four pinned or Today pages in a Space. The layout remains stacked on narrow displays and side by side at wider widths. Resizing a divider moves only its adjacent panes. Closing a pane keeps the remaining group and focuses a neighbor when needed. Visible panes stay in the WebKit pool and out of auto-archive. Existing two-pane snapshots decode with the same proportions.
+
+The production iOS build and all 107 BrowserKit tests passed. A standalone Swift check verified legacy decoding, divider bounds, and the four-pane round trip. The first iPad run started with three panes, then the gallery long-press selected the candidate without opening its context menu. A retry exercises **Add Pane** from the page menu with a pinned candidate. iPhone and Duo four-pane runtime checks remain open.
+
+### Mac Split View startup archive
+
+The startup archive sweep now runs after AppKit finishes restoring windows, giving the SwiftUI window roots a chance to register visible panes. A temporary Mac fixture restored a four-pane group from saved state with all panes old enough to archive. It retained the group's saved orientation, divider sizes, and focus while sending an unrelated stale tab to Archive. The production Mac build passed. Full macOS quit-and-relaunch verification remains open.

@@ -177,6 +177,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(didFinishRestoringWindows),
+            name: NSApplication.didFinishRestoringWindowsNotification, object: NSApp
+        )
+    }
+
+    @objc private func didFinishRestoringWindows(_ notification: Notification) {
+        // Let restored SwiftUI windows register their visible tabs before the first archive sweep.
+        DispatchQueue.main.async { [weak self] in
+            self?.library.archiveStaleTabs()
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         ArkAppearance.apply()
         // tools/audio-bench opens its page at launch (test builds only; see AudioBench).

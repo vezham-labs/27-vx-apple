@@ -232,7 +232,19 @@ struct PageMenu: View {
                     }
                     Button("Show Reader", systemImage: "doc.plaintext") { presenting { browser.showReader() } }
                     Button("Find on Page", systemImage: "doc.text.magnifyingglass") { presenting { browser.findInPage() } }
-                    if browser.currentSpace.activeSplitTabs != nil {
+                    if browser.currentSpace.activeSplitMembers != nil {
+                        let candidates = browser.currentSpace.additionalSplitCandidates
+                        if !candidates.isEmpty {
+                            Menu("Add Pane", systemImage: "rectangle.split.3x1") {
+                                ForEach(candidates) { other in
+                                    Button(other.displayTitle) {
+                                        presenting {
+                                            if browser.currentSpace.addToSplit(other) { browser.scheduleSave() }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         Button("Separate Tabs", systemImage: "rectangle.split.2x1") {
                             presenting {
                                 browser.currentSpace.separateTabs()

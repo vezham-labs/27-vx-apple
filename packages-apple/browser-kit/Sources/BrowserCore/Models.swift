@@ -144,8 +144,18 @@ public final class Space: Identifiable {
     }
 
     public var activeSplitTabs: (BrowserTab, BrowserTab)? {
+        guard let members = activeSplitMembers, members.count == 2 else { return nil }
+        return (members[0], members[1])
+    }
+
+    public var activeSplitMembers: [BrowserTab]? {
         guard let pair = splitPair, let selectedTabID, pair.contains(selectedTabID) else { return nil }
         return splitTabs(for: pair)
+    }
+
+    public var additionalSplitCandidates: [BrowserTab] {
+        guard let split = splitPair, activeSplitMembers != nil, split.tabs.count < TabSplitPair.maxPanes else { return [] }
+        return splitCandidates.filter { !split.contains($0.id) }
     }
 
     @discardableResult
@@ -157,9 +167,40 @@ public final class Space: Identifiable {
 
     public func separateTabs() { splitPair = nil }
 
+    @discardableResult
+    public func addToSplit(_ tab: BrowserTab) -> Bool {
+        guard var split = splitPair, additionalSplitCandidates.contains(where: { $0 === tab }) else { return false }
+        split.setTabs(split.tabs + [tab.id])
+        splitPair = split
+        return true
+    }
+
+    func detachSplitMember(_ id: UUID) -> UUID? {
+        guard var split = splitPair, let index = split.tabs.firstIndex(of: id) else { return nil }
+        var survivors = split.tabs
+        survivors.remove(at: index)
+        let neighbor = activeSplitMembers == nil ? nil : survivors[min(index, survivors.count - 1)]
+        splitPair = nil
+        if survivors.count >= 2 {
+            var shares = split.shares
+            shares.remove(at: index)
+            let total = shares.reduce(0, +)
+            split.setTabs(survivors)
+            split.setShares(shares.map { $0 / total })
+            if splitTabs(for: split) != nil { splitPair = split }
+        }
+        return neighbor
+    }
+
     public func resizeSplit(to fraction: Double) {
         guard fraction.isFinite, activeSplitTabs != nil else { return }
         splitPair?.fraction = min(0.75, max(0.25, fraction))
+    }
+
+    public func resizeSplit(after index: Int, by delta: Double) {
+        guard var split = splitPair, activeSplitMembers != nil else { return }
+        split.setShares(split.resizedShares(after: index, by: delta))
+        splitPair = split
     }
 
     private func isSplittable(_ tab: BrowserTab) -> Bool {
@@ -168,11 +209,11 @@ public final class Space: Identifiable {
         return scheme == "http" || scheme == "https"
     }
 
-    private func splitTabs(for pair: TabSplitPair) -> (BrowserTab, BrowserTab)? {
-        guard pair.first != pair.second,
-              let first = splitMember(pair.first),
-              let second = splitMember(pair.second) else { return nil }
-        return (first, second)
+    private func splitTabs(for pair: TabSplitPair) -> [BrowserTab]? {
+        let ids = pair.tabs
+        guard ids.count <= TabSplitPair.maxPanes, Set(ids).count == ids.count else { return nil }
+        let members = ids.compactMap(splitMember)
+        return members.count == ids.count ? members : nil
     }
 
     private func splitMember(_ id: UUID) -> BrowserTab? {
@@ -183,11 +224,63 @@ public final class Space: Identifiable {
 }
 
 public struct TabSplitPair: Codable, Equatable, Sendable {
-    public let first: UUID
-    public let second: UUID
+    static let maxPanes = 4
+    public internal(set) var first: UUID
+    public internal(set) var second: UUID
     public internal(set) var fraction: Double = 0.5
+    private var additional: [UUID]?
+    private var customShares: [Double]?
 
-    public func contains(_ id: UUID) -> Bool { id == first || id == second }
+    init(first: UUID, second: UUID, fraction: Double = 0.5) {
+        self.first = first
+        self.second = second
+        self.fraction = fraction
+    }
+
+    public var tabs: [UUID] { [first, second] + (additional ?? []) }
+    private var minimumShare: Double { tabs.count > 2 ? 0.16 : 0.25 }
+
+    public var shares: [Double] {
+        let count = tabs.count
+        if count == 2 {
+            let first = min(0.75, max(0.25, fraction.isFinite ? fraction : 0.5))
+            return [first, 1 - first]
+        }
+        guard let customShares, customShares.count == count,
+              customShares.allSatisfy({ $0.isFinite && $0 >= minimumShare - 0.0001 }),
+              abs(customShares.reduce(0, +) - 1) < 0.0001 else {
+            return Array(repeating: 1 / Double(count), count: count)
+        }
+        return customShares
+    }
+
+    public func contains(_ id: UUID) -> Bool { tabs.contains(id) }
+
+    public func resizedShares(after index: Int, by delta: Double) -> [Double] {
+        var shares = self.shares
+        guard index >= 0, index + 1 < shares.count, delta.isFinite else { return shares }
+        let change = min(shares[index + 1] - minimumShare, max(minimumShare - shares[index], delta))
+        shares[index] += change
+        shares[index + 1] -= change
+        return shares
+    }
+
+    mutating func setTabs(_ tabs: [UUID]) {
+        first = tabs[0]
+        second = tabs[1]
+        additional = tabs.count > 2 ? Array(tabs.dropFirst(2)) : nil
+        fraction = 0.5
+        customShares = nil
+    }
+
+    mutating func setShares(_ shares: [Double]) {
+        if shares.count == 2 {
+            fraction = min(0.75, max(0.25, shares[0]))
+            customShares = nil
+        } else {
+            customShares = shares
+        }
+    }
 }
 
 // MARK: - Settings
@@ -447,9 +540,9 @@ extension Space {
         appearance = r.appearance
         websiteProfileID = r.websiteProfileID
         restorePinFolders(r.pinFolders ?? [])
-        if let pair = r.splitPair, splitTabs(for: pair) != nil {
-            splitPair = TabSplitPair(first: pair.first, second: pair.second,
-                                     fraction: pair.fraction.isFinite ? min(0.75, max(0.25, pair.fraction)) : 0.5)
+        if var pair = r.splitPair, splitTabs(for: pair) != nil {
+            pair.setShares(pair.shares)
+            splitPair = pair
         }
     }
 }

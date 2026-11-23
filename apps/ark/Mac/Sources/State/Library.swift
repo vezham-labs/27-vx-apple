@@ -141,7 +141,6 @@ final class Library {
             calls.onCallAudioStats = { [weak self] in self?.callAudioStats = $0 }
         }
         applyBlocking()
-        archiveStaleTabs()
         engine.extensionHost = self
         reloadExtensions()
         agents = AgentBridge(library: self)

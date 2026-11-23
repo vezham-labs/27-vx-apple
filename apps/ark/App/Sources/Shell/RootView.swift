@@ -99,8 +99,8 @@ struct WebContentView: View {
     var bottomObscuredInset: CGFloat = 0
 
     var body: some View {
-        if let tabs = browser.currentSpace.activeSplitTabs {
-            MobileSplitView(first: tabs.0, second: tabs.1) { tab in
+        if let tabs = browser.currentSpace.activeSplitMembers, let split = browser.currentSpace.splitPair {
+            MobileSplitView(split: split, members: tabs) { tab in
                 page(tab, topInset: 0, bottomInset: 0, onPageTap: { browser.focusSplitPane(tab) })
             }
             .padding(.top, topObscuredInset)

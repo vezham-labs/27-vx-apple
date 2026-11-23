@@ -90,13 +90,13 @@ extension BrowserState {
     /// Call on launch and when returning to the foreground.
     public func archiveStaleTabs(now: Date = .now) {
         for space in spaces where !space.isPrivate {
-            let activePair = space.activeSplitTabs == nil ? nil : space.splitPair
+            let activePair = space.activeSplitMembers == nil ? nil : space.splitPair
             let stale = space.today.filter {
                 $0.id != space.selectedTabID && activePair?.contains($0.id) != true
                     && now.timeIntervalSince($0.lastActive) > settings.archiveAfterHours * 3600
             }
             guard !stale.isEmpty else { continue }
-            if let pair = space.splitPair, stale.contains(where: { pair.contains($0.id) }) { space.separateTabs() }
+            for tab in stale { _ = space.detachSplitMember(tab.id) }
             space.today.removeAll { t in stale.contains { $0.id == t.id } }
             for tab in stale {
                 pool.existingSession(for: tab.id)?.freeze()

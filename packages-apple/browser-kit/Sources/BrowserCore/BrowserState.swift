@@ -204,7 +204,7 @@ public final class BrowserState {
     }
 
     public func focusSplitPane(_ tab: BrowserTab) {
-        guard let (first, second) = currentSpace.activeSplitTabs, tab === first || tab === second,
+        guard currentSpace.activeSplitMembers?.contains(where: { $0 === tab }) == true,
               tab.id != currentTab?.id else { return }
         select(tab)
     }
@@ -279,22 +279,16 @@ public final class BrowserState {
         for space in spaces {
             let index = space.today.firstIndex { $0.id == tab.id }
             guard index != nil || (tab.isPinned && space.pinned.contains { $0.id == tab.id }) else { continue }
-            var splitPartner: BrowserTab?
-            if space.splitPair?.contains(tab.id) == true {
-                if let (first, second) = space.activeSplitTabs {
-                    splitPartner = first.id == tab.id ? second : first
-                }
-                space.separateTabs()
-            }
+            let splitPartner = space.detachSplitMember(tab.id)
             if let i = index {
                 space.today.remove(at: i)
                 if space.selectedTabID == tab.id {
                     let next: BrowserTab? = space.today.indices.contains(i) ? space.today[i] : (space.today.last ?? space.pinned.last)
-                    space.selectedTabID = (splitPartner ?? next)?.id
+                    space.selectedTabID = splitPartner ?? next?.id
                 }
             } else if space.selectedTabID == tab.id {
                 // Closing a pinned tab just unloads it, like Arc.
-                space.selectedTabID = splitPartner?.id
+                space.selectedTabID = splitPartner
             }
         }
         pool.remove(tab.id)

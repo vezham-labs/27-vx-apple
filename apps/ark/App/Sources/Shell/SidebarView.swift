@@ -193,9 +193,12 @@ struct TabMenu: View {
     let tab: BrowserTab
 
     var body: some View {
-        if browser.currentSpace.splitCandidates.contains(where: { $0 === tab }) {
-            Button("Open in Split View", systemImage: "rectangle.split.2x1") {
-                if browser.currentSpace.splitWith(tab) {
+        let space = browser.currentSpace
+        let adding = space.activeSplitMembers != nil
+        let candidates = adding ? space.additionalSplitCandidates : space.splitCandidates
+        if candidates.contains(where: { $0 === tab }) {
+            Button(adding ? "Add to Split View" : "Open in Split View", systemImage: "rectangle.split.2x1") {
+                if adding ? space.addToSplit(tab) : space.splitWith(tab) {
                     browser.isTabSwitcherPresented = false
                     browser.scheduleSave()
                 }

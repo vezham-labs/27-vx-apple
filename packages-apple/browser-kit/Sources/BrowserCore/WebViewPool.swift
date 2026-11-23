@@ -59,7 +59,7 @@ final class WebViewPool {
         let s = TabSession(tab: tab, configuration: config,
                            browser: browser)
         sessions[tab.id] = s
-        evictIfNeeded(keeping: tab.id, split: browser.currentSpace.activeSplitTabs == nil ? nil : browser.currentSpace.splitPair)
+        evictIfNeeded(keeping: tab.id, split: browser.currentSpace.activeSplitMembers == nil ? nil : browser.currentSpace.splitPair)
         return s
     }
 

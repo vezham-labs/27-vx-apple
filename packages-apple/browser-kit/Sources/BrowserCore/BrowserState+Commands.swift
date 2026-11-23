@@ -108,7 +108,7 @@ extension BrowserState {
         let tab = BrowserTab(url: url, isPrivate: opener.isPrivate)
         space.today.insert(tab, at: 0)
         let s = TabSession(tab: tab, configuration: configuration, browser: self, loadInitial: false)
-        pool.adopt(s, keeping: currentSpace.activeSplitTabs == nil ? nil : currentSpace.splitPair)
+        pool.adopt(s, keeping: currentSpace.activeSplitMembers == nil ? nil : currentSpace.splitPair)
         select(tab)
         return s.webView
     }

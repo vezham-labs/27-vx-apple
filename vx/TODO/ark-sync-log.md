@@ -47,6 +47,15 @@ git log --oneline 19eef7990aec8bd5491ef06ffc14928b7a73033f..FETCH_HEAD
 
 The adjacent **Mini player** row was reviewed against Search’s 1,704-line `Float.swift`. Ark’s system PiP provides native playback controls, while Search’s Ark-owned video window adds custom controls, positioning, resize, and docking behavior. Those custom window behaviors remain open; the comparison stays **Partial** on Mac.
 
+### Search follow-up: manual Mac PiP control
+
+| Field                | Value                                                                                                                                                                                                                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reference repository | [driceroland/Search](https://github.com/driceroland/Search)                                                                                                                                                                                                                   |
+| Search source SHA    | [`6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`](https://github.com/driceroland/Search/commit/6f2b186bfa862d282ee9f424be1dfd5eb8ddc316)                                                                                                                                          |
+| Ark follow-up        | `250fb410abf3fea0edd43be7c47908fa91939c36` adds View → Picture in Picture, ⇧⌘P, and a command-bar action to toggle the current page’s largest ready video. The customizable shortcut uses the Search default.                                                                                                    |
+| Verification         | The isolated macOS 27.2 fixture passed manual entry and return with automatic mode off, plus automatic entry, return, muted-video exclusion, and source-tab cleanup. The clean-source Mac Nx build passed. The Search-style custom video window remains an open Mini player gap. |
+
 ### Feature audit
 
 The [Search feature audit](ark-search-audit.md) maps all 42 comparison rows to Search and Ark code. This pass adds a last-used-tab action and versioned Space link export on Mac. It also moves full-page PNG rasterization and encoding off the main thread.

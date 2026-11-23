@@ -329,3 +329,7 @@ Search's `Profiles.swift` stores bookmarks by profile. Ark now stores favorites 
 ### Keep loading pages out of Mac LRU eviction
 
 Search's `Sleep.swift` treats loading pages as awake. Ark's 24-controller LRU previously considered a loading, off-screen page evictable if its current `PageState.isBusy` was false. Eviction now also checks `PageState.isLoading`, preserving navigation in progress while retaining the existing cap for inactive ready pages. `pnpm nx run ark:build-mac --skip-nx-cache` passed. This is a state-transition safety fix, not a measured memory-performance improvement; Ark's timer-based tab sleeping and memory-pressure response remain unimplemented.
+
+### Mac screenshots for theme and Developer Mode
+
+An isolated DEBUG snapshot run captured the actual Space Theme editor and Settings → Advanced screen, including the Inspect Element toggle. Temporary snapshot-only code was removed. The images are linked from the Theme picker and Developer mode rows in the local comparison matrix.

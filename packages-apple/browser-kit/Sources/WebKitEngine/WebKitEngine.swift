@@ -339,6 +339,16 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
         if profile == .standard { HTTPCookieStorage.shared.removeCookies(since: .distantPast) }
     }
 
+    public func deleteWebsiteDataStore(for profile: BrowsingProfile) async {
+        guard case .named(let id) = profile else { return }
+        var store = namedConfigurations.removeValue(forKey: id)?.websiteDataStore
+        if let store {
+            await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
+        }
+        store = nil
+        try? await WKWebsiteDataStore.remove(forIdentifier: id)
+    }
+
     public func resetEphemeralProfile() {
         // Web views copy their configuration when made, so the next private page gets a fresh
         // store and keeps the same rules and scripts.

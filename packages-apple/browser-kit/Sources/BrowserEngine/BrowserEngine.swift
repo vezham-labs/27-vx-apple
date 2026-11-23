@@ -36,6 +36,9 @@ public protocol BrowserEngine: AnyObject {
     /// Forgets cookies and site storage for a profile.
     func clearWebsiteData(for profile: BrowsingProfile) async
 
+    /// Clears a named profile's persistent store and releases its cached configuration after its pages close.
+    func deleteWebsiteDataStore(for profile: BrowsingProfile) async
+
     /// Throws away everything the ephemeral (private) profile stored. Its pages must be closed first.
     func resetEphemeralProfile()
 
@@ -67,6 +70,7 @@ public protocol BrowserEngine: AnyObject {
 }
 
 public extension BrowserEngine {
+    func deleteWebsiteDataStore(for profile: BrowsingProfile) async {}
     var extensions: [EngineExtension] { [] }
     var extensionHost: (any EngineExtensionHost)? { get { nil } set {} }
     func loadInstalledExtensions() async -> [String] { [] }

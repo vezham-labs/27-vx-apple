@@ -489,7 +489,7 @@ final class Library {
         recentlyClosed.removeAll { $0.websiteSessionProfileID == id }
         favoritesByProfile.removeValue(forKey: FavoriteProfileKey.key(for: id))
         settings.websiteProfiles.removeAll { $0.id == id }
-        await engine.clearWebsiteData(for: .named(id))
+        await engine.deleteWebsiteDataStore(for: .named(id))
         await profileHistory.deleteProfile(id)
         scheduleSave()
     }

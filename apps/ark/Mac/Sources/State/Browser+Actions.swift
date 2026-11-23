@@ -62,6 +62,9 @@ extension Browser {
                 out.append(BrowserCommand(id: "find", title: "Find on Page", keywords: ["search", "text"]))
                 out.append(BrowserCommand(id: "reader", title: isReaderShowing ? "Hide Reader" : "Show Reader",
                                           keywords: ["article", "reading", "clean"]))
+                out.append(BrowserCommand(id: ShortcutAction.pictureInPicture.rawValue,
+                                          title: ShortcutAction.pictureInPicture.title,
+                                          keywords: ["video", "float", "mini player", "pip"]))
                 out.append(BrowserCommand(id: "tab-window", title: "Move Tab to New Window", keywords: ["window", "detach"]))
                 out.append(BrowserCommand(id: "zoom-in", title: "Zoom In", keywords: ["bigger", "larger", "text size"]))
                 out.append(BrowserCommand(id: "zoom-out", title: "Zoom Out", keywords: ["smaller", "text size"]))
@@ -207,6 +210,8 @@ extension Browser {
         case "zoom-out": zoom(-1)
         case "zoom-reset": zoom(0)
         case "blockers": toggleBlockingForCurrentSite()
+        case ShortcutAction.pictureInPicture.rawValue:
+            if let tab = currentTab { library.videoPictureInPicture.toggle(for: tab, in: self) }
         case "share": shareCurrentPage()
         case "close-others": if let t = currentTab { closeOtherTabs(than: t) }
         case "reopen": reopenClosedTab()
@@ -337,6 +342,8 @@ extension Browser {
         case .copyMarkdown: copyCurrentLinkAsMarkdown()
         case .reader: toggleReader()
         case .inspector: showWebInspector()
+        case .pictureInPicture:
+            if let tab = currentTab { library.videoPictureInPicture.toggle(for: tab, in: self) }
         }
     }
 

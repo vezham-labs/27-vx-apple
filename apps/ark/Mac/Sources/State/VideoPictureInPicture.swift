@@ -1,13 +1,15 @@
 import AppKit
 import WebKit
+import BrowserCore
 
 /// Owns only the video Ark floated automatically. The call window and site-initiated PiP are separate.
 @MainActor
 final class VideoPictureInPicture {
     private var request: Task<Void, Never>?
+    private var requestID: UUID?
     private var tabID: UUID?
     private weak var view: WKWebView?
-    private var dismissal: (tabID: UUID, task: Task<Void, Never>)?
+    private var dismissal: (id: UUID, tabID: UUID, task: Task<Void, Never>)?
 
     func visibleTabsChanged(in browser: Browser, from previous: [UUID], to current: [UUID]) {
         if let tabID, current.contains(tabID) { stop() }
@@ -15,9 +17,17 @@ final class VideoPictureInPicture {
               browser.nsWindow?.isVisible == true, request == nil else { return }
         let hidden = previous.filter { !current.contains($0) }
         guard !hidden.isEmpty else { return }
+        let requestID = UUID()
+        self.requestID = requestID
         request = Task { [weak self, weak browser] in
             guard let self else { return }
-            defer { request = nil }
+            defer {
+                if self.requestID == requestID {
+                    self.request = nil
+                    self.requestID = nil
+                }
+            }
+            guard !Task.isCancelled, self.requestID == requestID else { return }
             guard let library = browser?.library else { return }
             if let view, await Self.run("return Array.from(document.querySelectorAll('video')).some(video => video.webkitPresentationMode === 'picture-in-picture');", in: view) {
                 return
@@ -38,6 +48,7 @@ final class VideoPictureInPicture {
                     await candidate.closeAllMediaPresentations()
                     return
                 }
+                if dismissal?.tabID == id { dismissal = nil }
                 tabID = id
                 view = candidate
                 return
@@ -45,10 +56,53 @@ final class VideoPictureInPicture {
         }
     }
 
+    /// Search’s ⇧⌘P action: toggle the current page’s largest video into system PiP.
+    func toggle(for tab: BrowserTab, in browser: Browser) {
+        guard !tab.isPrivate, tab.call == nil, !browser.library.agents.isInAgentSpace(tab),
+              browser.library.activeWindow === browser,
+              let page = browser.library.existingController(for: tab)?.page,
+              let candidate = page.view as? WKWebView else {
+            browser.showToast("Picture in Picture is unavailable for this tab")
+            return
+        }
+        if tabID == tab.id { stop(); return }
+        stop()
+        Self.enableNativeMode(in: candidate)
+        let requestID = UUID()
+        self.requestID = requestID
+        request = Task { [weak self, weak browser, weak tab] in
+            guard let self, let browser, let tab else { return }
+            defer {
+                if self.requestID == requestID {
+                    self.request = nil
+                    self.requestID = nil
+                }
+            }
+            if let dismissal = self.dismissal, dismissal.tabID != tab.id { await dismissal.task.value }
+            guard !Task.isCancelled, browser.currentTab === tab,
+                  browser.library.existingController(for: tab)?.page.view === candidate else { return }
+            let result = await Self.result(Self.toggleScript, in: candidate)
+            guard !Task.isCancelled, self.requestID == requestID else {
+                if (result as? String) == "in" { await candidate.closeAllMediaPresentations() }
+                return
+            }
+            switch result as? String {
+            case "in":
+                if self.dismissal?.tabID == tab.id { self.dismissal = nil }
+                self.tabID = tab.id
+                self.view = candidate
+            case "none": browser.showToast("No video is available for Picture in Picture")
+            case "refused": browser.showToast("This page does not allow Picture in Picture")
+            default: break
+            }
+        }
+    }
+
     func stop() {
         request?.cancel()
         request = nil
-        if let tabID, let view { dismiss(tabID, view: view) }
+        requestID = nil
+        if let tabID, let view { _ = dismiss(tabID, view: view) }
         view = nil
         tabID = nil
     }
@@ -72,11 +126,12 @@ final class VideoPictureInPicture {
 
     private func dismiss(_ id: UUID, view: WKWebView) -> Task<Void, Never> {
         if let dismissal, dismissal.tabID == id { return dismissal.task }
+        let dismissalID = UUID()
         let task = Task { @MainActor [weak self] in
             await view.closeAllMediaPresentations()
-            if self?.dismissal?.tabID == id { self?.dismissal = nil }
+            if self?.dismissal?.id == dismissalID { self?.dismissal = nil }
         }
-        dismissal = (id, task)
+        dismissal = (dismissalID, id, task)
         return task
     }
 
@@ -109,8 +164,35 @@ final class VideoPictureInPicture {
         return true;
         """
 
+    private static let toggleScript = """
+        const mode = 'picture-in-picture';
+        const videos = Array.from(document.querySelectorAll('video'));
+        const floating = videos.find(video => video.webkitPresentationMode === mode);
+        if (floating) {
+            try { floating.webkitSetPresentationMode('inline'); return 'out'; }
+            catch { return 'refused'; }
+        }
+        let best = null;
+        let area = 0;
+        for (const video of videos) {
+            if (video.readyState < 2 || video.hasAttribute('disablepictureinpicture') ||
+                !video.webkitSupportsPresentationMode?.(mode)) continue;
+            const rect = video.getBoundingClientRect();
+            const width = Math.max(0, Math.min(innerWidth, rect.right) - Math.max(0, rect.left));
+            const height = Math.max(0, Math.min(innerHeight, rect.bottom) - Math.max(0, rect.top));
+            if (width * height > area) { best = video; area = width * height; }
+        }
+        if (!best) return 'none';
+        try { best.webkitSetPresentationMode(mode); return 'in'; }
+        catch { return 'refused'; }
+        """
+
     private static func run(_ script: String, in view: WKWebView) async -> Bool {
-        (try? await view.callAsyncJavaScript(script, arguments: [:], in: nil,
-                                             contentWorld: .world(name: "ark.video-pip"))) as? Bool == true
+        (await result(script, in: view)) as? Bool == true
+    }
+
+    private static func result(_ script: String, in view: WKWebView) async -> Any? {
+        try? await view.callAsyncJavaScript(script, arguments: [:], in: nil,
+                                            contentWorld: .world(name: "ark.video-pip"))
     }
 }

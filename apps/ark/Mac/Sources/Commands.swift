@@ -100,6 +100,13 @@ struct BrowserCommands: Commands {
                 .disabled(browser?.editableSiteStyleHost == nil)
             Button("Hide Page Element…") { browser?.selectSiteElementToHide() }
                 .disabled(browser?.editableSiteStyleHost == nil)
+            Button("Picture in Picture") {
+                if let browser, let tab = browser.currentTab {
+                    browser.library.videoPictureInPicture.toggle(for: tab, in: browser)
+                }
+            }
+            .keyboardShortcut(keys.shortcut(.pictureInPicture))
+            .disabled(!hasPage)
             Button(browser?.isReaderShowing == true ? "Hide Reader" : "Show Reader") { browser?.toggleReader() }
                 .keyboardShortcut(keys.shortcut(.reader))
                 .disabled(!hasPage)

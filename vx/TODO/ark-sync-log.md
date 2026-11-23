@@ -359,3 +359,7 @@ The pinned Search `Profiles.swift` models separate browser profiles that own Spa
 ### Arc web app previews audit
 
 Arc's 2021 Mac release notes define Previews as service-specific integrations on favorite web apps, showing recent pages and common actions. Code review found no equivalent in Ark or the pinned Search source; Ark Glance is a generic link preview and remains in the separate Peek row. Comparison status is No across Ark platforms. Search reference SHA: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`.
+
+### Cross-device sync audit correction
+
+The current Search `Sync.swift` is an opt-in user-folder transport for Macs, not the older CloudKit design recorded in the audit. It merges selected settings, Spaces, pins, pin folders, and bookmarks, while deliberately excluding open tabs and other device-local data; it has no iOS client. Ark has no sync transport. Comparison status is No across Mac, iPhone, iPad, and Duo. Search's merge model is a reference for a future Ark design, but its transport does not satisfy the four-client goal. Search reference SHA: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`.

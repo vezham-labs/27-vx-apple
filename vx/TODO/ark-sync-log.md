@@ -163,6 +163,8 @@ The iOS build and all 105 BrowserKit tests passed. The ordering test verifies th
 
 The iOS build and all 106 BrowserKit tests passed. The model test checks selection, resize bounds, restoration, and handling a missing member. Active members stay out of both session eviction and auto-archive. The first iPhone run stopped while locating the More button, before Split View opened. The iPhone 18 Pro retry opened Split View through the gallery context menu, confirmed both pages were live, and switched focus by tapping a pane heading and then a page. iPad and Duo runtime checks, pairing pinned tabs, and support for more than two panes remain open. The implementation follows Search’s split grouping in `Split.swift` and `PaneStage.swift`, and uses Ark’s mobile WebKit host for both pages.
 
+The iPad Split View run passed app launch and opened the gallery, then timed out looking for the first tab’s title before it invoked Split View. The retry used stable fixture titles and passed on iPad Pro 11-inch (M5). It opened both pages and switched focus by tapping a heading and a page.
+
 ### Profiles per Space
 
 Source audit confirmed that Mac `WebKitEngine` and mobile `WebViewPool` share the default WebKit website data store across regular Spaces and use a temporary store for Private. Search’s `Profiles.swift` keeps the default store for the existing profile and creates persistent WebKit stores keyed by UUID for additional profiles. The comparison records the current gap on all four platforms. Profile assignment, history and extension isolation, and runtime verification remain open.

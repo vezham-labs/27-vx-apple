@@ -31,6 +31,7 @@ enum UITestSupport {
                 let tab = browser.newTab(url: nil)
                 let session = browser.session(for: tab)
                 tab.url = url
+                tab.customTitle = "Pane \(number)"
                 session.webView.loadHTMLString("""
                     <meta name="viewport" content="width=device-width">
                     <title>Pane \(number)</title>

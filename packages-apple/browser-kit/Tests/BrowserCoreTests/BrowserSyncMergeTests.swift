@@ -70,3 +70,48 @@ import Testing
     let right = ["a": 1, "b": 2]
     #expect(BrowserSyncMerge.text(left) == BrowserSyncMerge.text(right))
 }
+
+@Test func folderTransportMergesDevicesWithoutReplacingPeerFiles() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: "ark-sync-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let mac = UUID()
+    let phone = UUID()
+    let first = try BrowserSyncFolderTransport.synchronize(
+        in: root, scope: "browser", deviceID: mac, deviceName: "Mac",
+        current: ["space:one": "mac", "space:two": "shared"],
+        now: Date(timeIntervalSince1970: 10)
+    )
+    #expect(first == ["space:one": "mac", "space:two": "shared"])
+
+    let joined = try BrowserSyncFolderTransport.synchronize(
+        in: root, scope: "browser", deviceID: phone, deviceName: "iPhone",
+        current: ["space:one": "phone", "space:three": "phone-only"],
+        now: Date(timeIntervalSince1970: 5)
+    )
+    #expect(joined == ["space:one": "mac", "space:two": "shared", "space:three": "phone-only"])
+
+    let syncedBack = try BrowserSyncFolderTransport.synchronize(
+        in: root, scope: "browser", deviceID: mac, deviceName: "Mac",
+        current: ["space:one": "mac", "space:two": "shared"],
+        now: Date(timeIntervalSince1970: 11)
+    )
+    #expect(syncedBack == joined)
+    let files = try FileManager.default.contentsOfDirectory(atPath: root.path)
+    #expect(files.count == 2)
+}
+
+@Test func folderTransportRejectsAnInvalidScopeWithoutCreatingFiles() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: "ark-sync-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    #expect(throws: BrowserSyncFolderTransport.TransportError.invalidScope) {
+        try BrowserSyncFolderTransport.synchronize(
+            in: root, scope: "../other", deviceID: UUID(), current: [:]
+        )
+    }
+    let files = try FileManager.default.contentsOfDirectory(atPath: root.path)
+    #expect(files.isEmpty)
+}

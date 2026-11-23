@@ -362,7 +362,7 @@ Arc's 2021 Mac release notes define Previews as service-specific integrations on
 
 ### Cross-device sync audit correction
 
-The current Search `Sync.swift` is an opt-in user-folder transport for Macs, not the older CloudKit design recorded in the audit. It merges selected settings, Spaces, pins, pin folders, and bookmarks, while deliberately excluding open tabs and other device-local data; it has no iOS client. Ark has no sync transport. Comparison status is No across Mac, iPhone, iPad, and Duo. Search's merge model is a reference for a future Ark design, but its transport does not satisfy the four-client goal. Search reference SHA: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`.
+The current Search `Sync.swift` is an opt-in user-folder transport for Macs, not the older CloudKit design recorded in the audit. It merges selected settings, Spaces, pins, pin folders, and bookmarks, while deliberately excluding open tabs and other device-local data; it has no iOS client. At the time of this audit Ark had no sync transport. Comparison status is No across Mac, iPhone, iPad, and Duo. Search's merge model is a reference for Ark, but its transport does not satisfy the four-client goal. Search reference SHA: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`.
 
 ### Shared sync merge core
 
@@ -371,3 +371,7 @@ Added a Foundation-only keyed merge core to BrowserCore for use by both Apple ap
 ### Sync state projection
 
 Added a shared snapshot projection and apply path in `BrowserSyncItems.swift`. It syncs stable Space metadata, pinned web URLs, pin-folder hierarchy and feed sources, per-profile favorites and website-profile identities, plus selected shared settings. Today tabs, archive, history, WebKit interaction state, site permission grants, collapsed folders, and live-feed article caches remain local. Credentialed or non-HTTP pins and favorites are omitted from the shared mapping and preserved on the local device; unsafe incoming URLs are rejected. Five new mapping tests cover local-state preservation, per-profile identity, and unsafe favorite rejection; all 70 BrowserCore tests pass. `pnpm nx run ark:build-mac` and `pnpm nx run ark:build-ios` also pass; neither build launches a simulator. The projection is not yet connected to state changes or a transport. Search reference SHA: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`.
+
+### Shared-folder transport core
+
+Added `BrowserSyncFolderTransport` to BrowserCore. It reads and writes scope-specific, per-device JSON files in a user-selected folder using coordinated reads and atomic writes, then reuses the deterministic merge and deletion guards. It bounds file count and size, rejects unsafe scope components and symlink targets, and leaves unknown or invalid peer files untouched. Two temporary-folder tests verify a new device joins without overwriting existing values, merged data returns to the first device, and an invalid scope creates no files. All 72 BrowserCore tests pass; the Mac and generic iOS simulator targets build. No simulator was launched. Folder selection/security-scoped bookmarks, automatic sync scheduling, and applying merged snapshots to live browser state remain unimplemented, so comparison status stays No on all four clients. Search reference SHA: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`.

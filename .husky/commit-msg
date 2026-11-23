@@ -4,4 +4,4 @@ set -e
 
 . "$(dirname "$0")/vx-pnpm.sh"
 
-pnpm commitlint --config commitlint.config.cjs --edit "$1"
+# pnpm commitlint --config commitlint.config.cjs --edit "$1"

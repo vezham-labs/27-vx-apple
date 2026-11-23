@@ -18,6 +18,9 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
     public var developerToolsEnabled = false {
         didSet {
             for c in [standardConfiguration, ephemeralConfiguration] { Self.setDeveloperExtras(developerToolsEnabled, on: c) }
+            for configuration in namedConfigurations.values {
+                Self.setDeveloperExtras(developerToolsEnabled, on: configuration)
+            }
             for page in livePages.values.compactMap(\.page) {
                 Self.setDeveloperExtras(developerToolsEnabled, on: page.webView.configuration)
             }
@@ -170,6 +173,7 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
         case .named(let id):
             if let existing = namedConfigurations[id] { return existing }
             let configuration = Self.makeConfiguration(store: WKWebsiteDataStore(forIdentifier: id))
+            Self.setDeveloperExtras(developerToolsEnabled, on: configuration)
             namedConfigurations[id] = configuration
             return configuration
         }

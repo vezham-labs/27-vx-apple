@@ -20,13 +20,15 @@ public struct WebViewHost: UIViewRepresentable {
     /// podcast player's controls, say). Follows the bar as it collapses, as in Safari. Defaults
     /// to `bottomObscuredInset`.
     let bottomCoveredInset: CGFloat?
+    private let onPageTap: (() -> Void)?
 
     public init(session: TabSession, topObscuredInset: CGFloat = 0, bottomObscuredInset: CGFloat = 0,
-                bottomCoveredInset: CGFloat? = nil) {
+                bottomCoveredInset: CGFloat? = nil, onPageTap: (() -> Void)? = nil) {
         self.session = session
         self.topObscuredInset = topObscuredInset
         self.bottomObscuredInset = bottomObscuredInset
         self.bottomCoveredInset = bottomCoveredInset
+        self.onPageTap = onPageTap
     }
 
     public func makeUIView(context: Context) -> ContainerView {
@@ -42,6 +44,7 @@ public struct WebViewHost: UIViewRepresentable {
         uiView.topInset = topObscuredInset
         uiView.bottomInset = bottomObscuredInset
         uiView.coveredBottomInset = bottomCoveredInset ?? bottomObscuredInset
+        uiView.setPageTapHandler(onPageTap)
         uiView.applyInsets()
     }
 
@@ -51,11 +54,33 @@ public struct WebViewHost: UIViewRepresentable {
     /// superview, so the rule is: the host that most recently arrived in a window owns it.
     /// A host that's leaving never takes it back, and one that arrives again does. A host that hasn't
     /// arrived takes nothing: SwiftUI can build one and never show it, which would strand the page.
-    public final class ContainerView: UIView {
+    public final class ContainerView: UIView, UIGestureRecognizerDelegate {
         fileprivate(set) weak var webView: WKWebView?
         fileprivate var topInset: CGFloat = 0
         fileprivate var bottomInset: CGFloat = 0
         fileprivate var coveredBottomInset: CGFloat = 0
+        private var onPageTap: (() -> Void)?
+        private lazy var pageTap: UITapGestureRecognizer = {
+            let gesture = UITapGestureRecognizer(target: self, action: #selector(pageTapped))
+            gesture.cancelsTouchesInView = false
+            gesture.delaysTouchesBegan = false
+            gesture.delaysTouchesEnded = false
+            gesture.delegate = self
+            return gesture
+        }()
+
+        fileprivate func setPageTapHandler(_ handler: (() -> Void)?) {
+            if onPageTap == nil, handler != nil { addGestureRecognizer(pageTap) }
+            if onPageTap != nil, handler == nil { removeGestureRecognizer(pageTap) }
+            onPageTap = handler
+        }
+
+        @objc private func pageTapped() { onPageTap?() }
+
+        public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                                      shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            gestureRecognizer === pageTap
+        }
 
         private func claim(_ webView: WKWebView) {
             guard webView.superview !== self else { return }

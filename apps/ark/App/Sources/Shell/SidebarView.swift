@@ -31,10 +31,14 @@ struct SidebarView: View {
 
     /// Everything that changes with the space.
     private func spaceTabs(_ space: Space) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if !space.pinned.isEmpty {
+        let rootPins = space.rootPins
+        return VStack(alignment: .leading, spacing: 12) {
+            PinFolderList(space: space, save: browser.scheduleSave, openArticle: { browser.newTab(url: $0, in: space, source: .link) }) { tab in
+                TabRow(tab: tab, selected: tab.id == space.selectedTabID)
+            }
+            if !rootPins.isEmpty {
                 LazyVGrid(columns: pinnedColumns, spacing: 8) {
-                    ForEach(Array(space.pinned.enumerated()), id: \.element.id) { i, tab in
+                    ForEach(Array(rootPins.enumerated()), id: \.element.id) { i, tab in
                         pinnedTile(tab, selected: tab.id == space.selectedTabID)
                             .spaceCascade(index: i, distance: Self.cascadeDistance, spaceSwitch: browser.lastSpaceSwitch)
                     }
@@ -193,6 +197,7 @@ struct TabMenu: View {
             Button(tab.isPinned ? "Unpin" : "Pin", systemImage: tab.isPinned ? "pin.slash" : "pin") {
                 browser.togglePinned(tab)
             }
+            MovePinMenu(tab: tab, space: browser.currentSpace, save: browser.scheduleSave)
         }
         if let url = tab.url {
             Button(browser.isFavorite(url) ? "Already a Favourite" : "Add to Favourites", systemImage: "star") {

@@ -56,6 +56,8 @@ extension Browser {
                 out.append(BrowserCommand(id: "copy-link", title: "Copy Link", subtitle: url.absoluteString, keywords: ["url", "share"]))
                 out.append(BrowserCommand(id: "copy-markdown", title: "Copy Link as Markdown", keywords: ["url", "md", "share"]))
                 out.append(BrowserCommand(id: "copy-page-image", title: "Copy Full Page Image", keywords: ["capture", "screenshot", "png"]))
+                out.append(BrowserCommand(id: "copy-page-area", title: "Copy Page Area…", keywords: ["capture", "region", "screenshot", "png"]))
+                out.append(BrowserCommand(id: "copy-page-element", title: "Copy Page Element…", keywords: ["capture", "element", "screenshot", "png"]))
                 out.append(BrowserCommand(id: "reload", title: "Reload Page", keywords: ["refresh"]))
                 out.append(BrowserCommand(id: "find", title: "Find on Page", keywords: ["search", "text"]))
                 out.append(BrowserCommand(id: "reader", title: isReaderShowing ? "Hide Reader" : "Show Reader",
@@ -78,7 +80,27 @@ extension Browser {
         if today(in: currentSpace).count > 1 {
             out.append(BrowserCommand(id: "close-others", title: "Close Other Tabs", keywords: ["tabs", "clean"]))
         }
-        if listedToday(in: currentSpace).contains(where: { $0.id != currentTab?.id }) {
+        if lastUsedTab != nil {
+            out.append(BrowserCommand(id: ShortcutAction.lastUsedTab.rawValue, title: ShortcutAction.lastUsedTab.title, keywords: ["previous", "recent", "switch"]))
+        }
+        if orderedTabs.count > 1 {
+            out.append(BrowserCommand(id: ShortcutAction.recentTabs.rawValue, title: ShortcutAction.recentTabs.title,
+                                      keywords: ["switch", "preview", "tab"]))
+        }
+        if canExportSpaceLinks {
+            out.append(BrowserCommand(id: "export-space-links", title: "Export Space Links…", keywords: ["save", "tabs", "bookmarks", "json"]))
+        }
+        out.append(BrowserCommand(id: "import-space-links", title: "Import Space Links…", keywords: ["restore", "tabs", "bookmarks", "json"]))
+        if let host = editableSiteStyleHost {
+            out.append(BrowserCommand(id: "edit-site-style", title: "Edit Site Style…", subtitle: host, keywords: ["css", "boost", "customize"]))
+        }
+        if !splitCandidates.isEmpty {
+            out.append(BrowserCommand(id: "split-view", title: "Split View With…", keywords: ["pane", "side by side", "stack"]))
+        }
+        if activeSplit != nil {
+            out.append(BrowserCommand(id: "separate-split", title: "Separate Split Tabs", keywords: ["pane", "unsplit"]))
+        }
+        if !clearableTodayTabs(in: currentSpace).isEmpty {
             out.append(BrowserCommand(id: "clear-today", title: "Clear Today's Tabs", keywords: ["tabs", "clean", "close all"]))
         }
         if let last = recentlyClosed.last {
@@ -137,7 +159,9 @@ extension Browser {
         "panel": "sidebar.right", "private": "eye.slash", "close-private": "eye.slash", "new-space": "plus.rectangle.on.rectangle",
         "downloads": "arrow.down.circle", "archive": "archivebox", "settings": "gearshape", "library": "square.grid.2x2", "space": "square.stack",
         "move": "arrow.right.square", "restore": "archivebox", "ext": "puzzlepiece.extension",
-        "copy-markdown": "link.badge.plus", "copy-page-image": "camera.viewfinder", "clear-today": "xmark.circle", "inspector": "hammer",
+        "copy-markdown": "link.badge.plus", "copy-page-image": "camera.viewfinder", "copy-page-area": "viewfinder",
+        "copy-page-element": "scope",
+        "clear-today": "xmark.circle", "inspector": "hammer",
     ]
 
     func run(command id: String) {
@@ -161,6 +185,15 @@ extension Browser {
         case "copy-link": copyCurrentLink()
         case "copy-markdown": copyCurrentLinkAsMarkdown()
         case "copy-page-image": copyFullPageImage()
+        case "copy-page-area": selectPageArea()
+        case "copy-page-element": selectPageElement()
+        case ShortcutAction.lastUsedTab.rawValue: selectLastUsedTab()
+        case ShortcutAction.recentTabs.rawValue: showRecentTabs()
+        case "export-space-links": exportSpaceLinks()
+        case "import-space-links": importSpaceLinks()
+        case "edit-site-style": editSiteStyle()
+        case "split-view": isSplitPickerPresented = true
+        case "separate-split": separateSplit()
         case "clear-today": withAnimation(Motion.snappy) { clearToday() }
         case "inspector": showWebInspector()
         case "reload": reload()
@@ -273,6 +306,8 @@ extension Browser {
         case .clearToday: withAnimation(Motion.snappy) { clearToday() }
         case .nextTab: selectAdjacentTab(1)
         case .previousTab: selectAdjacentTab(-1)
+        case .lastUsedTab: selectLastUsedTab()
+        case .recentTabs: showRecentTabs()
         case .pin: if let t = currentTab, !t.isPrivate { withAnimation(Motion.snappy) { togglePinned(t) } }
         case .favourite: toggleFavoriteForCurrentTab()
         case .archive: isArchivePresented = true

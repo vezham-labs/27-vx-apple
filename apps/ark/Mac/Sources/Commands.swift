@@ -47,6 +47,14 @@ struct BrowserCommands: Commands {
                 .disabled(tab == nil)
             Button("Copy Full Page Image") { browser?.copyFullPageImage() }
                 .disabled(!hasPage)
+            Button("Copy Page Area…") { browser?.selectPageArea() }
+                .disabled(!hasPage)
+            Button("Copy Page Element…") { browser?.selectPageElement() }
+                .disabled(!hasPage)
+            Button("Export Space Links…") { browser?.exportSpaceLinks() }
+                .disabled(browser?.canExportSpaceLinks != true)
+            Button("Import Space Links…") { browser?.importSpaceLinks() }
+                .disabled(browser == nil)
         }
 
         CommandGroup(after: .pasteboard) {
@@ -88,6 +96,8 @@ struct BrowserCommands: Commands {
         }
 
         CommandGroup(before: .toolbar) {
+            Button("Edit Site Style…") { browser?.editSiteStyle() }
+                .disabled(browser?.editableSiteStyleHost == nil)
             Button(browser?.isReaderShowing == true ? "Hide Reader" : "Show Reader") { browser?.toggleReader() }
                 .keyboardShortcut(keys.shortcut(.reader))
                 .disabled(!hasPage)
@@ -135,6 +145,11 @@ struct BrowserCommands: Commands {
         }
 
         CommandMenu("Tabs") {
+            Button("Split View With…") { browser?.isSplitPickerPresented = true }
+                .disabled(browser?.splitCandidates.isEmpty != false)
+            Button("Separate Split Tabs") { browser?.separateSplit() }
+                .disabled(browser?.activeSplit == nil)
+            Divider()
             Button("Next Tab") { browser?.selectAdjacentTab(1) }
                 .keyboardShortcut(.tab, modifiers: .control)
             Button("Previous Tab") { browser?.selectAdjacentTab(-1) }
@@ -143,6 +158,12 @@ struct BrowserCommands: Commands {
                 .keyboardShortcut(keys.shortcut(.nextTab))
             Button("Previous Tab") { browser?.selectAdjacentTab(-1) }
                 .keyboardShortcut(keys.shortcut(.previousTab))
+            Button(ShortcutAction.lastUsedTab.title) { browser?.selectLastUsedTab() }
+                .keyboardShortcut(keys.shortcut(.lastUsedTab))
+                .disabled(browser?.lastUsedTab == nil)
+            Button(ShortcutAction.recentTabs.title) { browser?.showRecentTabs() }
+                .keyboardShortcut(keys.shortcut(.recentTabs))
+                .disabled((browser?.orderedTabs.count ?? 0) < 2)
             Divider()
             Button(tab?.isPinned == true ? "Unpin Tab" : "Pin Tab") {
                 if let browser, let tab { withAnimation(Motion.snappy) { browser.togglePinned(tab) } }
@@ -159,7 +180,7 @@ struct BrowserCommands: Commands {
                 .disabled((browser.map { b in b.today(in: b.currentSpace).count } ?? 0) < 2)
             Button("Clear Today's Tabs") { if let browser { withAnimation(Motion.snappy) { browser.clearToday() } } }
                 .keyboardShortcut(keys.shortcut(.clearToday))
-                .disabled(browser.map { b in b.listedToday(in: b.currentSpace).contains { $0.id != tab?.id } } != true)
+                .disabled(browser.map { $0.clearableTodayTabs(in: $0.currentSpace).isEmpty } != false)
             Divider()
             ForEach(1...9, id: \.self) { n in
                 Button(n == 9 ? "Last Tab" : "Tab \(n)") { browser?.selectTab(number: n) }

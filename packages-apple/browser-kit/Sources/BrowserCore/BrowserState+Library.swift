@@ -27,6 +27,14 @@ extension BrowserState {
         scheduleSave()
     }
 
+    @discardableResult
+    public func importSpaceLinks(_ archive: SpaceLinkArchive) -> Space {
+        let space = archive.makeSpace(colorIndex: regularSpaces.count)
+        spaces.insert(space, at: regularSpaces.count)
+        scheduleSave()
+        return space
+    }
+
     public func deleteSpace(_ space: Space) {
         if space.isPrivate { closePrivateSpace(); return }
         guard regularSpaces.count > 1, let i = spaces.firstIndex(where: { $0.id == space.id }) else { return }
@@ -34,15 +42,23 @@ extension BrowserState {
         spaces.remove(at: i)
         if selectedSpaceID == space.id { selectedSpaceID = regularSpaces[0].id }
         if settings.externalLinksSpaceID == space.id { settings.externalLinksSpaceID = nil }
+        settings.linkRoutingRules.removeAll { $0.spaceID == space.id }
         scheduleSave()
     }
 
     /// A link opened from another app (once this is the default browser).
     public func openExternal(_ url: URL) {
         // Never into Private: links from other apps belong with your normal tabs.
-        let target = regularSpaces.first { $0.id == settings.externalLinksSpaceID } ?? regularTargetSpace
+        let target = routedSpace(for: url) ?? regularSpaces.first { $0.id == settings.externalLinksSpaceID } ?? regularTargetSpace
         isNewTabSheetPresented = false
         newTab(url: url, in: target, source: .link)
+    }
+
+    func routedSpace(for url: URL) -> Space? {
+        guard settings.linkRoutingEnabled, !settings.linkRoutingRules.isEmpty else { return nil }
+        let spaces = regularSpaces
+        let rule = RouteRule.bestMatch(for: url, rules: settings.linkRoutingRules, destinations: Set(spaces.map(\.id)))
+        return rule.flatMap { match in spaces.first { $0.id == match.spaceID } }
     }
 
     // MARK: Archive

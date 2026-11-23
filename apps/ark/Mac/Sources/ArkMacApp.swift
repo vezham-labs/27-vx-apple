@@ -22,7 +22,14 @@ struct ArkMacApp: App {
         // A new window fills the screen's free space (inside the menu bar and Dock), not a small box.
         // Restored windows get the same treatment in WindowSizing until the person sizes one.
         .defaultWindowPlacement { _, context in
-            WindowPlacement(context.defaultDisplay.visibleRect.origin, size: context.defaultDisplay.visibleRect.size)
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["ARK_SNAPSHOT_FEATURE_URL"] != nil {
+                let screen = context.defaultDisplay.visibleRect
+                let size = CGSize(width: min(1_000, screen.width), height: min(650, screen.height))
+                return WindowPlacement(CGPoint(x: screen.midX - size.width / 2, y: screen.midY - size.height / 2), size: size)
+            }
+            #endif
+            return WindowPlacement(context.defaultDisplay.visibleRect.origin, size: context.defaultDisplay.visibleRect.size)
         }
         // Left to itself, SwiftUI answers a link from another app by opening a new window. Claim no
         // external events here, so links reach the app delegate and open as tabs instead.
@@ -44,6 +51,8 @@ private struct WindowRoot: View {
     @State private var browser: Browser?
     /// The window's key, kept by SwiftUI with the window so it comes back with its own tabs.
     @SceneStorage("windowKey") private var windowKey = ""
+    @SceneStorage("splitView") private var savedSplits = Data()
+    @SceneStorage("splitViewSpace") private var splitSpace = ""
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
 
@@ -65,9 +74,15 @@ private struct WindowRoot: View {
                 let saved = UUID(uuidString: windowKey).flatMap { key in library.windows.contains { $0.windowKey == key } ? nil : key }
                 let key = saved ?? UUID()
                 windowKey = key.uuidString
-                browser = Browser(library: library, windowKey: key, isNewWindow: saved == nil)
+                let splits = saved == nil ? [:] : (try? JSONDecoder().decode([UUID: TabSplit].self, from: savedSplits)) ?? [:]
+                browser = Browser(library: library, windowKey: key, isNewWindow: saved == nil,
+                                  splits: splits, splitSpace: UUID(uuidString: splitSpace))
             }
         }
+        .onChange(of: browser?.splitBySpace) { _, splits in
+            savedSplits = (try? JSONEncoder().encode(splits ?? [:])) ?? Data()
+        }
+        .onChange(of: browser?.selectedSpaceID) { _, id in splitSpace = id?.uuidString ?? "" }
         .onDisappear {
             if let browser { library.unregister(browser) }
         }
@@ -174,8 +189,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // Keys menus can't take: Cmd-= zooms (the menu shows Cmd-+), Close Tab's key closes the tab
         // rather than the window while a tab is open, and actions' second keys.
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            MainActor.assumeIsolated { self?.handle(event) ?? false } ? nil : event
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown]) { [weak self] event in
+            let handled = MainActor.assumeIsolated {
+                guard event.type == .keyDown else {
+                    PageHost.focusClickedPane(event)
+                    return false
+                }
+                return self?.handle(event) ?? false
+            }
+            return handled ? nil : event
         }
         #if SPIKE
         SpikeHarness.start(delegate: self)
@@ -265,7 +287,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Launched to open a link (clicked in another app while Ark was closed), SwiftUI makes no window of its own,
         // and only a window can ask it for one: the link waited for a window that never came. A reopen (what clicking
         // the Dock icon sends) makes SwiftUI open one, which then picks the link up.
-        if library.openWindowAction == nil { Self.askForFirstWindow() }
+        if library.needsFirstWindow { Self.askForFirstWindow() }
     }
 
     static func askForFirstWindow() {

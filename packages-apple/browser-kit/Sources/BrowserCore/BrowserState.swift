@@ -26,6 +26,8 @@ public final class BrowserState {
     public var isArchivePresented = false
     public var isDownloadsPresented = false
     public var isSavedPresented = false
+    public var isRecentTabPreviewsPresented = false
+    public var siteStyleHost: String?
     /// The dialog, permission or login request on screen now (one at a time).
     public internal(set) var activePrompt: WebPrompt?
     /// Short confirmation shown at the top of the screen ("Opened in background").
@@ -35,6 +37,8 @@ public final class BrowserState {
     @ObservationIgnored var promptQueue: [(WebPrompt, CheckedContinuation<WebPromptResponse, Never>)] = []
     @ObservationIgnored var promptLog: [UUID: [Date]] = [:]
     @ObservationIgnored var toastTask: Task<Void, Never>?
+    @ObservationIgnored var isCapturingPage = false
+    var pageCaptureTarget: (id: UUID, url: URL, mode: PageSelectionMode)?
     /// Tabs closed this session, newest last, for Cmd-Shift-T. In memory only, never private tabs.
     public private(set) var recentlyClosed: [BrowserTab] = []
     /// Small pictures of each tab's page for the tab grid, taken as you leave a tab.
@@ -81,6 +85,7 @@ public final class BrowserState {
 
     public let history: HistoryStore
     @ObservationIgnored let pool = WebViewPool()
+    @ObservationIgnored let siteStyles: SiteStyles
     @ObservationIgnored public private(set) var suggest: SuggestEngine!
     @ObservationIgnored private let snapshotURL: URL?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
@@ -93,6 +98,7 @@ public final class BrowserState {
                 thumbnailStore: ThumbnailStore? = ThumbnailStore()) {
         self.history = history
         self.snapshotURL = snapshotURL
+        siteStyles = SiteStyles(fileURL: snapshotURL?.deletingLastPathComponent().appending(path: "site-styles.json"))
         self.thumbnailStore = thumbnailStore
         if let snapshotURL, let data = try? Data(contentsOf: snapshotURL),
            let snap = try? JSONDecoder().decode(BrowserSnapshot.self, from: data), !snap.spaces.isEmpty {
@@ -192,6 +198,12 @@ public final class BrowserState {
         scheduleSave()
     }
 
+    public func focusSplitPane(_ tab: BrowserTab) {
+        guard let (first, second) = currentSpace.activeSplitTabs, tab === first || tab === second,
+              tab.id != currentTab?.id else { return }
+        select(tab)
+    }
+
     public func selectSpace(_ space: Space) {
         if space.isPrivate, !currentSpace.isPrivate { spaceBeforePrivate = selectedSpaceID }
         if let from = spaces.firstIndex(where: { $0.id == selectedSpaceID }),
@@ -258,10 +270,17 @@ public final class BrowserState {
         }
         for space in spaces {
             if let i = space.today.firstIndex(where: { $0.id == tab.id }) {
+                let splitPartner: BrowserTab?
+                if let (first, second) = space.activeSplitTabs, space.splitPair?.contains(tab.id) == true {
+                    splitPartner = first.id == tab.id ? second : first
+                } else {
+                    splitPartner = nil
+                }
+                if space.splitPair?.contains(tab.id) == true { space.separateTabs() }
                 space.today.remove(at: i)
                 if space.selectedTabID == tab.id {
                     let next: BrowserTab? = space.today.indices.contains(i) ? space.today[i] : (space.today.last ?? space.pinned.last)
-                    space.selectedTabID = next?.id
+                    space.selectedTabID = (splitPartner ?? next)?.id
                 }
             } else if tab.isPinned, space.selectedTabID == tab.id {
                 // Closing a pinned tab just unloads it, like Arc.

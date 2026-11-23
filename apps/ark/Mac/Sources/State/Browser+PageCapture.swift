@@ -1,58 +1,106 @@
 import AppKit
+import BrowserCore
 import WebKit
 
 extension Browser {
-    func copyFullPageImage() {
-        guard let tab = currentTab, let url = tab.url else { return }
+    func copyFullPageImage(to clipboard: NSPasteboard = .general) {
+        guard !isCapturingPage, let tab = currentTab, let url = tab.url else { return }
         guard let webView = currentController?.page.view as? WKWebView, webView.window != nil else {
             showToast("Couldn’t capture this page")
             return
         }
 
+        isCapturingPage = true
         Task {
+            defer { isCapturingPage = false }
             let pdf = try? await webView.pdf(configuration: WKPDFConfiguration())
             guard currentTab === tab, tab.url == url else { return }
-            guard let pdf, let image = fullPageImage(from: pdf, backingScale: webView.window?.backingScaleFactor ?? 1),
-                  let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
+            guard let pdf else {
+                showToast("Couldn’t capture this page")
+                return
+            }
+            let backingScale = webView.window?.backingScaleFactor ?? 1
+            let png = await PageCaptureImage.png(from: pdf, backingScale: backingScale)
+            guard currentTab === tab, tab.url == url else { return }
+            guard let png else {
                 showToast("Couldn’t capture this page")
                 return
             }
 
-            let item = NSPasteboardItem()
-            item.setData(png, forType: .png)
-            if tab.isPrivate {
-                item.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
-            }
-            let clipboard = NSPasteboard.general
-            clipboard.prepareForNewContents(with: .currentHostOnly)
-            showToast(clipboard.writeObjects([item]) ? "Full page image copied" : "Couldn’t copy the page image")
+            copyCapture(png, isPrivate: tab.isPrivate, to: clipboard, confirmation: "Full page image copied")
         }
     }
-}
 
-// Adapted from Search's SnapGeometry. WebKit's PDF includes offscreen content.
-private func fullPageImage(from pdf: Data, backingScale: CGFloat) -> CGImage? {
-    guard let provider = CGDataProvider(data: pdf as CFData),
-          let document = CGPDFDocument(provider), let page = document.page(at: 1) else { return nil }
-    let bounds = page.getBoxRect(.mediaBox)
-    guard bounds.width.isFinite, bounds.height.isFinite, bounds.width >= 1, bounds.height >= 1 else { return nil }
+    @discardableResult
+    func selectPageArea(to clipboard: NSPasteboard = .general) -> RegionCaptureView? {
+        selectPageCapture(.area, to: clipboard)
+    }
 
-    // Scale down oversized pages while keeping the entire document in the image.
-    let pixelBudget: CGFloat = 16_000_000
-    let maxDimension: CGFloat = 16_384
-    let scale = min(backingScale, (pixelBudget / bounds.width / bounds.height).squareRoot(),
-                    maxDimension / max(bounds.width, bounds.height))
-    let width = max(1, Int((bounds.width * scale).rounded(.down)))
-    let height = max(1, Int((bounds.height * scale).rounded(.down)))
-    guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
-          let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
-                                  bytesPerRow: 0, space: colorSpace,
-                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+    @discardableResult
+    func selectPageElement(to clipboard: NSPasteboard = .general) -> RegionCaptureView? {
+        selectPageCapture(.element, to: clipboard)
+    }
 
-    context.setFillColor(CGColor(gray: 1, alpha: 1))
-    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-    context.scaleBy(x: CGFloat(width) / bounds.width, y: CGFloat(height) / bounds.height)
-    context.translateBy(x: -bounds.minX, y: -bounds.minY)
-    context.drawPDFPage(page)
-    return context.makeImage()
+    private func selectPageCapture(_ mode: RegionCaptureView.Mode, to clipboard: NSPasteboard) -> RegionCaptureView? {
+        guard !isCapturingPage, let tab = currentTab, let url = tab.url else { return nil }
+        guard let webView = currentController?.page.view as? WKWebView,
+              let window = webView.window, let container = webView.superview else {
+            showToast("Couldn’t capture this page")
+            return nil
+        }
+        guard !container.subviews.contains(where: { $0 is RegionCaptureView }) else { return nil }
+        let picker = RegionCaptureView(page: webView, mode: mode) { [weak self, weak webView] selection in
+            guard let self, let webView, !isCapturingPage, currentTab === tab, tab.url == url else { return }
+            isCapturingPage = true
+            Task {
+                defer { isCapturingPage = false }
+                let rect: CGRect?
+                switch selection {
+                case .area(let area): rect = area
+                case .element(let point): rect = await PageCaptureImage.element(at: point, in: webView)
+                }
+                guard currentTab === tab, tab.url == url else { return }
+                let failure = mode == .area ? "Couldn’t capture this area" : "Couldn’t capture this element"
+                guard let rect else {
+                    showToast(failure)
+                    return
+                }
+                let configuration = WKSnapshotConfiguration()
+                configuration.rect = rect
+                let backing = webView.window?.backingScaleFactor ?? 1
+                if let width = PageCaptureImage.snapshotWidth(for: rect, backingScale: backing) {
+                    configuration.snapshotWidth = NSNumber(value: width)
+                }
+                let snapshot = try? await webView.takeSnapshot(configuration: configuration)
+                let image = snapshot?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+                let png: Data?
+                if let image {
+                    png = await PageCaptureImage.png(from: image)
+                } else {
+                    png = nil
+                }
+                guard currentTab === tab, tab.url == url else { return }
+                guard let png else {
+                    showToast(failure)
+                    return
+                }
+                let confirmation = mode == .area ? "Page area copied" : "Page element copied"
+                copyCapture(png, isPrivate: tab.isPrivate, to: clipboard, confirmation: confirmation)
+            }
+        }
+        container.addSubview(picker, positioned: .above, relativeTo: webView)
+        window.makeFirstResponder(picker)
+        showToast(mode == .area ? "Drag to select an area · Esc to cancel" : "Click an element · Esc to cancel")
+        return picker
+    }
+
+    private func copyCapture(_ png: Data, isPrivate: Bool, to clipboard: NSPasteboard, confirmation: String) {
+        let item = NSPasteboardItem()
+        item.setData(png, forType: .png)
+        if isPrivate {
+            item.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
+        }
+        clipboard.prepareForNewContents(with: .currentHostOnly)
+        showToast(clipboard.writeObjects([item]) ? confirmation : "Couldn’t copy the page image")
+    }
 }

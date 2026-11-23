@@ -63,6 +63,20 @@ struct BrowserWindow: View {
         .sheet(isPresented: $browser.isArchivePresented) {
             ArchiveSheet().environment(browser)
         }
+        .sheet(isPresented: $browser.isSplitPickerPresented) {
+            SplitTabPicker().environment(browser)
+        }
+        .sheet(isPresented: $browser.isRecentTabsPresented) {
+            RecentTabsPicker(tabs: browser.recentTabs, currentID: browser.currentTab?.id)
+                .environment(browser)
+        }
+        .sheet(isPresented: Binding(get: { browser.siteStyleHost != nil },
+                                    set: { if !$0 { browser.siteStyleHost = nil } })) {
+            if let host = browser.siteStyleHost {
+                SiteStyleEditor(host: host, css: browser.library.siteStyles[host] ?? "")
+                    .environment(browser)
+            }
+        }
         .onChange(of: browser.selectedSpaceID) { browser.isSidebarPeeking = false }
         // A space set to Light or Dark switches the window as you move to it, or as you change its theme.
         .onChange(of: SpacePalette.appearance(for: browser.currentSpace)?.name) {
@@ -162,7 +176,13 @@ struct BrowserWindow: View {
                 MainActor.assumeIsolated { if let browser { browser.library.unregister(browser) } }
             }
             let other = browser.library.windows.first { $0 !== browser }?.nsWindow
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["ARK_SNAPSHOT_FEATURE_URL"] == nil {
+                WindowSizing.attach(window, isNew: browser.isNewWindow, like: other)
+            }
+            #else
             WindowSizing.attach(window, isNew: browser.isNewWindow, like: other)
+            #endif
         }
         // Only what changed: this runs on every update of the window's view, and resetting title bar
         // properties makes AppKit lay the title bar out again (in full screen, a visible flicker).

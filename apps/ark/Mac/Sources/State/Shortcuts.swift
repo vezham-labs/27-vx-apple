@@ -120,7 +120,8 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Sendable {
     case newTab = "new-tab", openLocation = "open-location", commands = "commands"
     case newWindow = "new-window", privateTab = "private"
     case close, reopen, closeOthers = "close-others", clearToday = "clear-today"
-    case nextTab = "next-tab", previousTab = "previous-tab"
+    case nextTab = "next-tab", previousTab = "previous-tab", lastUsedTab = "last-used-tab"
+    case recentTabs = "recent-tabs"
     case pin, favourite, archive
     // Spaces and window
     case nextSpace = "next-space", previousSpace = "previous-space"
@@ -141,7 +142,7 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Sendable {
     var group: Group {
         switch self {
         case .newTab, .openLocation, .commands, .newWindow, .privateTab, .close, .reopen, .closeOthers,
-             .clearToday, .nextTab, .previousTab, .pin, .favourite, .archive: .tabs
+             .clearToday, .nextTab, .previousTab, .lastUsedTab, .recentTabs, .pin, .favourite, .archive: .tabs
         case .nextSpace, .previousSpace, .sidebar, .panel, .notes, .downloads: .spaces
         default: .page
         }
@@ -160,6 +161,8 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Sendable {
         case .clearToday: "Clear Today's Tabs"
         case .nextTab: "Next Tab"
         case .previousTab: "Previous Tab"
+        case .lastUsedTab: "Switch to Last Used Tab"
+        case .recentTabs: "Recent Tabs…"
         case .pin: "Pin Tab"
         case .favourite: "Add to Favourites"
         case .archive: "Archived Tabs"
@@ -207,6 +210,8 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Sendable {
         case (.previousTab, .ark): return [k("up", optCmd), k("[", shiftCmd)]
         case (.previousTab, .chrome): return [k("left", optCmd), k("[", shiftCmd)]
         case (.previousTab, .safari): return [k("[", shiftCmd)]
+        case (.lastUsedTab, _): return [k("`", .control)]
+        case (.recentTabs, _): return [k("a", shiftCmd)]
         case (.pin, .ark): return [k("d")]
         case (.pin, _): return [k("d", shiftCmd)]
         case (.favourite, .ark): return [k("d", shiftCmd)]

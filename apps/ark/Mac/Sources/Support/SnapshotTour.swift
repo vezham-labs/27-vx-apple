@@ -24,6 +24,11 @@ struct SnapshotTour {
             return
         }
         note("tour started after \(waited)s")
+        if let fixture = ProcessInfo.processInfo.environment["ARK_SNAPSHOT_FEATURE_URL"], let url = URL(string: fixture) {
+            await featurePreviews(browser, base: url)
+            NSApp.terminate(nil)
+            return
+        }
         let library = delegate.library
         // Fetch the favourites' icons first, so the shots show them rather than letters.
         for fav in browser.favorites {
@@ -138,6 +143,542 @@ struct SnapshotTour {
 
     private var window: NSWindow? {
         delegate.browser?.nsWindow ?? NSApp.windows.first { $0.isVisible && $0.contentView != nil && !($0 is NSPanel) }
+    }
+
+    private func featurePreviews(_ browser: Browser, base: URL) async {
+        guard let window = browser.nsWindow else { note("missing window"); return }
+        NSApp.activate()
+        window.makeKeyAndOrderFront(nil)
+        let first = base.appending(path: "atlas.html")
+        let second = base.appending(path: "field-notes.html")
+        browser.newTab(url: first)
+        await pause(1)
+        browser.newTab(url: second)
+        await pause(1)
+        saveVisible("sidebar-and-tabs", in: window)
+        guard browser.lastUsedTab?.url == first else { note("last-used tab mismatch"); return }
+        await commandPreview(browser, query: "last used tab", file: "last-used-tab")
+        browser.run(command: "last-used-tab")
+        guard browser.currentTab?.url == first else { note("last-used tab did not switch"); return }
+        note("last-used tab switched")
+        await splitPreview(browser, window: window, partnerURL: second)
+
+        await commandPreview(browser, query: "full page image", file: "copy-full-page-image")
+        browser.commandBar = nil
+        let board = NSPasteboard.withUniqueName()
+        defer { board.releaseGlobally() }
+        browser.copyFullPageImage(to: board)
+        for _ in 0..<40 {
+            if let png = board.data(forType: .png) {
+                try? png.write(to: directory.appending(path: "full-page-image-output.png"))
+                note("full-page PNG copied to preview pasteboard")
+                break
+            }
+            await pause(0.15)
+        }
+        await regionPreview(browser, window: window)
+        await elementPreview(browser, window: window)
+        await recentTabsPreview(browser, window: window)
+        await linkWindowPreview(browser, url: second)
+        await pinFolderPreview(browser, window: window)
+        await arcFolderImportCheck(browser, window: window, page: first)
+        await liveFolderPreview(browser, window: window, sourcePage: base.appending(path: "live-source.html"))
+
+        await commandPreview(browser, query: "export space links", file: "export-space-links")
+        browser.commandBar = nil
+        await pause(0.4)
+        browser.exportSpaceLinks()
+        await pause(0.7)
+        if let panel = window.attachedSheet as? NSSavePanel {
+            note("space export save dialog opened")
+            panel.cancel(nil)
+            await pause(0.4)
+        }
+        await commandPreview(browser, query: "import space links", file: "import-space-links")
+        browser.commandBar = nil
+        await pause(0.4)
+        browser.importSpaceLinks()
+        await pause(0.7)
+        if let panel = window.attachedSheet as? NSOpenPanel {
+            note("space import open dialog opened")
+            panel.cancel(nil)
+            await pause(0.4)
+        }
+
+        guard let host = browser.editableSiteStyleHost else { note("site style unavailable"); return }
+        let css = "h1 { color: #a33df5; }\nmain { border-inline-start: 6px solid #a33df5; }"
+        do { try browser.saveSiteStyle(css, for: host) }
+        catch { note("site style could not save"); return }
+        await pause(0.5)
+        let world = "ark.preview"
+        let check = "return getComputedStyle(document.querySelector('h1')).color;"
+        if let color = try? await browser.currentController?.page.evaluate(check, inWorld: world) as? String {
+            note("styled heading: \(color)")
+        }
+        browser.run(command: "edit-site-style")
+        await pause(0.6)
+        saveVisible("site-style-editor", in: window.attachedSheet ?? window)
+        browser.siteStyleHost = nil
+        await pause(0.6)
+        browser.reload()
+        await pause(1.5)
+        if let color = try? await browser.currentController?.page.evaluate(check, inWorld: world) as? String {
+            note("heading after reload: \(color)")
+        }
+        saveVisible("site-style-applied", in: window)
+
+        if var otherHost = URLComponents(url: first, resolvingAgainstBaseURL: false) {
+            otherHost.host = "localhost"
+            if let url = otherHost.url {
+                browser.newTab(url: url)
+                await pause(1)
+                if let color = try? await browser.currentController?.page.evaluate(check, inWorld: world) as? String {
+                    note("heading on other host: \(color)")
+                }
+            }
+        }
+
+        browser.newTab(url: first, isPrivate: true)
+        await pause(1)
+        if let color = try? await browser.currentController?.page.evaluate(check, inWorld: world) as? String {
+            note("heading in private tab: \(color)")
+        }
+        browser.closePrivateSpace()
+        guard let atlas = browser.currentSpace.allTabs.first(where: { $0.url == first }) else { return }
+        browser.select(atlas)
+        await pause(0.5)
+        do { try browser.saveSiteStyle("", for: host) }
+        catch { note("site style could not clear") }
+        await pause(0.5)
+        if let color = try? await browser.currentController?.page.evaluate(check, inWorld: world) as? String {
+            note("heading after clearing: \(color)")
+        }
+        await baselinePreviews(browser, window: window, atlas: atlas, otherPage: second)
+        await settingsPreviews(browser, window: window)
+    }
+
+    private func arcFolderImportCheck(_ browser: Browser, window: NSWindow, page: URL) async {
+        let data = Data("""
+        {"sidebar":{"containers":[{"spaces":[{
+            "id":"coast","title":"Coastal Survey",
+            "newContainerIDs":[{"pinned":{}},"pins"],"containerIDs":["pinned","legacy","unpinned","today"]
+        }],"items":[
+            {"id":"pins","childrenIds":["root","folder","root"]},
+            {"id":"folder","title":"Research","data":{"list":{}},"childrenIds":["work","child","folder"]},
+            {"id":"child","title":"References","data":{"list":{}},"childrenIds":["nested"]},
+            {"id":"today","childrenIds":["open","local"]},
+            {"id":"root","data":{"tab":{"savedTitle":"Root","savedURL":"https://example.test/root"}}},
+            {"id":"work","title":"Research plan","data":{"tab":{"savedURL":"https://example.test/work"}}},
+            {"id":"nested","data":{"tab":{"savedTitle":"Reference","savedURL":"\(page.absoluteString)"}}},
+            {"id":"open","data":{"tab":{"savedTitle":"Today","savedURL":"https://example.test/today"}}},
+            {"id":"local","data":{"tab":{"savedTitle":"Local","savedURL":"file:///tmp/page"}}}
+        ]}]}}
+        """.utf8)
+        let imported = BrowserImport.arcSidebar(data)
+        guard let source = imported.spaces.first else {
+            note("Arc folder import fixture found no Space")
+            return
+        }
+        let former = browser.currentSpace
+        let formerTab = browser.currentTab
+        let space = browser.library.addSpace()
+        space.name = source.name
+        defer {
+            browser.selectSpace(former)
+            if let formerTab { browser.select(formerTab) }
+            browser.library.deleteSpace(space)
+        }
+        source.populate(space)
+        let names = space.pinFolders.map { space.pinFolderName($0) }
+        let expected = names == ["Research", "Research / References"]
+            && space.pinned.map(\.displayTitle) == ["Root", "Research plan", "Reference"]
+            && space.rootPins.map(\.displayTitle) == ["Root"]
+            && space.pinned.last?.pinFolderID == space.pinFolders.last?.id
+            && space.today.map(\.displayTitle) == ["Today"]
+        note("Arc folder import fixture matched folder hierarchy, pin order, and open tabs: \(expected)")
+        if expected, let reference = space.pinned.last {
+            browser.select(reference)
+            await pause(1.3)
+            saveVisible("arc-folder-import", in: window)
+        }
+    }
+
+    private func liveFolderPreview(_ browser: Browser, window: NSWindow, sourcePage: URL) async {
+        let space = browser.currentSpace
+        do {
+            guard let folder = try await space.addLiveFolder(address: sourcePage.absoluteString),
+                  let feed = folder.feed, feed.source.lastPathComponent == "field-feed.xml",
+                  feed.articles.map(\.title) == ["Atlas", "Field Notes"] else {
+                note("live folder failed to discover the fixture feed")
+                return
+            }
+            defer { space.removePinFolder(folder.id) }
+            let changed = try await space.refreshLiveFolder(folder.id)
+            let refreshed = space.pinFolders.first { $0.id == folder.id }?.feed
+            let expected = changed && refreshed?.articles.map(\.title) == ["Atlas revised", "Field Notes"]
+                && refreshed?.articles.map(\.id) == feed.articles.map(\.id)
+            note("live folder discovered and refreshed with stable article IDs: \(expected)")
+            guard expected else { return }
+            await pause(0.6)
+            saveVisible("live-folder", in: window)
+            let failed: Bool
+            do {
+                _ = try await space.refreshLiveFolder(folder.id)
+                failed = false
+            } catch {
+                failed = true
+            }
+            note("live folder kept cached data after request failed: \(failed && space.pinFolders.first { $0.id == folder.id }?.feed == refreshed)")
+            if let archive = SpaceLinkArchive(space: space) {
+                let imported = try SpaceLinkArchive(data: archive.encoded()).makeSpace(colorIndex: space.colorIndex)
+                if let importedFolder = imported.pinFolders.first(where: { $0.feed?.source == feed.source }) {
+                    let ignored = try await imported.refreshLiveFolder(importedFolder.id, allowActivation: false)
+                    let wasPaused = !ignored && importedFolder.feed?.articles.isEmpty == true
+                    let resumed = try await imported.refreshLiveFolder(importedFolder.id)
+                    note("imported live folder fetched only after resume: \(wasPaused && resumed && imported.pinFolders.first { $0.id == importedFolder.id }?.feed == refreshed)")
+                }
+            }
+        } catch {
+            note("live folder fixture error: \(error.localizedDescription)")
+        }
+    }
+
+    private func pinFolderPreview(_ browser: Browser, window: NSWindow) async {
+        let space = browser.currentSpace
+        guard let tab = browser.currentTab, !tab.isPinned,
+              let folder = space.addPinFolder(named: "Coastal Survey"),
+              let child = space.addPinFolder(named: "Reference Pages", inside: folder.id) else { return }
+        defer {
+            space.removePinFolder(child.id)
+            space.removePinFolder(folder.id)
+            if tab.isPinned { browser.togglePinned(tab) }
+        }
+        await pause(0.8)
+        let nested = await drag(tab, into: child.id, in: space, browser: browser)
+        note("drag from Today into nested pin folder: \(nested)")
+        guard nested else { return }
+        saveVisible("pinned-folders", in: window)
+        let moved = await drag(tab, into: folder.id, in: space, browser: browser)
+        let returned = moved ? await drag(tab, into: child.id, in: space, browser: browser) : false
+        note("drag a pin between folders in both directions: \(moved && returned)")
+        space.togglePinFolder(folder.id)
+        if space.pinFolders.contains(where: { $0.id == folder.id && $0.isCollapsed }),
+           space.selectedTabID == tab.id, space.rootPins.allSatisfy({ $0.id != tab.id }) {
+            note("collapse kept the nested pin selected without adding it to the root")
+        }
+    }
+
+    private func drag(_ tab: BrowserTab, into folderID: UUID, in space: Space, browser: Browser) async -> Bool {
+        guard let dragging = browser.sidebarDragging, let row = dragging.rowFrames[tab.id],
+              let heading = dragging.folderFrames[folderID] else { return false }
+        let source = CGPoint(x: row.midX, y: row.midY)
+        let destination = CGPoint(x: heading.midX, y: heading.midY)
+        dragging.changed(tab, from: source, to: source, in: space, browser: browser)
+        await pause(0.2)
+        dragging.changed(tab, from: source, to: destination, in: space, browser: browser)
+        let targeted = dragging.target?.folderID == folderID
+        dragging.ended(tab, in: space, browser: browser)
+        await pause(0.8)
+        return targeted && !dragging.isLifted(tab.id) && tab.isPinned && tab.pinFolderID == folderID
+            && !space.today.contains { $0.id == tab.id } && browser.currentTab === tab
+    }
+
+    private func linkWindowPreview(_ browser: Browser, url: URL) async {
+        let library = browser.library
+        guard let firstTab = browser.currentTab else { return }
+        let destination = library.regularSpaces.first { $0.id != browser.currentSpace.id }
+        let originalDestination = library.settings.externalLinksSpaceID
+        library.settings.externalLinksSpaceID = destination?.id
+        defer { library.settings.externalLinksSpaceID = originalDestination }
+        library.openExternal(url, inLinkWindow: true)
+        guard let preview = library.linkWindows.values.first, let window = preview.window else {
+            note("link preview window missing")
+            return
+        }
+        defer {
+            if library.space(containing: preview.tab) != nil { browser.close(preview.tab) }
+            library.linkWindows[preview.tab.id]?.close()
+            browser.select(firstTab)
+        }
+        for _ in 0..<25 {
+            if preview.tab.url == url, !preview.tab.title.isEmpty, !preview.tab.isLoading { break }
+            await pause(0.15)
+        }
+        guard preview.tab.url == url, library.space(containing: preview.tab) == nil, browser.currentTab === firstTab else {
+            note("link preview changed the browser before handoff")
+            return
+        }
+        saveVisible("link-preview-window", in: window)
+        let original = preview.controller.page
+        preview.keep()
+        await pause(0.5)
+        if browser.currentTab === preview.tab, browser.currentController?.page === original,
+           library.linkWindows[preview.tab.id] == nil, destination == nil || browser.currentSpace === destination {
+            note("link preview kept its live page when promoted to a tab")
+        } else {
+            note("link preview did not preserve its page or destination on handoff")
+        }
+        let disposable = library.showLinkPreview(url)
+        disposable.close()
+        if library.linkWindows[disposable.tab.id] == nil, library.space(containing: disposable.tab) == nil {
+            note("closing a link preview left no tab in the library")
+        }
+    }
+
+    private func recentTabsPreview(_ browser: Browser, window: NSWindow) async {
+        guard let active = browser.currentTab, let previous = browser.lastUsedTab else {
+            note("recent tabs fixture is missing its active or previous tab")
+            return
+        }
+        let dormant = browser.newTab(url: nil, select: false)
+        dormant.title = "Survey Checklist"
+        defer {
+            browser.isRecentTabsPresented = false
+            browser.close(dormant)
+            browser.select(active)
+        }
+        guard browser.recentTabs.prefix(2).map(\.id) == [active.id, previous.id] else {
+            note("recent tabs order did not match active and previously used tabs")
+            return
+        }
+        browser.toast = nil
+        browser.run(command: ShortcutAction.recentTabs.rawValue)
+        await pause(1.4)
+        guard let sheet = window.attachedSheet else {
+            note("recent tabs sheet missing")
+            return
+        }
+        saveVisible("recent-tabs", in: sheet)
+        if browser.library.existingController(for: dormant) == nil {
+            note("recent tabs picker left dormant tab unloaded")
+        }
+        if let down = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                                      timestamp: 0, windowNumber: sheet.windowNumber, context: nil,
+                                      characters: "\u{F701}", charactersIgnoringModifiers: "\u{F701}",
+                                      isARepeat: false, keyCode: 125) {
+            NSApp.sendEvent(down)
+            await pause(0.2)
+        }
+        if let enter = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                                       timestamp: 0, windowNumber: sheet.windowNumber, context: nil,
+                                       characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36) {
+            NSApp.sendEvent(enter)
+        }
+        await pause(0.5)
+        if browser.currentTab === dormant, window.attachedSheet == nil {
+            note("recent tabs picker selected the next result with Down and Return")
+        } else {
+            note("recent tabs keyboard selected \(browser.currentTab?.displayTitle ?? "no tab")")
+        }
+    }
+
+    private func regionPreview(_ browser: Browser, window: NSWindow) async {
+        let board = NSPasteboard.withUniqueName()
+        defer { board.releaseGlobally() }
+        guard let picker = browser.selectPageArea(to: board) else {
+            note("area picker missing")
+            return
+        }
+        guard window.firstResponder === picker else {
+            note("area picker did not receive focus")
+            picker.cancelOperation(nil)
+            return
+        }
+        let start = NSPoint(x: max(36, (picker.bounds.width - 860) / 2 + 36), y: 230)
+        let end = NSPoint(x: start.x + 300, y: start.y + 180)
+        guard let down = captureMouseEvent(.leftMouseDown, at: start, in: picker, window: window),
+              let drag = captureMouseEvent(.leftMouseDragged, at: end, in: picker, window: window),
+              let up = captureMouseEvent(.leftMouseUp, at: end, in: picker, window: window) else { return }
+        NSApp.sendEvent(down)
+        NSApp.sendEvent(drag)
+        await pause(0.5)
+        saveVisible("copy-page-area", in: window)
+        NSApp.sendEvent(up)
+        for _ in 0..<40 {
+            if let png = board.data(forType: .png), let bitmap = NSBitmapImageRep(data: png) {
+                note("page area: \(bitmap.pixelsWide)×\(bitmap.pixelsHigh) pixels")
+                try? png.write(to: directory.appending(path: "page-area-output.png"))
+                break
+            }
+            await pause(0.15)
+        }
+        let changeCount = board.changeCount
+        if let cancel = browser.selectPageArea(to: board) {
+            cancel.cancelOperation(nil)
+            if cancel.superview == nil, board.changeCount == changeCount { note("area picker cancelled without copying") }
+        }
+    }
+
+    private func elementPreview(_ browser: Browser, window: NSWindow) async {
+        let board = NSPasteboard.withUniqueName()
+        defer { board.releaseGlobally() }
+        guard let element = try? await browser.currentController?.page.evaluate("""
+            const rect = document.querySelector("h2").getBoundingClientRect();
+            return [rect.x + 32, rect.y + rect.height / 2, rect.width, rect.height];
+            """, inWorld: "Ark Capture Fixture") as? [NSNumber], element.count == 4,
+              let picker = browser.selectPageElement(to: board) else {
+            note("element fixture could not start")
+            return
+        }
+        await pause(0.35)
+        saveVisible("copy-page-element", in: window)
+        let point = NSPoint(x: element[0].doubleValue, y: element[1].doubleValue)
+        guard let down = captureMouseEvent(.leftMouseDown, at: point, in: picker, window: window),
+              let up = captureMouseEvent(.leftMouseUp, at: point, in: picker, window: window) else { return }
+        NSApp.sendEvent(down)
+        NSApp.sendEvent(up)
+        for _ in 0..<40 {
+            if let png = board.data(forType: .png), let bitmap = NSBitmapImageRep(data: png) {
+                let scale = window.backingScaleFactor
+                let matches = abs(Double(bitmap.pixelsWide) / scale - element[2].doubleValue) <= 2
+                    && abs(Double(bitmap.pixelsHigh) / scale - element[3].doubleValue) <= 2
+                note("page element: \(bitmap.pixelsWide)×\(bitmap.pixelsHigh) pixels, bounds match: \(matches)")
+                if matches { try? png.write(to: directory.appending(path: "page-element-output.png")) }
+                return
+            }
+            await pause(0.15)
+        }
+        note("element fixture did not copy a PNG")
+    }
+
+    private func captureMouseEvent(_ type: NSEvent.EventType, at point: NSPoint,
+                                   in picker: NSView, window: NSWindow) -> NSEvent? {
+        NSEvent.mouseEvent(with: type, location: picker.convert(point, to: nil),
+                           modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+                           context: nil, eventNumber: 0, clickCount: 1, pressure: 1)
+    }
+
+    private func settingsPreviews(_ browser: Browser, window: NSWindow) async {
+        let defaults = UserDefaults.standard
+        let previousPane = defaults.object(forKey: "settingsTab")
+        defer { defaults.set(previousPane, forKey: "settingsTab") }
+        browser.settings.blockContent = true
+        SpaceRouter.shared.isEnabled = true
+        for (pane, file) in [("spaces", "shared-collections"), ("routing", "space-routing"), ("shortcuts", "custom-shortcuts"), ("privacy", "ad-blocker")] {
+            browser.library.openSettings(pane: pane)
+            await pause(0.8)
+            guard let settings = NSApp.keyWindow, settings !== window else {
+                note("settings window missing for \(pane)")
+                continue
+            }
+            saveVisible(file, in: settings)
+        }
+    }
+
+    private func splitPreview(_ browser: Browser, window: NSWindow, partnerURL: URL) async {
+        guard let first = browser.currentTab, let second = browser.splitCandidates.first(where: { $0.url == partnerURL }) else {
+            note("split candidates missing")
+            return
+        }
+        browser.splitWith(second)
+        await pause(1)
+        guard browser.visibleTabIDs == [first.id, second.id],
+              browser.library.window(showing: second) === browser,
+              browser.library.existingController(for: first)?.page.view.window === window,
+              browser.library.existingController(for: second)?.page.view.window === window else {
+            note("split did not mount both panes")
+            browser.separateSplit()
+            return
+        }
+        if let secondView = browser.library.existingController(for: second)?.page.view,
+           let click = NSEvent.mouseEvent(with: .leftMouseDown,
+                                          location: secondView.convert(NSPoint(x: 30, y: 30), to: nil),
+                                          modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+                                          context: nil, eventNumber: 0, clickCount: 1, pressure: 1) {
+            PageHost.focusClickedPane(click)
+        }
+        browser.resizeSplit(to: 0.58)
+        guard browser.currentTab === second, browser.activeSplit?.focused == second.id else {
+            note("split pane did not receive focus")
+            browser.separateSplit()
+            browser.select(first)
+            return
+        }
+        await saveSplitPreview("split-view", browser: browser, window: window, first: first, second: second)
+        browser.setSplitAxis(.stacked)
+        await saveSplitPreview("split-view-stacked", browser: browser, window: window, first: first, second: second)
+        if let data = try? JSONEncoder().encode(browser.splitBySpace),
+           (try? JSONDecoder().decode([UUID: TabSplit].self, from: data)) == browser.splitBySpace {
+            note("split width, axis, membership, and focus round-tripped")
+        }
+        let oldActivity = first.lastActive
+        first.lastActive = .distantPast
+        browser.library.archiveStaleTabs()
+        if browser.visibleTabIDs.contains(first.id) { note("unfocused pane protected from archive") }
+        first.lastActive = oldActivity
+        let partner = browser.newTab(url: partnerURL, in: browser.currentSpace, select: false)
+        await pause(0.7)
+        browser.select(partner)
+        if browser.activeSplit == nil, browser.visibleTabIDs == [partner.id] {
+            browser.select(second)
+            if browser.visibleTabIDs == [first.id, second.id] { note("selecting a split tab reopened its pair") }
+        }
+        browser.splitWith(partner)
+        browser.focusSplitPane(partner)
+        browser.close(partner)
+        if browser.activeSplit == nil, browser.currentTab === second { note("closing a split pane kept its partner") }
+        browser.select(first)
+    }
+
+    private func saveSplitPreview(_ name: String, browser: Browser, window: NSWindow,
+                                  first: BrowserTab, second: BrowserTab) async {
+        await pause(0.8)
+        for tab in [first, second] {
+            if let page = browser.library.existingController(for: tab)?.page, let image = await page.snapshot() {
+                note("\(name), \(tab.displayTitle): \(image.width)×\(image.height) viewport")
+            }
+        }
+        window.displayIfNeeded()
+        await pause(0.5)
+        saveVisible(name, in: window)
+    }
+
+    private func baselinePreviews(_ browser: Browser, window: NSWindow, atlas: BrowserTab, otherPage: URL) async {
+        browser.togglePinned(atlas)
+        await pause(0.7)
+        saveVisible("pinned-tab", in: window)
+        browser.openGlance(otherPage, isPrivate: false)
+        await pause(1)
+        saveVisible("glance-link-preview", in: window)
+        browser.closeGlance()
+        await pause(0.4)
+        let stale = browser.newTab(url: otherPage, select: false)
+        stale.title = "Survey Checklist"
+        stale.lastActive = .now.addingTimeInterval(-(browser.settings.archiveAfterHours + 24) * 3_600)
+        browser.library.archiveStaleTabs()
+        guard browser.archive.contains(where: { $0.id == stale.id }) else { note("fixture tab was not archived"); return }
+        browser.isArchivePresented = true
+        await pause(0.7)
+        saveVisible("auto-archive", in: window.attachedSheet ?? window)
+        browser.isArchivePresented = false
+        await pause(0.7)
+        browser.openLibrary()
+        await pause(0.7)
+        saveVisible("extension-library", in: window)
+    }
+
+    private func commandPreview(_ browser: Browser, query: String, file: String) async {
+        browser.commandBar = nil
+        await pause(0.4)
+        browser.showCommandBar(.commands)
+        await pause(0.5)
+        if let editor = browser.nsWindow?.firstResponder as? NSTextView {
+            editor.insertText(query, replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
+        }
+        await pause(0.45)
+        if let window = browser.nsWindow { saveVisible(file, in: window) }
+    }
+
+    private func saveVisible(_ name: String, in window: NSWindow) {
+        let capture = Process()
+        capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        let target = directory.appending(path: "\(name).png")
+        capture.arguments = ["-x", "-o", "-l", String(window.windowNumber), target.path]
+        if (try? capture.run()) != nil {
+            capture.waitUntilExit()
+            if capture.terminationStatus == 0 { return }
+        }
+        save(name, in: window)
     }
 
     /// A line in report.txt, for things a picture can't show.

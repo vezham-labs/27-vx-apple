@@ -77,8 +77,10 @@ extension BrowserState {
         let space = spaces.first { $0.allTabs.contains { $0.id == tab.id } } ?? currentSpace
         if tab.isPinned {
             space.pinned.removeAll { $0.id == tab.id }
+            space.setPinFolder(nil, for: tab)
             space.today.insert(tab, at: 0)
         } else {
+            if space.splitPair?.contains(tab.id) == true { space.separateTabs() }
             space.today.removeAll { $0.id == tab.id }
             space.pinned.append(tab)
         }
@@ -89,8 +91,13 @@ extension BrowserState {
     /// Call on launch and when returning to the foreground.
     public func archiveStaleTabs(now: Date = .now) {
         for space in spaces where !space.isPrivate {
-            let stale = space.today.filter { $0.id != space.selectedTabID && now.timeIntervalSince($0.lastActive) > settings.archiveAfterHours * 3600 }
+            let activePair = space.activeSplitTabs == nil ? nil : space.splitPair
+            let stale = space.today.filter {
+                $0.id != space.selectedTabID && activePair?.contains($0.id) != true
+                    && now.timeIntervalSince($0.lastActive) > settings.archiveAfterHours * 3600
+            }
             guard !stale.isEmpty else { continue }
+            if let pair = space.splitPair, stale.contains(where: { pair.contains($0.id) }) { space.separateTabs() }
             space.today.removeAll { t in stale.contains { $0.id == t.id } }
             stale.forEach { pool.existingSession(for: $0.id)?.freeze(); pool.remove($0.id) }
             archive.insert(contentsOf: stale.filter { !$0.isPrivate }, at: 0)

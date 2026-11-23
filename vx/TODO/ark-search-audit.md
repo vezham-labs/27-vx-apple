@@ -1,0 +1,139 @@
+# Ark feature audit against Search
+
+Reviewed Search at [`6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`](https://github.com/driceroland/Search/tree/6f2b186bfa862d282ee9f424be1dfd5eb8ddc316). Rows follow the [Arc vs. Ark matrix](../../apps-docs/docs/content/docs/ark/comparison.mdx). Search filenames are relative to `Sources/Search` unless noted. The audit records source evidence and distinguishes it from on-device checks.
+
+## Organization
+
+| Feature                 | Search implementation                                                                                  | Ark implementation and finding                                                                                                                                                                                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sidebar                 | `Side.swift`, `SideIcons.swift`, and `Fold.swift` cover vertical tabs, icons, and folding.             | `Sidebar.swift` and `WindowColumns.swift` already support a docked or floating Mac sidebar. Mobile has posture-specific layout. Profile resize and tab dragging before changing the layout.                                                                                                                     |
+| Address bar             | `AddressLine.swift` and `AtRestLine.swift` separate editing from the resting field.                    | `Sidebar.swift` and `CommandBar.swift` already split the Mac address display from editing. The mobile layouts place the bar by posture.                                                                                                                                                                         |
+| Spaces                  | `Spaces.swift` and `SpaceSwipe.swift` manage Space state and swipe navigation.                         | `Browser.swift`, `Library.swift`, and mobile `BrowserState` cover Spaces. Search's paint and switch tests offer scenarios for Ark's own benchmarks.                                                                                                                                                             |
+| Profiles                | `Profiles.swift` groups Spaces and isolates browsing data.                                             | Ark distinguishes regular and private data stores. Assignable profiles need persistence, migration, and coordinated cookie, history, and extension storage.                                                                                                                                                     |
+| Favorites               | `HomeGrid.swift` and `BookmarksBar.swift` provide saved-site access.                                   | Ark has global favorites on Mac and mobile. Keep one shared source for favorites and preserve their current ordering.                                                                                                                                                                                           |
+| Pinned tabs and folders | `BrowserPinFolders.swift`, `PinFolders.swift`, and `PinDrop.swift` maintain and reorder a folder tree. | Ark stores nested folder metadata with each Space and preserves flat pin order. Mac and iOS offer folder menus. Mac Arc import preserves folders within Ark’s depth limit. Mac’s drag handler moved a Today tab into a nested folder and moved a pin between folders. Mobile folder moves use the context menu. |
+| Live folders            | `LiveFolders.swift` fetches and parses feeds while retaining item IDs on refresh.                      | BrowserKit implements RSS and Atom folders with bounded fetching and stable URL-based article IDs. The Mac and iOS folder views support adding, refreshing, and opening articles.                                                                                                                               |
+| Archive                 | `Archive.swift` and `Sleep.swift` cover archival and sleeping tabs.                                    | `Library.archiveStaleTabs` and mobile `BrowserState+Page.swift` already archive stale tabs. Sleeping tabs are a separate memory behavior.                                                                                                                                                                       |
+| Theme picker            | `SpaceGradient.swift` and `ThemesPage.swift` provide theming.                                          | `SpaceTheme.swift` already edits Mac themes. Mobile uses its color and icon settings.                                                                                                                                                                                                                           |
+
+## Browsing
+
+| Feature             | Search implementation                                                                                            | Ark implementation and finding                                                                                                                                                                                                                                                                                                                                  |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Split View          | `Split.swift`, `SplitView.swift`, and `PaneStage.swift` manage pane focus, sizes, and groups of up to four tabs. | Ark Mac splits two Today tabs and keeps both views live. Mouse focus, closing, reopening, archival protection, both viewport layouts, and the saved-state codec passed the local fixture. Mobile mounts two live panes with an adaptive axis, focus controls, and a saved divider. Mobile runtime, Mac relaunch, pinned tabs, and additional panes remain open. |
+| Peek                | `Peek.swift` manages a temporary link window.                                                                    | `Glance.swift` provides Option-click previews on Mac. Mobile uses WebKit long-press previews. Sidebar previews and configurable triggers remain open.                                                                                                                                                                                                           |
+| Little Arc          | `Little.swift` maintains small windows with their own ownership and handoff.                                     | Mac Link Preview opens external web links in a compact window and keeps the live page when promoted to a tab. The fixture verified handoff and cleanup.                                                                                                                                                                                                         |
+| Command bar         | `AddressCommands.swift`, `Omnibox.swift`, and `Fuzzy.swift` provide command discovery and matching.              | `CommandBar.swift` and BrowserKit Suggest already provide search and commands. Measure suggestion latency before replacing matching.                                                                                                                                                                                                                            |
+| Air Traffic Control | `SpaceRoutes.swift` matches site rules and routes to a Space window.                                             | Mac and iOS share host and path matching. iOS adds custom Space rules and keeps its external-link fallback. Mac also offers routing sets. Source-app rules remain open.                                                                                                                                                                                         |
+| Boosts              | `SiteStyles.swift` persists CSS by host. `Curtain.swift` and `Hidden.swift` hide elements.                       | Mac and iOS share the host-scoped CSS store and WebKit stylesheet code. Private tabs and Mac Agent tabs are excluded. Mac verified applying, reloading, and clearing CSS.                                                                                                                                                                                       |
+| Auto PiP            | `NativePiP.swift` and `Float.swift` choose and float video players.                                              | `CallPiP.swift` floats displaced calls. Measure ordinary video behavior across site types before generalizing it.                                                                                                                                                                                                                                               |
+| Mini player         | `Player.swift`, `Float.swift`, and `MediaKeys.swift` cover floating media controls.                              | Ark has Mac call controls and the system player on mobile. A generic Mac player is still open.                                                                                                                                                                                                                                                                  |
+| Tab Switcher        | `TabSwitcher.swift` tracks visited tabs and caches previews for a gesture.                                       | Mac offers a visual picker for eight recent tabs using snapshots from existing sessions. Arrow keys and Return passed the local fixture. Mobile keeps its quick menu and adds a grid for up to eight recent tabs using the tab gallery’s cached thumbnails.                                                                                                     |
+| Super Copy          | `CleanLink.swift` strips tracking arguments.                                                                     | BrowserKit's `LinkCleaner.swift` backs Mac and mobile clean link copy. Compare URL fixtures before expanding tracker coverage.                                                                                                                                                                                                                                  |
+| Capture             | `Snap.swift` supports region, element, and whole-page capture with a pixel budget.                               | Ark copies full-page, region, and element PNGs. Mac, iPhone, and iPad verified all three modes. Duo runtime verification remains open.                                                                                                                                                                                                                          |
+
+## Compatibility and migration
+
+| Feature           | Search implementation                                                                                            | Ark implementation and finding                                                                                                             |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Arc import        | `ImportArc.swift` and `ImportSession.swift` interpret Arc data and preserve more of its structure.               | `BrowserImport.swift` reads both Arc container formats and restores nested pin folders, ordered pins, and open tabs.                       |
+| Chrome extensions | `Extensions.swift`, `ExtensionShims.swift`, and `ExtensionWorkerRecovery.swift` layer compatibility over WebKit. | Ark already uses WebKit with a narrower set of shims. Reproduce specific failures before adding coverage.                                  |
+| DRM streaming     | `Float.swift` handles presentation details for video sites. Source alone does not verify protected playback.     | Ark uses WebKit. Compare actual playback by service, title, build, and OS before changing the matrix rating.                               |
+| Passkeys          | `Passkeys.swift` and the passkey entitlement configuration cover sign-in.                                        | Ark's WebKit capability depends on the entitlement, and Mac has a verified 1Password extension path. Verify native flows on signed builds. |
+| Sync              | `ICloudSync.swift`, `SyncMerge.swift`, and `SYNC.md` cover CloudKit and merge behavior.                          | Ark persists locally. Cross-device sync needs an Ark CloudKit container and a shared record model with conflict and deletion semantics.    |
+| Mobile app        | Search's main checkout builds a Mac app and documents an iPhone beta.                                            | Ark's iOS target covers iPhone, iPad, and Duo. The local Search tree provides Mac implementation evidence.                                 |
+
+## Extras
+
+| Feature             | Search implementation                                                  | Ark implementation and finding                                                                                                           |
+| ------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Built-in ad blocker | `Shield.swift` compiles WebKit content rules.                          | Ark's `ContentBlocker.swift` uses compiled, grouped rule lists. Benchmark startup, first load, and rule compilation with the same lists. |
+| Custom Shortcuts    | `Shortcuts.swift` and `ShortcutsPage.swift` use a Mac shortcut editor. | Ark's `Shortcuts.swift` and Settings already support presets and overrides. Mobile shortcut editing remains open.                        |
+
+## More Arc features
+
+| Feature            | Search implementation                                                                                                      | Ark implementation and finding                                                                                                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Easels             | `PageDrafts.swift` and `Markdown.swift` cover adjacent workflows. No general canvas implementation found.                  | Ark has page-attached Notes. A canvas requires an original design and storage model.                                                                                |
+| Shared Collections | `Sharing.swift` shares a page. Search sync covers a user's own devices. No public collection sharing implementation found. | Ark shares a whole Space or a single pin-folder subtree as a portable file through the system share sheet. Hosted collection links and access controls remain open. |
+| Previews           | `Peek.swift` offers generic previews. No equivalent app-specific previews found.                                           | Ark Glance covers generic HTML links. Service-specific previews need a chosen service and interaction.                                                              |
+| Developer mode     | `Inspector.swift` and developer settings expose WebKit inspection.                                                         | Ark already has Mac Inspect Element and mobile remote inspection. Keep its current engine-specific integration.                                                     |
+
+## Extension support
+
+| Feature           | Search implementation                                                                                       | Ark implementation and finding                                                                                           |
+| ----------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Manifest V2       | `Extensions.swift` loads WebExtensions through WebKit. Exact support depends on the extension and platform. | Ark parses MV2 manifests. Run a representative test before rating support.                                               |
+| Manifest V3       | `Extensions.swift`, `ExtensionShims.swift`, and worker recovery cover MV3 behavior.                         | Ark's verified MV3 extensions work. Compare worker recovery fixtures and measure extension startup before porting shims. |
+| Firefox add-ons   | No Firefox Add-ons catalog support found in `Extensions.swift`, `Crx.swift`, or `ExtensionsUI.swift`.       | Ark resolves Firefox Add-ons packages on Mac. Record actual compatibility for representative add-ons.                    |
+| Safari extensions | `SafariApps.swift` loads app-bundled extensions.                                                            | Ark exposes experimental Safari extension loading. Native integration needs separate compatibility checks.               |
+
+## Moving on
+
+| Feature       | Search implementation                                                                                                  | Ark implementation and finding                                                                                                                                                                                                                                                                                      |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Export Spaces | `BookmarksFile.swift` handles bookmark files, and `Sync.swift` handles sync. No standalone Space export command found. | Mac and iOS share a versioned Space link format in `SpaceLinkArchive.swift`. Imports create a new Space without starting WebKit and retain pinned and Today order. Ark carries pin folders and feed addresses in the link file. Imported feeds require manual activation. Browser session restoration remains open. |
+| Imported by   | External directory metric.                                                                                             | Ark is unlisted in the byearc snapshot.                                                                                                                                                                                                                                                                             |
+| Imports from  | `Import.swift`, `ImportZen.swift`, `ImportGeckoTabs.swift`, and `ImportWebKit.swift` take several source formats.      | Ark detects six browser sources on Mac. Additional import targets need fixtures and a lossless field mapping.                                                                                                                                                                                                       |
+
+## AI, bloat & maintenance
+
+| Feature     | Search implementation                                                                     | Ark implementation and finding                                                                                                |
+| ----------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Built-in AI | `AI.swift`, `AIClient.swift`, and `AIEngine.swift` provide optional integrated AI.        | Ark connects to external clients via MCP. Built-in AI requires decisions about the provider, data handling, and user consent. |
+| Bloat       | External byearc score. Search keeps optional features behind settings.                    | Ark is unscored. Use launch time, app size, memory, and CPU measurements directly.                                            |
+| Maintained  | `Updater.swift`, release scripts, and the audited commit show an active release workflow. | Ark uses Sparkle for releases. Keep Ark's signing and update pipeline independent of Search.                                  |
+
+## Mac previews
+
+Screenshots use synthetic pages in an isolated Ark session.
+
+- [Sidebar, favorites, and Spaces](../../preview/ark/mac/features/sidebar-and-tabs.png)
+- [Switch to Last Used Tab](../../preview/ark/mac/features/last-used-tab.png)
+- [Copy Full Page Image](../../preview/ark/mac/features/copy-full-page-image.png)
+- [Full-page PNG result](../../preview/ark/mac/features/full-page-image-output.png)
+- [Export Space Links](../../preview/ark/mac/features/export-space-links.png)
+- [Site Style editor](../../preview/ark/mac/features/site-style-editor.png)
+- [Site Style applied](../../preview/ark/mac/features/site-style-applied.png)
+- [Pinned tab](../../preview/ark/mac/features/pinned-tab.png)
+- [Glance link preview](../../preview/ark/mac/features/glance-link-preview.png)
+- [Mac Split View](../../preview/ark/mac/features/split-view.png)
+- [Archived tab](../../preview/ark/mac/features/auto-archive.png)
+- [Extension Library](../../preview/ark/mac/features/extension-library.png)
+- [Import Space Links](../../preview/ark/mac/features/import-space-links.png)
+- [Split View stacked](../../preview/ark/mac/features/split-view-stacked.png)
+- [Space Routing](../../preview/ark/mac/features/space-routing.png)
+- [Custom Shortcuts](../../preview/ark/mac/features/custom-shortcuts.png)
+- [Ad and Tracker Blocking](../../preview/ark/mac/features/ad-blocker.png)
+- [Copy Page Area](../../preview/ark/mac/features/copy-page-area.png)
+- [Page Area PNG](../../preview/ark/mac/features/page-area-output.png)
+- [Copy Page Element](../../preview/ark/mac/features/copy-page-element.png)
+- [Page Element PNG](../../preview/ark/mac/features/page-element-output.png)
+- [Recent Tabs](../../preview/ark/mac/features/recent-tabs.png)
+- [Link Preview Window](../../preview/ark/mac/features/link-preview-window.png)
+- [Pinned Folders](../../preview/ark/mac/features/pinned-folders.png)
+- [Arc Folder Import](../../preview/ark/mac/features/arc-folder-import.png)
+- [Live Folder](../../preview/ark/mac/features/live-folder.png)
+- [Shared Collections](../../preview/ark/mac/features/shared-collections.png)
+
+## Mac archive measurement
+
+The archive pass now builds a set of expired tab IDs before removing them. A local Swift microbenchmark compared only the removal step, including set construction, and verified identical order and remaining IDs in both versions.
+
+| Synthetic workload       | Previous median | Current median |
+| ------------------------ | --------------- | -------------- |
+| 1,000 tabs, 500 stale    | 1.458 ms        | 0.196 ms       |
+| 10,000 tabs, 5,000 stale | 48.433 ms       | 0.713 ms       |
+
+Each median comes from five optimized runs on the local Mac. This measures the filtering step, not total archive or UI latency.
+
+## Mac recent tabs measurement
+
+The picker gathers the tabs visible in other windows once before filtering its candidates. A synthetic two-window fixture compared this against resolving ownership for every candidate. Both versions returned the same tabs in the same order.
+
+| Candidates | Ownership lookup per tab | One lookup per window |
+| ---------- | ------------------------ | --------------------- |
+| 1,000      | 6.255 ms                 | 0.095 ms              |
+| 10,000     | 699.902 ms               | 1.037 ms              |
+
+Each value is the median of five optimized runs on the local Mac. The measurement covers ownership filtering and excludes sorting, WebKit snapshots, and rendering.

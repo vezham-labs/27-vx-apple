@@ -90,6 +90,7 @@ final class Library {
     var pipTabID: UUID?
     var pipClosedFor: Set<UUID> = []
     let history: HistoryStore
+    @ObservationIgnored let siteStyles: SiteStyles
     @ObservationIgnored private(set) var suggest: SuggestEngine!
     /// Live pages, by tab. The least recently used are unloaded past `capacity`.
     @ObservationIgnored private(set) var controllers: [UUID: TabController] = [:]
@@ -115,6 +116,7 @@ final class Library {
         useSafariExtensions = Preferences.useSafariExtensions
         callAudio = Preferences.callAudio
         let support = snapshotURL?.deletingLastPathComponent()
+        siteStyles = SiteStyles(fileURL: support?.appending(path: "site-styles.json"))
         extensionCatalog = ExtensionCatalog(fileURL: support?.appending(path: "extensions.json"))
         extensionInstaller = ExtensionInstaller(
             root: (support ?? FileManager.default.temporaryDirectory).appending(path: "Extensions"),
@@ -262,7 +264,7 @@ final class Library {
 
     /// The window showing a tab right now, if any. A tab is on screen in one window at most.
     func window(showing tab: BrowserTab) -> Browser? {
-        windows.first { $0.currentTab?.id == tab.id }
+        windows.first { $0.isShowing(tab.id) }
     }
 
     /// Opens a window through SwiftUI. Set by the first window that appears.
@@ -277,6 +279,8 @@ final class Library {
         NSApp.activate()
     }
     @ObservationIgnored private var windowRequests: [WindowRequest] = []
+    @ObservationIgnored var linkWindows: [UUID: LinkPreviewWindow] = [:]
+    var needsFirstWindow: Bool { openWindowAction == nil && !windowRequests.isEmpty }
 
     /// Opens a new window, showing `request` (or a new-tab command bar).
     func openWindow(_ request: WindowRequest? = nil) {
@@ -290,7 +294,11 @@ final class Library {
     }
 
     /// A link from another app, in the window in use, or a new one when none is open.
-    func openExternal(_ url: URL) {
+    func openExternal(_ url: URL, inLinkWindow: Bool = Preferences.externalLinksInPreview) {
+        if inLinkWindow, LinkPreviewWindow.supports(url) {
+            showLinkPreview(url)
+            return
+        }
         if let window = activeWindow {
             window.openExternal(url)
             NSApp.activate()
@@ -298,6 +306,39 @@ final class Library {
         } else {
             openWindow(.url(url))
         }
+    }
+
+    @discardableResult
+    func showLinkPreview(_ url: URL?, popup: (any EnginePage)? = nil) -> LinkPreviewWindow {
+        let preview = LinkPreviewWindow(url: url, library: self, popup: popup)
+        if let last = linkWindows.values.first(where: { $0.window?.isKeyWindow == true }),
+           let position = last.window?.frame.origin {
+            preview.window?.setFrameOrigin(NSPoint(x: position.x + 20, y: position.y - 20))
+        }
+        linkWindows[preview.tab.id] = preview
+        preview.showWindow(nil)
+        NSApp.activate()
+        return preview
+    }
+
+    func keepLinkPreview(_ controller: TabController, destination: UUID?) {
+        let tab = controller.tab
+        let window = activeWindow
+        let target = regularSpaces.first { $0.id == destination }
+            ?? window.flatMap { $0.currentSpace.isPrivate ? nil : $0.currentSpace }
+            ?? regularSpaces[0]
+        tab.windowKey = window?.windowKey
+        target.today.insert(tab, at: 0)
+        adopt(controller)
+        if let window {
+            window.commandBar = nil
+            window.select(tab)
+            window.nsWindow?.makeKeyAndOrderFront(nil)
+        } else {
+            openWindow(.tab(tab))
+            if needsFirstWindow { AppDelegate.askForFirstWindow() }
+        }
+        scheduleSave()
     }
 
     func window(for nsWindow: NSWindow?) -> Browser? {
@@ -380,7 +421,7 @@ final class Library {
     /// that's busy: a call, music or a half-written message would be lost, so those stay loaded
     /// even if that means more than `capacity` live pages for a while.
     private func evictIfNeeded(keeping id: UUID) {
-        let onScreen = Set(windows.compactMap { $0.currentTab?.id })
+        let onScreen = Set(windows.flatMap(\.visibleTabIDs))
         // Never unloaded: pages on another engine (call tabs, on Chromium), which would end a call,
         // and busy pages (a call, playing audio, a half-written message).
         let evictable = { (t: UUID) in
@@ -458,7 +499,7 @@ final class Library {
         guard let space = space(containing: tab) else { return }
         let index = space.today.firstIndex { $0.id == tab.id }
         // Windows showing it move on first, while it's still in the list to measure from.
-        for w in windows where w.currentTab?.id == tab.id { w.moveOff(tab, in: space) }
+        for w in windows { w.moveOff(tab, in: space) }
         space.today.removeAll { $0.id == tab.id }
         if space.selectedTabID == tab.id { space.selectedTabID = nil }
         if index == nil, tab.isPinned {
@@ -475,8 +516,10 @@ final class Library {
 
     func togglePinned(_ tab: BrowserTab) {
         guard !tab.isPrivate, let space = space(containing: tab) else { return }
+        for window in windows { _ = window.detachSplit(containing: tab, in: space) }
         if tab.isPinned {
             space.pinned.removeAll { $0.id == tab.id }
+            space.setPinFolder(nil, for: tab)
             space.today.insert(tab, at: 0)
             tab.windowKey = (window(showing: tab) ?? activeWindow)?.windowKey
         } else {
@@ -488,16 +531,24 @@ final class Library {
     }
 
     /// Drag and drop in the sidebar: `tab` lands just before `target`, or at the end of the section in `fallback`.
-    func move(_ tab: BrowserTab, before target: BrowserTab?, pinned: Bool, fallback: Space) {
+    func move(_ tab: BrowserTab, before target: BrowserTab?, pinned: Bool, fallback: Space, folderID: UUID? = nil) {
         guard let from = space(containing: tab), !(tab.isPrivate && pinned) else { return }
         let to = target.flatMap(space(containing:)) ?? fallback
         guard from.isPrivate == to.isPrivate else { return }
+        if let folderID {
+            guard pinned, !to.isPrivate, to.pinFolders.contains(where: { $0.id == folderID }) else { return }
+        }
+        if from.id == to.id, pinned {
+            for window in windows { _ = window.detachSplit(containing: tab, in: from) }
+        }
         from.pinned.removeAll { $0.id == tab.id }
+        from.setPinFolder(nil, for: tab)
         from.today.removeAll { $0.id == tab.id }
         tab.isPinned = pinned
         if pinned {
             let i = target.flatMap { t in to.pinned.firstIndex { $0.id == t.id } } ?? to.pinned.endIndex
             to.pinned.insert(tab, at: i)
+            to.setPinFolder(folderID, for: tab)
         } else {
             let i = target.flatMap { t in to.today.firstIndex { $0.id == t.id } } ?? to.today.endIndex
             to.today.insert(tab, at: i)
@@ -510,8 +561,9 @@ final class Library {
 
     func move(_ tab: BrowserTab, to space: Space) {
         guard let from = self.space(containing: tab), from.id != space.id, !space.isPrivate, !tab.isPrivate else { return }
-        for w in windows where w.currentTab?.id == tab.id { w.moveOff(tab, in: from) }
+        for w in windows { w.moveOff(tab, in: from) }
         from.pinned.removeAll { $0.id == tab.id }
+        from.setPinFolder(nil, for: tab)
         from.today.removeAll { $0.id == tab.id }
         if from.selectedTabID == tab.id { from.selectedTabID = nil }
         if tab.isPinned { tab.windowKey = activeWindow?.windowKey }
@@ -590,6 +642,7 @@ final class Library {
         guard regularSpaces.count > 1, let i = spaces.firstIndex(where: { $0.id == space.id }) else { return }
         space.allTabs.forEach { unload($0.id) }
         spaces.remove(at: i)
+        for window in windows { window.splitBySpace[space.id] = nil }
         for w in windows where w.selectedSpaceID == space.id { w.leaveSpace() }
         if settings.externalLinksSpaceID == space.id { settings.externalLinksSpaceID = nil }
         scheduleSave()
@@ -620,14 +673,20 @@ final class Library {
 
     /// Today tabs left alone for longer than the setting go to the archive, like Arc.
     func archiveStaleTabs(now: Date = .now) {
-        let onScreen = Set(windows.compactMap { $0.currentTab?.id })
+        let onScreen = Set(windows.flatMap(\.visibleTabIDs))
         for space in spaces where !space.isPrivate {
             let stale = space.today.filter {
                 !onScreen.contains($0.id) && $0.id != space.selectedTabID
                     && now.timeIntervalSince($0.lastActive) > settings.archiveAfterHours * 3600
             }
             guard !stale.isEmpty else { continue }
-            space.today.removeAll { t in stale.contains { $0.id == t.id } }
+            let staleIDs = Set(stale.map(\.id))
+            for window in windows {
+                if let split = window.splitBySpace[space.id], staleIDs.contains(split.first) || staleIDs.contains(split.second) {
+                    window.splitBySpace[space.id] = nil
+                }
+            }
+            space.today.removeAll { staleIDs.contains($0.id) }
             for t in stale { unload(t.id) }
             archive.insert(contentsOf: stale, at: 0)
         }

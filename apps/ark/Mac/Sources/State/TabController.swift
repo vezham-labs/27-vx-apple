@@ -3,6 +3,7 @@ import Observation
 import BrowserCore
 import BrowserEngine
 import Suggest
+import WebKit
 
 /// Ties one tab to its live page: mirrors the page's state onto the tab, and answers the page's
 /// questions for the browser.
@@ -13,6 +14,7 @@ final class TabController: EnginePageDelegate {
     let engineID: String
     private(set) var page: (any EnginePage)!
     private weak var library: Library?
+    weak var linkPreview: LinkPreviewWindow?
     /// The window showing this tab, if any.
     private var window: Browser? { library?.window(showing: tab) }
     /// How the next finished load should count in history.
@@ -60,7 +62,7 @@ final class TabController: EnginePageDelegate {
     }
 
     func load(_ url: URL, source: Frecency.VisitSource) {
-        if let library, library.needsEngineSwap(self, to: url) {
+        if linkPreview == nil, let library, library.needsEngineSwap(self, to: url) {
             library.swapEngine(of: tab, to: url, source: source)
             return
         }
@@ -115,6 +117,10 @@ final class TabController: EnginePageDelegate {
             return .cancel
         }
         if request.wantsNewTab {
+            if linkPreview != nil, LinkPreviewWindow.supports(request.url) {
+                library.showLinkPreview(request.url)
+                return .cancel
+            }
             library.openInNewTab(request.url, from: tab, foreground: request.wantsForeground)
             return .cancel
         }
@@ -127,7 +133,7 @@ final class TabController: EnginePageDelegate {
             return .cancel
         }
         // A call site (or leaving one) moves the tab to the engine it runs on.
-        if request.isMainFrame, request.method == "GET", library.needsEngineSwap(self, to: request.url) {
+        if linkPreview == nil, request.isMainFrame, request.method == "GET", library.needsEngineSwap(self, to: request.url) {
             library.swapEngine(of: tab, to: request.url)
             return .cancel
         }
@@ -181,6 +187,10 @@ final class TabController: EnginePageDelegate {
             let z = Preferences.zoom(for: host)
             if abs(page.zoom - z) > 0.001 { setZoom(z) }
         }
+        guard !tab.isPrivate, let library, !library.agents.isInAgentSpace(tab),
+              let host = SiteStyles.host(of: url), library.siteStyles[host] != nil,
+              let view = page.view as? WKWebView else { return }
+        Task { await library.siteStyles.apply(to: view, on: host) }
     }
 
     func page(_ page: any EnginePage, didFinish url: URL, title: String) {
@@ -210,11 +220,13 @@ final class TabController: EnginePageDelegate {
     }
 
     func page(_ page: any EnginePage, openedPopup popup: any EnginePage, url: URL?) -> (any EnginePageDelegate)? {
-        library?.openPopup(from: tab, page: popup, url: url)
+        guard let library else { return nil }
+        if linkPreview != nil { return library.showLinkPreview(url, popup: popup).controller }
+        return library.openPopup(from: tab, page: popup, url: url)
     }
 
     func pageDidRequestClose(_ page: any EnginePage) {
-        library?.close(tab)
+        if let linkPreview { linkPreview.close() } else { library?.close(tab) }
     }
 
     func page(_ page: any EnginePage, show dialog: EngineDialog) async -> EngineDialogResponse {

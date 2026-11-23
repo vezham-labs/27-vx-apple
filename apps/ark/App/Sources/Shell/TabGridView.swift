@@ -214,12 +214,20 @@ struct TabGridOverlay: View {
 
     private var grid: some View {
         let space = browser.currentSpace
+        let rootPins = space.rootPins
         return ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    if !space.pinned.isEmpty {
+                    PinFolderList(space: space, save: browser.scheduleSave, openArticle: { url in
+                        browser.newTab(url: url, in: space, source: .link)
+                        browser.isTabSwitcherPresented = false
+                    }) { tab in
+                        pinnedChip(tab)
+                    }
+                    .padding(.horizontal, 16)
+                    if !rootPins.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 10) { ForEach(space.pinned) { pinnedChip($0) } }
+                            HStack(spacing: 10) { ForEach(rootPins) { pinnedChip($0) } }
                                 .padding(.horizontal, 16)
                         }
                     }
@@ -247,7 +255,20 @@ struct TabGridOverlay: View {
             }
             .onAppear { if let id = heroID { proxy.scrollTo(id, anchor: .center) } }
         }
-        .overlay(alignment: .bottom) { bottomBar }
+        .overlay(alignment: .bottom) {
+            HStack(spacing: 8) {
+                if space.allTabs.count > 1 {
+                    Button {
+                        browser.isRecentTabPreviewsPresented = true
+                    } label: {
+                        Image(systemName: "square.grid.2x2").frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel("Recent Tab Previews")
+                    .glassEffect(.regular.interactive(), in: .circle)
+                }
+                bottomBar
+            }
+        }
         .opacity(cardsVisible ? 1 : 0)   // stays laid out so the picture has a card to fly to
         .animation(Motion.snappy, value: space.today.map(\.id))
         .onKeyPress(.escape) { close(into: browser.currentTab); return .handled }

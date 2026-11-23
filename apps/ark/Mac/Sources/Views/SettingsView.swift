@@ -59,6 +59,7 @@ private struct GeneralSettings: View {
     @State private var isDefault = false
     @State private var importing = false
     @AppStorage(ArkAppearance.key) private var appearance = ""
+    @AppStorage(Preferences.externalLinksInPreviewKey) private var externalLinksInPreview = false
 
     var body: some View {
         @Bindable var browser = browser
@@ -72,6 +73,7 @@ private struct GeneralSettings: View {
                         Button("Make Default") { makeDefault() }
                     }
                 }
+                Toggle("Open links from other apps in a preview window", isOn: $externalLinksInPreview)
                 LabeledContent("Import") {
                     Button("Import from Another Browser…") { importing = true }
                         .sheet(isPresented: $importing) { ImportSheet().environment(browser) }
@@ -243,6 +245,12 @@ private struct SpaceEditor: View {
                 .onSubmit { browser.scheduleSave() }
             SpaceThemeButton(space: space) { browser.scheduleSave() }
                 .padding(.horizontal, 4)
+            if space.id != Preferences.agentSpaceID, let archive = SpaceLinkArchive(space: space) {
+                ShareLink(item: archive, preview: SharePreview(space.name)) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+                .controlSize(.small)
+            }
             Button(role: .destructive) { browser.deleteSpace(space) } label: { Image(systemName: "trash") }
                 .buttonStyle(.borderless)
                 .disabled(browser.regularSpaces.count < 2)

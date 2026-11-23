@@ -183,6 +183,9 @@ extension TabSession: WKNavigationDelegate {
         expandChrome()   // new page: show the full bar
         tab.loadError = nil
         browser?.cancelPrompts(for: tab.id)   // dialogs from the previous page are moot
+        if !tab.isPrivate, let styles = browser?.siteStyles, let host = SiteStyles.host(of: webView.url), styles[host] != nil {
+            Task { await styles.apply(to: webView, on: host) }
+        }
     }
 
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

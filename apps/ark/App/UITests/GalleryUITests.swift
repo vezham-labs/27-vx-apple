@@ -64,6 +64,26 @@ final class GalleryUITests: XCTestCase {
 /// Holding the tabs button lists recent tabs, and picking one switches to it.
 @MainActor
 final class RecentTabsUITests: XCTestCase {
+    func testGalleryOpensVisualPickerAndSwitchesToRecentTab() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "3", "--posture", "folded"]
+        app.launch()
+        let tabs = app.buttons["Tabs"].firstMatch
+        XCTAssertTrue(tabs.waitForExistence(timeout: 30))
+        tabs.tap()
+        let previews = app.buttons["Recent Tab Previews"]
+        XCTAssertTrue(previews.waitForExistence(timeout: 15))
+        previews.tap()
+        let picker = app.navigationBars["Recent Tabs"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 15))
+        let previous = app.buttons["recent-preview-Tab 1"]
+        XCTAssertTrue(previous.waitForExistence(timeout: 10))
+        previous.tap()
+        XCTAssertTrue(app.webViews.staticTexts["Tab 1"].waitForExistence(timeout: 30))
+        XCTAssertFalse(picker.exists)
+    }
+
     func testHoldingTabsButtonSwitchesTab() {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing", "3", "--posture", "folded"]
@@ -98,5 +118,39 @@ final class SidebarUITests: XCTestCase {
 
         XCTAssertEqual(page.frame.minX, before.minX, accuracy: 1)
         XCTAssertEqual(page.frame.width, before.width, accuracy: 1)
+    }
+}
+
+@MainActor
+final class MobileSplitViewUITests: XCTestCase {
+    func testOpensTwoLivePanesAndFocusesTheOtherTab() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "2", "--split-fixture", "--posture", "folded"]
+        app.launch()
+        XCTAssertTrue(app.webViews.staticTexts["Split page 2"].waitForExistence(timeout: 30))
+        let more = app.buttons["More"].firstMatch
+        if !more.exists {
+            let address = try XCTUnwrap(app.buttons.matching(identifier: "Pane 2").allElementsBoundByIndex
+                .first { $0.frame.width > 44 })
+            address.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
+        XCTAssertTrue(more.waitForExistence(timeout: 10))
+        more.tap()
+        let split = app.descendants(matching: .any)["Open Split View"].firstMatch
+        XCTAssertTrue(split.waitForExistence(timeout: 15))
+        split.tap()
+        let other = app.buttons["Pane 1"].firstMatch
+        XCTAssertTrue(other.waitForExistence(timeout: 10))
+        other.tap()
+        XCTAssertTrue(app.webViews.staticTexts["Split page 1"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.webViews.staticTexts["Split page 2"].exists)
+        let firstPane = app.buttons["split-pane-Pane 1"]
+        XCTAssertTrue(firstPane.waitForExistence(timeout: 10))
+        firstPane.tap()
+        XCTAssertTrue(firstPane.isSelected)
+        app.webViews.staticTexts["Split page 2"].tap()
+        XCTAssertTrue(app.buttons["split-pane-Pane 2"].isSelected)
+        XCTAssertTrue(app.webViews.staticTexts["Split page 1"].exists)
     }
 }

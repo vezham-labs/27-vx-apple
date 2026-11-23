@@ -22,6 +22,7 @@ public final class BrowserTab: Identifiable {
     public var windowKey: UUID?
     /// A name you gave the tab (double-click it in the sidebar). Shown instead of the page's title.
     public var customTitle: String?
+    public internal(set) var pinFolderID: UUID?
 
     // Live state mirrored from the web view (not persisted).
     public var estimatedProgress: Double = 0
@@ -93,8 +94,12 @@ public final class Space: Identifiable {
     /// "light" or "dark" keeps the space's whole window in that appearance. Nil follows Ark's setting.
     public var appearance: String?
     public var pinned: [BrowserTab]
+    public internal(set) var pinFolders: [PinFolder] = []
+    @ObservationIgnored var liveFolderRefreshTimes: [UUID: Date] = [:]
+    @ObservationIgnored var refreshingLiveFolderIDs: Set<UUID> = []
     public var today: [BrowserTab]
     public var selectedTabID: UUID?
+    public internal(set) var splitPair: TabSplitPair?
     public var isSidebarOpen: Bool
     /// The Private space: shows in the spaces list only while it has tabs, and is never saved.
     public let isPrivate: Bool
@@ -121,6 +126,60 @@ public final class Space: Identifiable {
     public var selectedTab: BrowserTab? {
         allTabs.first { $0.id == selectedTabID }
     }
+
+    public func recentTabs(limit: Int) -> [BrowserTab] {
+        guard limit > 0 else { return [] }
+        let selected = selectedTabID
+        return Array(allTabs.sorted { left, right in
+            if (left.id == selected) != (right.id == selected) { return left.id == selected }
+            return left.lastActive > right.lastActive
+        }.prefix(limit))
+    }
+
+    public var splitCandidates: [BrowserTab] {
+        guard let current = selectedTab, isSplittable(current) else { return [] }
+        return today.filter { $0.id != current.id && isSplittable($0) }
+    }
+
+    public var activeSplitTabs: (BrowserTab, BrowserTab)? {
+        guard let pair = splitPair, let selectedTabID, pair.contains(selectedTabID) else { return nil }
+        return splitTabs(for: pair)
+    }
+
+    @discardableResult
+    public func splitWith(_ tab: BrowserTab) -> Bool {
+        guard let current = selectedTab, splitCandidates.contains(where: { $0 === tab }) else { return false }
+        splitPair = TabSplitPair(first: current.id, second: tab.id)
+        return true
+    }
+
+    public func separateTabs() { splitPair = nil }
+
+    public func resizeSplit(to fraction: Double) {
+        guard fraction.isFinite, activeSplitTabs != nil else { return }
+        splitPair?.fraction = min(0.75, max(0.25, fraction))
+    }
+
+    private func isSplittable(_ tab: BrowserTab) -> Bool {
+        guard !isPrivate, !tab.isPrivate, !tab.isPinned, tab.favoriteID == nil,
+              let scheme = tab.url?.scheme?.lowercased() else { return false }
+        return scheme == "http" || scheme == "https"
+    }
+
+    private func splitTabs(for pair: TabSplitPair) -> (BrowserTab, BrowserTab)? {
+        guard pair.first != pair.second,
+              let first = today.first(where: { $0.id == pair.first }), isSplittable(first),
+              let second = today.first(where: { $0.id == pair.second }), isSplittable(second) else { return nil }
+        return (first, second)
+    }
+}
+
+public struct TabSplitPair: Codable, Equatable, Sendable {
+    public let first: UUID
+    public let second: UUID
+    public internal(set) var fraction: Double = 0.5
+
+    public func contains(_ id: UUID) -> Bool { id == first || id == second }
 }
 
 // MARK: - Settings
@@ -135,6 +194,8 @@ public struct BrowserSettings: Codable, Equatable, Sendable {
     public var blockContent = true
     /// Where links from other apps open.
     public var externalLinksSpaceID: UUID?
+    public var linkRoutingEnabled = false
+    public var linkRoutingRules: [RouteRule] = []
     /// Ask for desktop sites on the inner display (like iPad Safari) and mobile sites when folded.
     public var desktopSitesWhenUnfolded = true
     /// Per-site "Request Desktop/Mobile Site" choices, keyed by host. true = desktop.
@@ -166,6 +227,8 @@ public struct BrowserSettings: Codable, Equatable, Sendable {
         archiveAfterHours = try c.decodeIfPresent(Double.self, forKey: .archiveAfterHours) ?? 12
         blockContent = try c.decodeIfPresent(Bool.self, forKey: .blockContent) ?? true
         externalLinksSpaceID = try c.decodeIfPresent(UUID.self, forKey: .externalLinksSpaceID)
+        linkRoutingEnabled = try c.decodeIfPresent(Bool.self, forKey: .linkRoutingEnabled) ?? false
+        linkRoutingRules = try c.decodeIfPresent([RouteRule].self, forKey: .linkRoutingRules) ?? []
         desktopSitesWhenUnfolded = try c.decodeIfPresent(Bool.self, forKey: .desktopSitesWhenUnfolded) ?? true
         siteDesktopOverrides = try c.decodeIfPresent([String: Bool].self, forKey: .siteDesktopOverrides) ?? [:]
         sitePermissions = try c.decodeIfPresent([String: [String: Bool]].self, forKey: .sitePermissions) ?? [:]
@@ -287,6 +350,7 @@ public struct TabRecord: Codable, Sendable {
     public var windowKey: UUID? = nil
     /// Missing in state saved before tabs could be renamed.
     public var customTitle: String? = nil
+    public var pinFolderID: UUID? = nil
 }
 
 public struct SpaceRecord: Codable, Sendable {
@@ -296,6 +360,8 @@ public struct SpaceRecord: Codable, Sendable {
     public var themeHue: Double? = nil
     public var themeShade: Double? = nil
     public var appearance: String? = nil
+    public var pinFolders: [PinFolder]? = nil
+    public var splitPair: TabSplitPair? = nil
 }
 
 public struct BrowserSnapshot: Codable, Sendable {
@@ -322,7 +388,8 @@ extension BrowserTab {
     public var record: TabRecord {
         TabRecord(id: id, url: url, title: title, isPinned: isPinned, lastActive: lastActive,
                   interactionState: interactionState, favoriteID: favoriteID,
-                  windowKey: isPinned || favoriteID != nil ? nil : windowKey, customTitle: customTitle)
+                  windowKey: isPinned || favoriteID != nil ? nil : windowKey, customTitle: customTitle,
+                  pinFolderID: isPinned ? pinFolderID : nil)
     }
     public convenience init(_ r: TabRecord) {
         self.init(id: r.id, url: r.url, title: r.title, isPinned: r.isPinned,
@@ -330,6 +397,7 @@ extension BrowserTab {
         favoriteID = r.favoriteID
         windowKey = r.windowKey
         customTitle = r.customTitle
+        pinFolderID = r.isPinned ? r.pinFolderID : nil
     }
 }
 
@@ -340,7 +408,9 @@ extension Space {
                     today: today.filter { !$0.isPrivate }.map(\.record),
                     selectedTabID: selectedTabID, isSidebarOpen: isSidebarOpen,
                     themeHue: themeHue, themeShade: themeShade,
-                    appearance: appearance)
+                    appearance: appearance,
+                    pinFolders: pinFolders.isEmpty ? nil : pinFolders,
+                    splitPair: splitPair)
     }
     public convenience init(_ r: SpaceRecord) {
         self.init(id: r.id, name: r.name, symbol: r.symbol, colorIndex: r.colorIndex,
@@ -349,5 +419,10 @@ extension Space {
         themeHue = r.themeHue
         themeShade = r.themeShade
         appearance = r.appearance
+        restorePinFolders(r.pinFolders ?? [])
+        if let pair = r.splitPair, splitTabs(for: pair) != nil {
+            splitPair = TabSplitPair(first: pair.first, second: pair.second,
+                                     fraction: pair.fraction.isFinite ? min(0.75, max(0.25, pair.fraction)) : 0.5)
+        }
     }
 }

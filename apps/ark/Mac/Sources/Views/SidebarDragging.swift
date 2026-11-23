@@ -22,13 +22,15 @@ final class SidebarDragging {
         case pinned(Int)
         case today(Int)
         case favourite(Int)
+        case folder(UUID)
         /// Another space, by dropping on its dot in the switcher.
         case space(UUID)
 
         var isPinned: Bool { if case .pinned = self { true } else { false } }
         var isToday: Bool { if case .today = self { true } else { false } }
         var isFavourite: Bool { if case .favourite = self { true } else { false } }
-        var index: Int { switch self { case .pinned(let i), .today(let i), .favourite(let i): i; case .space: 0 } }
+        var index: Int { switch self { case .pinned(let i), .today(let i), .favourite(let i): i; case .space, .folder: 0 } }
+        var folderID: UUID? { if case .folder(let id) = self { id } else { nil } }
     }
 
     struct Lift {
@@ -60,6 +62,8 @@ final class SidebarDragging {
 
     // Layout, reported by the views in the sidebar's coordinate space.
     var rowFrames: [UUID: CGRect] = [:]
+    @ObservationIgnored var folderFrames: [UUID: CGRect] = [:]
+    @ObservationIgnored var listFrame: CGRect = .zero
     var newTabFrame: CGRect = .zero
     var gapFrame: CGRect = .zero
     /// The favourites grid, or the zone standing in for an empty one. Zero while neither shows.
@@ -203,7 +207,7 @@ final class SidebarDragging {
         if target == nil { withAnimation(Motion.snappy) { target = lift.origin } }
         settling = true
         DispatchQueue.main.async { [self] in
-            let firstPin = target?.isPinned == true && space.pinned.isEmpty
+            let firstPin = target?.isPinned == true && space.rootPins.isEmpty
             let landing = firstPin ? pinZoneFrame : gapFrame
             withAnimation(Motion.snappy) {
                 if target?.isFavourite == true {
@@ -233,7 +237,7 @@ final class SidebarDragging {
             }
             // Down into the list: its own tab if it has one here, otherwise a new one, and it's no
             // longer a favourite.
-            let others = target.isPinned ? space.pinned : listedToday(in: space)
+            let others = target.isPinned ? space.rootPins : listedToday(in: space)
             let before = target.index < others.count ? others[target.index] : nil
             let tab = space.today.first { $0.favoriteID == fav.id && browser.lists($0) }
                 ?? browser.newTab(url: fav.url, in: space, source: .bookmark, select: false)
@@ -254,7 +258,7 @@ final class SidebarDragging {
         }
         guard !space.isPrivate else { return nil }
         let pinned = location.y < newTabFrame.midY
-        let others = pinned ? space.pinned : listedToday(in: space)
+        let others = pinned ? space.rootPins : listedToday(in: space)
         let index = others.filter { (rowFrames[$0.id]?.midY ?? .infinity) < location.y }.count
         return pinned ? .pinned(index) : .today(index)
     }
@@ -279,8 +283,8 @@ final class SidebarDragging {
             return
         }
         DispatchQueue.main.async { [self] in
-            let firstPin = target?.isPinned == true && !space.pinned.contains { $0.id != lift.tabID }
-            let landing = firstPin ? pinZoneFrame : gapFrame
+            let firstPin = target?.isPinned == true && !space.rootPins.contains { $0.id != lift.tabID }
+            let landing = target?.folderID.flatMap { folderFrames[$0] } ?? (firstPin ? pinZoneFrame : gapFrame)
             withAnimation(Motion.snappy) {
                 if target?.isFavourite == true {
                     tileSize = landing.size
@@ -311,7 +315,13 @@ final class SidebarDragging {
             withTransaction(quiet) { makeFavourite(tab, at: i, browser: browser) }
             return
         }
-        let others = (target.isPinned ? space.pinned : listedToday(in: space)).filter { $0.id != tab.id }
+        if case .folder(let id) = target {
+            withTransaction(quiet) {
+                browser.library.move(tab, before: nil, pinned: true, fallback: space, folderID: id)
+            }
+            return
+        }
+        let others = (target.isPinned ? space.rootPins : listedToday(in: space)).filter { $0.id != tab.id }
         let before = target.index < others.count ? others[target.index] : nil
         withTransaction(quiet) { browser.move(tab, before: before, pinned: target.isPinned) }
     }
@@ -339,7 +349,8 @@ final class SidebarDragging {
     }
 
     private func slot(of tab: BrowserTab, in space: Space) -> Target {
-        if let i = space.pinned.firstIndex(where: { $0.id == tab.id }) { return .pinned(i) }
+        if let folderID = tab.pinFolderID { return .folder(folderID) }
+        if let i = space.rootPins.firstIndex(where: { $0.id == tab.id }) { return .pinned(i) }
         return .today(listedToday(in: space).firstIndex { $0.id == tab.id } ?? 0)
     }
 
@@ -361,7 +372,11 @@ final class SidebarDragging {
             return .favourite(before.count)
         }
         let pinned = location.y < newTabFrame.midY && !space.isPrivate && !tab.isPrivate
-        let others = (pinned ? space.pinned : listedToday(in: space)).filter { $0.id != tab.id }
+        if pinned, listFrame.contains(location),
+           let folder = space.pinFolders.first(where: { folderFrames[$0.id]?.contains(location) == true }) {
+            return .folder(folder.id)
+        }
+        let others = (pinned ? space.rootPins : listedToday(in: space)).filter { $0.id != tab.id }
         let index = others.filter { (rowFrames[$0.id]?.midY ?? .infinity) < location.y }.count
         return pinned ? .pinned(index) : .today(index)
     }

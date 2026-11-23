@@ -2,6 +2,48 @@ import Foundation
 import Testing
 @testable import BrowserCore
 
+@Test @MainActor func recentTabsPreferTheSelectionAndLimitResults() {
+    let pinned = BrowserTab(url: nil, title: "Pinned", isPinned: true, lastActive: Date(timeIntervalSince1970: 30))
+    let selected = BrowserTab(url: nil, title: "Selected", lastActive: Date(timeIntervalSince1970: 10))
+    let newest = BrowserTab(url: nil, title: "Newest", lastActive: Date(timeIntervalSince1970: 40))
+    let space = Space(name: "Work", pinned: [pinned], today: [selected, newest], selectedTabID: selected.id)
+    #expect(space.recentTabs(limit: 2).map(\.title) == ["Selected", "Newest"])
+    #expect(space.recentTabs(limit: 0).isEmpty)
+    space.selectedTabID = nil
+    #expect(space.recentTabs(limit: 3).map(\.title) == ["Newest", "Pinned", "Selected"])
+}
+
+@Test @MainActor func splitPairFollowsSelectionAndSurvivesASnapshot() throws {
+    let first = BrowserTab(url: URL(string: "https://example.com/first"))
+    let second = BrowserTab(url: URL(string: "https://example.com/second"))
+    let pinned = BrowserTab(url: URL(string: "https://example.com/pinned"), isPinned: true)
+    let other = BrowserTab(url: URL(string: "https://example.com/other"))
+    let space = Space(name: "Work", pinned: [pinned], today: [first, second, other], selectedTabID: first.id)
+
+    #expect(!space.splitWith(pinned))
+    #expect(space.splitWith(second))
+    space.resizeSplit(to: 2)
+    #expect(space.splitPair?.fraction == 0.75)
+    space.resizeSplit(to: .infinity)
+    #expect(space.splitPair?.fraction == 0.75)
+    space.selectedTabID = other.id
+    #expect(space.activeSplitTabs == nil)
+    space.selectedTabID = second.id
+    #expect(space.activeSplitTabs?.0 === first)
+
+    let snapshot = try JSONEncoder().encode(space.record)
+    let restored = Space(try JSONDecoder().decode(SpaceRecord.self, from: snapshot))
+    #expect(restored.splitPair == space.splitPair)
+    #expect(restored.activeSplitTabs?.1.id == second.id)
+    #expect(restored.selectedTabID == second.id)
+    var incomplete = restored.record
+    incomplete.today.removeAll { $0.id == second.id }
+    #expect(Space(incomplete).splitPair == nil)
+    restored.separateTabs()
+    #expect(restored.activeSplitTabs == nil)
+    #expect(restored.selectedTabID == second.id)
+}
+
 @Suite struct LoadErrorTests {
     func err(_ code: Int, _ domain: String = NSURLErrorDomain) -> NSError { NSError(domain: domain, code: code) }
 

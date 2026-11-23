@@ -47,8 +47,9 @@ struct SpaceTabs: View {
     var body: some View {
         let space = browser.currentSpace
         // Dragging with nothing else pinned: a zone to drop on stands in for the Pinned section.
-        let pinZone = dragging.lift != nil && !space.isPrivate && !space.pinned.contains { !dragging.isLifted($0.id) }
-        let pinned = slots(space.pinned, pinned: true, gapAllowed: !pinZone)
+        let rootPins = space.rootPins
+        let pinZone = dragging.lift != nil && !space.isPrivate && !rootPins.contains { !dragging.isLifted($0.id) }
+        let pinned = slots(rootPins, pinned: true, gapAllowed: !pinZone)
         let today = slots(browser.listedToday(in: space), pinned: false)
         // The whole list is the unit that slides: its id is the space, and a transition on the list
         // inside a ScrollView is ignored (it only cross-faded).
@@ -63,7 +64,18 @@ struct SpaceTabs: View {
                         Color.clear.frame(height: 6)
                     }
 
-                    // Dragging with nothing pinned yet: somewhere to pin, and what pinning means.
+                    PinFolderList(
+                        space: space, save: browser.library.scheduleSave,
+                        dropTarget: dragging.target?.folderID,
+                        coordinateSpace: SidebarDragging.coordinateSpace,
+                        folderLayout: { dragging.folderFrames[$0] = $1 },
+                        openArticle: { _ = browser.newTab(url: $0, in: space, source: .link) },
+                        allowsCollectionSharing: space.id != Preferences.agentSpaceID
+                    ) { tab in
+                        DraggableTabRow(tab: tab, space: space, collapsed: dragging.isLifted(tab.id))
+                    }
+
+                    // Dragging with nothing pinned at the top level: somewhere to pin.
                     if pinZone {
                         PinDropZone(targeted: dragging.target?.isPinned == true,
                                     landing: dragging.settling && dragging.target?.isPinned == true)
@@ -110,7 +122,10 @@ struct SpaceTabs: View {
         // However the space changes (a swipe, a key, a click), the old list slides out as the new one
         // slides in. Swipes and keys change it outside any animation, so the old list used to vanish.
         .animation(Motion.spring, value: space.id)
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(SidebarDragging.coordinateSpace)) } action: { listFrame = $0 }
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(SidebarDragging.coordinateSpace)) } action: {
+            listFrame = $0
+            dragging.listFrame = $0
+        }
         // Dragging near the top or bottom edge scrolls the list, so any slot can be reached.
         .task(id: dragging.lift != nil) {
             guard dragging.lift != nil else { return }
@@ -230,7 +245,7 @@ private struct SpaceHeader: View {
     }
 }
 
-/// New Tab, with Clear on hover: closes this space's Today tabs except the one you're on.
+/// New Tab, with Clear on hover: closes this Space's Today tabs except the ones on screen.
 private struct NewTabRow: View {
     @Environment(Browser.self) private var browser
     let space: Space
@@ -238,7 +253,7 @@ private struct NewTabRow: View {
     @State private var clearHovering = false
 
     private var canClear: Bool {
-        browser.listedToday(in: space).contains { $0.id != browser.currentTab?.id }
+        !browser.clearableTodayTabs(in: space).isEmpty
     }
 
     var body: some View {
@@ -444,6 +459,9 @@ struct TabMenu: View {
         if !tab.isPrivate {
             Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", systemImage: tab.isPinned ? "pin.slash" : "pin") {
                 withAnimation(Motion.snappy) { browser.togglePinned(tab) }
+            }
+            if let space = browser.space(containing: tab) {
+                MovePinMenu(tab: tab, space: space, save: browser.library.scheduleSave)
             }
         }
         if let url = tab.url {

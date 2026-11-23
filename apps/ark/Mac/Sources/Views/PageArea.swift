@@ -11,7 +11,10 @@ struct PageArea: View {
 
     var body: some View {
         ZStack {
-            if browser.currentTab.map({ Welcome.isWelcome($0.url) }) == true {
+            if let pair = browser.activeSplit,
+               let (first, second) = browser.splitMembers(of: pair, in: browser.currentSpace) {
+                SplitPageView(pair: pair, first: first, second: second)
+            } else if browser.currentTab.map({ Welcome.isWelcome($0.url) }) == true {
                 WelcomePage()
             } else if browser.currentTab.map({ LibraryPage.isLibrary($0.url) }) == true {
                 LibraryView()
@@ -26,7 +29,7 @@ struct PageArea: View {
                 if let server = RadarStore.shared.server(for: tab.url), !server.isUp, !browser.isReaderShowing {
                     RadarStoppedPage(server: server)
                 } else if let error = tab.loadError, !browser.isReaderShowing {
-                    ErrorPage(error: error)
+                    ErrorPage(error: error, retry: browser.reload, goBack: browser.goBack)
                 }
             } else {
                 EmptyPage()
@@ -42,7 +45,7 @@ struct PageArea: View {
         }
         .overlay(alignment: .top) {
             // Clipped to the card, so the line follows its rounded top corners.
-            if let tab = browser.currentTab {
+            if browser.activeSplit == nil, let tab = browser.currentTab {
                 ProgressLine(isLoading: tab.isLoading, progress: tab.estimatedProgress)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .clipShape(.rect(cornerRadius: PageCard.radius, style: .continuous))
@@ -137,15 +140,30 @@ struct PageHost: NSViewRepresentable {
     let view: NSView
     let focusesPage: Bool
     var holdsWidth = false
+    var onClick: (() -> Void)? = nil
 
     func makeNSView(context: Context) -> Container { Container() }
 
     func updateNSView(_ container: Container, context: Context) {
         container.show(view, focus: focusesPage)
         container.holdsWidth = holdsWidth
+        container.onClick = onClick
+    }
+
+    static func focusClickedPane(_ event: NSEvent) {
+        guard let content = event.window?.contentView else { return }
+        var view = content.hitTest(content.convert(event.locationInWindow, from: nil))
+        while let candidate = view {
+            if let pane = candidate as? Container {
+                pane.onClick?()
+                return
+            }
+            view = candidate.superview
+        }
     }
 
     final class Container: NSView {
+        var onClick: (() -> Void)?
         var holdsWidth = false {
             didSet { if holdsWidth != oldValue { needsLayout = true } }
         }
@@ -292,9 +310,11 @@ struct ProgressLine: View {
     }
 }
 
-private struct ErrorPage: View {
-    @Environment(Browser.self) private var browser
+struct ErrorPage: View {
     let error: LoadError
+    var handlesReturn = true
+    let retry: () -> Void
+    let goBack: () -> Void
 
     var body: some View {
         VStack(spacing: 12) {
@@ -311,12 +331,12 @@ private struct ErrorPage: View {
                     .frame(maxWidth: 420)
             }
             if error.canRetry {
-                Button("Try Again") { browser.reload() }
-                    .keyboardShortcut(.defaultAction)
+                Button("Try Again", action: retry)
+                    .keyboardShortcut(handlesReturn ? .defaultAction : nil)
                     .controlSize(.large)
                     .padding(.top, 6)
             } else {
-                Button("Go Back") { browser.goBack() }
+                Button("Go Back", action: goBack)
                     .controlSize(.large)
                     .padding(.top, 6)
             }

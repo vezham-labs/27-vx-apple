@@ -4,56 +4,6 @@ import UniformTypeIdentifiers
 import Observation
 import BrowserCore
 
-/// Space Routing: some sites always open in a given Space (Arc called it Air Traffic Control; Zen
-/// has Space Routing). With it on, a new Linear tab opens in Work and a new YouTube tab in Personal,
-/// wherever you were.
-///
-/// Off until you turn it on (Settings › Routing), or until you add a rule from ⌘K. Then your routing
-/// sets apply (Ark adds its Work and Personal ones the first time), plus your custom rules.
-/// Only new tabs and links from other apps are routed. Following a link inside a tab never moves it,
-/// private tabs never move, and sign-in and checkout pages stay next to the tab that opened them.
-struct RouteRule: Codable, Identifiable, Equatable {
-    var id = UUID()
-    /// "github.com" (and its subdomains), optionally with a path: "github.com/acme".
-    var pattern: String
-    var spaceID: UUID
-
-    var host: String { Self.host(of: pattern) }
-    var pathPrefix: String? { Self.pathPrefix(of: pattern) }
-
-    func matches(_ url: URL) -> Bool { Self.pattern(pattern, matches: url) }
-
-    /// More specific rules (with a path, longer host) win.
-    var specificity: Int { Self.specificity(of: pattern) }
-
-    static func host(of pattern: String) -> String { String(pattern.split(separator: "/", maxSplits: 1).first ?? "") }
-
-    static func pathPrefix(of pattern: String) -> String? {
-        let parts = pattern.split(separator: "/", maxSplits: 1)
-        return parts.count == 2 ? "/" + parts[1] : nil
-    }
-
-    static func specificity(of pattern: String) -> Int { pattern.count + (pathPrefix(of: pattern) == nil ? 0 : 1000) }
-
-    static func pattern(_ pattern: String, matches url: URL) -> Bool {
-        guard let h = url.host()?.lowercased() else { return false }
-        let bare = h.hasPrefix("www.") ? String(h.dropFirst(4)) : h
-        let host = host(of: pattern)
-        guard bare == host || bare.hasSuffix("." + host) else { return false }
-        guard let prefix = pathPrefix(of: pattern) else { return true }
-        let path = url.path().lowercased()
-        return path == prefix || path.hasPrefix(prefix.hasSuffix("/") ? prefix : prefix + "/")
-    }
-
-    /// "github.com/acme/web" from a page's address, for a rule that covers just that path.
-    static func pattern(for url: URL, depth: Int) -> String? {
-        guard let h = url.host()?.lowercased() else { return nil }
-        let host = h.hasPrefix("www.") ? String(h.dropFirst(4)) : h
-        let segments = url.pathComponents.dropFirst().prefix(depth).map { $0.lowercased() }
-        return ([host] + segments).joined(separator: "/")
-    }
-}
-
 /// A list of sites Ark routes for you, to the Space whose name fits ("Work", "Personal").
 struct StarterSet: Identifiable {
     let id: String
@@ -92,13 +42,6 @@ struct StarterSet: Identifiable {
             "etsy.com", "airbnb.com", "airbnb.com.au", "airbnb.co.uk", "booking.com", "skyscanner.net", "skyscanner.com.au",
         ], onByDefault: false),
     ]
-
-    /// Sign-ins and checkouts open next to the tab that asked for them, or the flow breaks.
-    static let neverRouted: [String] = [
-        "accounts.google.com", "login.microsoftonline.com", "login.live.com", "appleid.apple.com", "idmsa.apple.com",
-        "okta.com", "auth0.com", "onelogin.com", "github.com/login", "github.com/sessions", "slack.com/signin",
-        "checkout.stripe.com", "paypal.com", "pay.google.com",
-    ]
 }
 
 
@@ -126,13 +69,20 @@ struct RouteSet: Codable, Identifiable, Equatable {
 
 @MainActor @Observable
 final class SpaceRouter {
-    static let shared = SpaceRouter()
+    static let shared: SpaceRouter = {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["ARK_SNAPSHOT_FEATURE_URL"] != nil {
+            return SpaceRouter(defaults: nil)
+        }
+        #endif
+        return SpaceRouter()
+    }()
 
     /// The Settings switch. Off by default: nothing moves until you ask. The first time it goes on,
     /// Ark's Work and Personal sets are added for Spaces with those names.
     var isEnabled: Bool {
         didSet {
-            defaults.set(isEnabled, forKey: "spaceRoutingEnabled")
+            defaults?.set(isEnabled, forKey: "spaceRoutingEnabled")
             if isEnabled { seedIfNeeded() }
         }
     }
@@ -144,14 +94,20 @@ final class SpaceRouter {
     private(set) var rules: [RouteRule] = [] { didSet { save(rules, "spaceRoutes") } }
 
     /// Sites whose first move has been explained with a toast.
-    private var announced: Set<String> = [] { didSet { defaults.set(Array(announced), forKey: "spaceRoutingAnnounced") } }
+    private var announced: Set<String> = [] { didSet { defaults?.set(Array(announced), forKey: "spaceRoutingAnnounced") } }
 
-    private let defaults: UserDefaults
+    private let defaults: UserDefaults?
+    private var seeded: Bool
     /// The Spaces the seeding matches names against. Set by the Library at launch.
     @ObservationIgnored var spacesProvider: (() -> [Space])?
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults? = .standard) {
         self.defaults = defaults
+        seeded = defaults?.bool(forKey: "spaceRoutingSeeded") ?? false
+        guard let defaults else {
+            isEnabled = false
+            return
+        }
         isEnabled = defaults.bool(forKey: "spaceRoutingEnabled")
         sets = Self.load(defaults, "spaceRoutingSetList") ?? []
         rules = Self.load(defaults, "spaceRoutes") ?? []
@@ -163,12 +119,13 @@ final class SpaceRouter {
     }
 
     private func save<T: Encodable>(_ value: T, _ key: String) {
-        if let data = try? JSONEncoder().encode(value) { defaults.set(data, forKey: key) }
+        if let defaults, let data = try? JSONEncoder().encode(value) { defaults.set(data, forKey: key) }
     }
 
     func seedIfNeeded() {
-        guard !defaults.bool(forKey: "spaceRoutingSeeded") else { return }
-        defaults.set(true, forKey: "spaceRoutingSeeded")
+        guard !seeded else { return }
+        seeded = true
+        defaults?.set(true, forKey: "spaceRoutingSeeded")
         let spaces = spacesProvider?() ?? []
         for template in StarterSet.all where template.onByDefault && !sets.contains(where: { $0.templateID == template.id }) {
             if let space = Self.namedSpace(for: template, in: spaces) { addSet(from: template, space: space) }
@@ -312,8 +269,7 @@ final class SpaceRouter {
 
     /// Where a new tab for `url` belongs, if routing is on and a rule or set says so.
     func match(for url: URL?, in spaces: [Space]) -> Match? {
-        guard isEnabled, let url, url.scheme == "http" || url.scheme == "https" else { return nil }
-        if StarterSet.neverRouted.contains(where: { RouteRule.pattern($0, matches: url) }) { return nil }
+        guard isEnabled, let url, RouteRule.allowsRouting(url) else { return nil }
         if let rule = rules.filter({ $0.matches(url) }).max(by: { $0.specificity < $1.specificity }),
            let space = spaces.first(where: { $0.id == rule.spaceID }) {
             return Match(space: space, pattern: rule.pattern)

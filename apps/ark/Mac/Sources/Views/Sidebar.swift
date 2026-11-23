@@ -39,6 +39,9 @@ struct Sidebar: View {
         .coordinateSpace(.named(SidebarDragging.coordinateSpace))
         .onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { dragging.originInWindow = $0 }
         .environment(dragging)
+        #if DEBUG
+        .onAppear { browser.sidebarDragging = dragging }
+        #endif
         #if SPIKE
         .onAppear { SidebarDragging.latest = dragging }
         #endif

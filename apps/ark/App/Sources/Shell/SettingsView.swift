@@ -1,6 +1,7 @@
 import SwiftUI
 import BrowserCore
 import Suggest
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Environment(BrowserState.self) private var browser
@@ -8,6 +9,10 @@ struct SettingsView: View {
     @State private var braveKey = ""
     @State private var confirmClearHistory = false
     @State private var confirmClearWebsiteData = false
+    @State private var exportDocument: ArkSpaceLinkDocument?
+    @State private var isExportingSpace = false
+    @State private var isImportingSpace = false
+    @State private var spaceFileMessage: String?
 
     private func groupBinding(_ group: FilterGroup) -> Binding<Bool> {
         Binding {
@@ -100,6 +105,7 @@ struct SettingsView: View {
                         Text("Current space").tag(UUID?.none)
                         ForEach(browser.regularSpaces) { s in Text(s.name).tag(Optional(s.id)) }
                     }
+                    NavigationLink("Space Routing") { SpaceRoutingSettings() }
                 }
 
                 Section {
@@ -128,6 +134,23 @@ struct SettingsView: View {
                         SpaceEditorRow(space: space)
                     }
                     Button("Add Space", systemImage: "plus") { browser.addSpace() }
+                    Button("Import Space Links…", systemImage: "square.and.arrow.down") { isImportingSpace = true }
+                    Menu("Share Space Links…", systemImage: "square.and.arrow.up") {
+                        ForEach(browser.regularSpaces) { space in
+                            if let archive = SpaceLinkArchive(space: space) {
+                                ShareLink(item: archive, preview: SharePreview(space.name)) { Text("Share \(space.name)") }
+                            }
+                        }
+                    }
+                    Menu {
+                        ForEach(browser.regularSpaces) { space in
+                            Button("Export \(space.name)") { exportSpaceLinks(space) }
+                        }
+                    } label: {
+                        Label("Export Space Links…", systemImage: "square.and.arrow.up")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
                 }
 
                 Section {
@@ -158,6 +181,43 @@ struct SettingsView: View {
             .onAppear {
                 if case .brave(let key) = browser.settings.searchEngine { braveKey = key }
             }
+            .fileImporter(isPresented: $isImportingSpace, allowedContentTypes: [.json], onCompletion: importSpaceLinks)
+            .fileExporter(isPresented: $isExportingSpace, document: exportDocument, contentType: .json,
+                          defaultFilename: "Ark Space") { result in
+                if case .failure = result { spaceFileMessage = "Couldn’t export Space links." }
+                exportDocument = nil
+            }
+            .alert("Space Links", isPresented: Binding(get: { spaceFileMessage != nil },
+                                                        set: { if !$0 { spaceFileMessage = nil } })) {
+                Button("OK", role: .cancel) { spaceFileMessage = nil }
+            } message: {
+                Text(spaceFileMessage ?? "")
+            }
+        }
+    }
+
+    private func exportSpaceLinks(_ space: Space) {
+        guard let archive = SpaceLinkArchive(space: space) else { return }
+        do {
+            exportDocument = ArkSpaceLinkDocument(data: try archive.encoded())
+            isExportingSpace = true
+        } catch {
+            spaceFileMessage = error.localizedDescription
+        }
+    }
+
+    private func importSpaceLinks(_ result: Result<URL, any Error>) {
+        do {
+            let url = try result.get()
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            let archive = try SpaceLinkArchive(contentsOf: url)
+            let space = browser.importSpaceLinks(archive)
+            spaceFileMessage = "Imported \(space.name)."
+        } catch let error as SpaceLinkArchive.InvalidArchive {
+            spaceFileMessage = error.localizedDescription
+        } catch {
+            spaceFileMessage = "Couldn’t read the Ark Space file."
         }
     }
 
@@ -175,6 +235,24 @@ struct SettingsView: View {
             case .brave: browser.settings.searchEngine = .brave(apiKey: braveKey)
             }
         }
+    }
+}
+
+private struct ArkSpaceLinkDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    let data: Data
+
+    init(data: Data) { self.data = data }
+
+    init(configuration: ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        self.data = data
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
     }
 }
 

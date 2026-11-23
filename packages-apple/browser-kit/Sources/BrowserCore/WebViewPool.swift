@@ -52,7 +52,7 @@ final class WebViewPool {
         let s = TabSession(tab: tab, configuration: tab.isPrivate ? privateConfiguration : configuration,
                            browser: browser)
         sessions[tab.id] = s
-        evictIfNeeded(keeping: tab.id)
+        evictIfNeeded(keeping: tab.id, split: browser.currentSpace.activeSplitTabs == nil ? nil : browser.currentSpace.splitPair)
         return s
     }
 
@@ -76,10 +76,10 @@ final class WebViewPool {
     }
 
     /// Registers a session created by WebKit for a popup (window.open).
-    func adopt(_ session: TabSession) {
+    func adopt(_ session: TabSession, keeping split: TabSplitPair?) {
         sessions[session.tab.id] = session
         touch(session.tab.id)
-        evictIfNeeded(keeping: session.tab.id)
+        evictIfNeeded(keeping: session.tab.id, split: split)
     }
 
     func existingSession(for id: UUID) -> TabSession? { sessions[id] }
@@ -107,8 +107,8 @@ final class WebViewPool {
         lru.append(id)
     }
 
-    private func evictIfNeeded(keeping id: UUID) {
-        while lru.count > capacity, let victim = lru.first(where: { $0 != id }) {
+    private func evictIfNeeded(keeping id: UUID, split: TabSplitPair?) {
+        while lru.count > capacity, let victim = lru.first(where: { $0 != id && split?.contains($0) != true }) {
             sessions[victim]?.freeze()
             remove(victim)
         }

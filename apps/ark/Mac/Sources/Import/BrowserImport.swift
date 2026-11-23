@@ -95,11 +95,38 @@ struct ImportResult: Equatable, Sendable {
 /// What was read, before it lands in Ark.
 struct ImportedData: Sendable {
     struct Space: Sendable {
+        struct Folder: Sendable {
+            let sourceID: String
+            let name: String
+            let parentID: String?
+        }
+
+        struct Pin: Sendable {
+            let title: String
+            let url: URL
+            let folderID: String?
+        }
+
         /// The other browser's own id for the space, so importing again doesn't duplicate it.
         var sourceID: String
         var name: String
-        var pinned: [(title: String, url: URL)]
+        var pinned: [Pin]
+        var folders: [Folder]
         var open: [(title: String, url: URL)]
+
+        @MainActor func populate(_ space: BrowserCore.Space) {
+            var destinations: [String: UUID] = [:]
+            // Ark allows three levels. Deeper Arc pins stay in the nearest created ancestor.
+            for folder in folders {
+                let parent = folder.parentID.flatMap { destinations[$0] }
+                destinations[folder.sourceID] = space.addPinFolder(named: folder.name, inside: parent)?.id ?? parent
+            }
+            space.pinned = pinned.map { BrowserTab(url: $0.url, title: $0.title, isPinned: true) }
+            for (pin, tab) in zip(pinned, space.pinned) {
+                space.setPinFolder(pin.folderID.flatMap { destinations[$0] }, for: tab)
+            }
+            space.today = open.map { BrowserTab(url: $0.url, title: $0.title) }
+        }
     }
 
     var bookmarks: [(title: String, url: URL)] = []
@@ -203,7 +230,7 @@ enum BrowserImport {
                     // Arc's bookmarks live in its sidebar, not a Bookmarks file: its pinned tabs
                     // and top apps are the closest thing.
                     if options.bookmarks != .skip {
-                        let pinned = arc.spaces.flatMap(\.pinned)
+                        let pinned = arc.spaces.flatMap(\.pinned).map { (title: $0.title, url: $0.url) }
                         out.bookmarks += arc.topApps + pinned
                         if out.bar.isEmpty { out.bar = arc.topApps }
                     }
@@ -268,46 +295,75 @@ enum BrowserImport {
     // MARK: Arc
 
     /// Arc's spaces with their pinned and unpinned tabs, and its top apps, from StorableSidebar.json.
-    /// Folders are flattened: their tabs keep their order.
     static func arcSidebar() -> (spaces: [ImportedData.Space], topApps: [(title: String, url: URL)]) {
         let file = support.appending(path: "Arc/StorableSidebar.json")
-        guard let data = try? Data(contentsOf: file),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let data = try? Data(contentsOf: file) else { return ([], []) }
+        return arcSidebar(data)
+    }
+
+    static func arcSidebar(_ data: Data) -> (spaces: [ImportedData.Space], topApps: [(title: String, url: URL)]) {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let containers = (json["sidebar"] as? [String: Any])?["containers"] as? [Any],
               let main = containers.compactMap({ $0 as? [String: Any] }).first(where: { $0["spaces"] != nil }) else { return ([], []) }
         let items = (main["items"] as? [Any] ?? []).compactMap { $0 as? [String: Any] }
         let byID = Dictionary(items.compactMap { i in (i["id"] as? String).map { ($0, i) } }, uniquingKeysWith: { a, _ in a })
 
-        func tabs(under id: String) -> [(title: String, url: URL)] {
-            guard let item = byID[id] else { return [] }
-            if let tab = (item["data"] as? [String: Any])?["tab"] as? [String: Any],
-               let s = tab["savedURL"] as? String, let url = URL(string: s) {
-                // Only web pages: local files and arc:// pages don't carry over.
-                guard url.scheme == "http" || url.scheme == "https" else { return [] }
-                let title = item["title"] as? String ?? tab["savedTitle"] as? String ?? ""
-                return [(title, url)]
+        var budget = 5_000
+        func contents(of root: String, keepFolders: Bool = false) -> (pins: [ImportedData.Space.Pin], folders: [ImportedData.Space.Folder]) {
+            var pins: [ImportedData.Space.Pin] = []
+            var folders: [ImportedData.Space.Folder] = []
+            var visited = Set<String>()
+            func read(_ id: String, parentID: String?, depth: Int) {
+                guard budget > 0, depth < 64, visited.insert(id).inserted, let item = byID[id] else { return }
+                budget -= 1
+                let payload = item["data"] as? [String: Any]
+                if let tab = payload?["tab"] as? [String: Any] {
+                    guard let address = tab["savedURL"] as? String, let url = URL(string: address),
+                          url.scheme == "http" || url.scheme == "https" else { return }
+                    let title = item["title"] as? String ?? tab["savedTitle"] as? String ?? ""
+                    pins.append(.init(title: title, url: url, folderID: parentID))
+                    return
+                }
+                var destination = parentID
+                if keepFolders, depth > 0, payload?["list"] != nil {
+                    let title = (item["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+                    folders.append(.init(sourceID: id, name: title.flatMap { $0.isEmpty ? nil : $0 } ?? "Folder",
+                                         parentID: parentID))
+                    destination = id
+                }
+                for case let child as String in item["childrenIds"] as? [Any] ?? [] {
+                    read(child, parentID: destination, depth: depth + 1)
+                }
             }
-            return (item["childrenIds"] as? [String] ?? []).flatMap { tabs(under: $0) }
+            read(root, parentID: nil, depth: 0)
+            return (pins, folders)
+        }
+
+        func container(_ kind: String, in space: [String: Any]) -> String? {
+            for key in ["newContainerIDs", "containerIDs"] {
+                let ids = space[key] as? [Any] ?? []
+                for index in stride(from: 0, to: max(0, ids.count - 1), by: 2) {
+                    let marker = ids[index]
+                    let matches = marker as? String == kind || (marker as? [String: Any])?[kind] != nil
+                    if matches, let id = ids[index + 1] as? String, byID[id] != nil {
+                        return id
+                    }
+                }
+            }
+            return nil
         }
 
         let spaces: [ImportedData.Space] = (main["spaces"] as? [Any] ?? []).compactMap { $0 as? [String: Any] }.compactMap { s in
-            let ids = s["containerIDs"] as? [Any] ?? []
-            var pinned: [(String, URL)] = [], open: [(String, URL)] = []
-            // Pairs of a marker ("pinned" / "unpinned") and that container's id.
-            var i = 0
-            while i + 1 < ids.count {
-                if let kind = ids[i] as? String, let id = ids[i + 1] as? String {
-                    if kind == "pinned" { pinned += tabs(under: id) } else if kind == "unpinned" { open += tabs(under: id) }
-                }
-                i += 2
-            }
+            let pinned = container("pinned", in: s).map { contents(of: $0, keepFolders: true) }
+            let open = container("unpinned", in: s).map { contents(of: $0).pins.map { (title: $0.title, url: $0.url) } } ?? []
             let name = (s["title"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Space"
-            guard !pinned.isEmpty || !open.isEmpty else { return nil }
-            return ImportedData.Space(sourceID: s["id"] as? String ?? name, name: name, pinned: pinned, open: open)
+            guard pinned?.pins.isEmpty == false || pinned?.folders.isEmpty == false || !open.isEmpty else { return nil }
+            return ImportedData.Space(sourceID: s["id"] as? String ?? name, name: name,
+                                      pinned: pinned?.pins ?? [], folders: pinned?.folders ?? [], open: open)
         }
 
         let topIDs = main["topAppsContainerIDs"] as? [Any] ?? []
-        let topApps = topIDs.compactMap { $0 as? String }.flatMap { tabs(under: $0) }
+        let topApps = topIDs.compactMap { $0 as? String }.flatMap { contents(of: $0).pins.map { ($0.title, $0.url) } }
         return (spaces, topApps)
     }
 
@@ -423,8 +479,7 @@ extension Library {
             let name = taken.contains(imported.name) ? "\(imported.name) (\(source.name))" : imported.name
             let space = addSpace()
             space.name = name
-            space.pinned = imported.pinned.map { BrowserTab(url: $0.url, title: $0.title, isPinned: true) }
-            space.today = imported.open.map { BrowserTab(url: $0.url, title: $0.title) }
+            imported.populate(space)
             result.spaces += 1
             result.tabs += imported.pinned.count + imported.open.count
         }

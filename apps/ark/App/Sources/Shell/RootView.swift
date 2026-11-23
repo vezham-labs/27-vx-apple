@@ -48,6 +48,15 @@ struct RootView: View {
         .sheet(isPresented: $browser.isSavedPresented) {
             SavedSitesView()
         }
+        .sheet(isPresented: $browser.isRecentTabPreviewsPresented) {
+            RecentTabPreviews()
+        }
+        .sheet(isPresented: Binding(get: { browser.siteStyleHost != nil },
+                                    set: { if !$0 { browser.siteStyleHost = nil } })) {
+            if let host = browser.siteStyleHost {
+                SiteStyleEditor(host: host, css: browser.siteStyle(for: host))
+            }
+        }
         // A light tap when a download lands, like Safari's downloads button bounce.
         .sensoryFeedback(.success, trigger: browser.downloads.lastFinished)
         // Page dialogs, permission requests and logins, one at a time.
@@ -90,40 +99,61 @@ struct WebContentView: View {
     var bottomObscuredInset: CGFloat = 0
 
     var body: some View {
-        if let tab = browser.currentTab {
-            WebViewHost(session: browser.session(for: tab), topObscuredInset: topObscuredInset,
-                        bottomObscuredInset: bottomObscuredInset,
-                        // Fixed footers ride above the bar, and drop down with it when it shrinks.
-                        bottomCoveredInset: tab.isChromeCompact
-                            ? min(bottomObscuredInset, BarMetrics.compactCoveredInset) : bottomObscuredInset)
-                .id(tab.id)
-                // Swipe between tabs on the bottom pill slides the pages too.
+        if let tabs = browser.currentSpace.activeSplitTabs {
+            MobileSplitView(first: tabs.0, second: tabs.1) { tab in
+                page(tab, topInset: 0, bottomInset: 0, onPageTap: { browser.focusSplitPane(tab) })
+            }
+            .padding(.top, topObscuredInset)
+            .padding(.bottom, bottomObscuredInset)
+            .background(Color(.systemBackground))
+        } else if let tab = browser.currentTab {
+            page(tab, topInset: topObscuredInset, bottomInset: bottomObscuredInset)
                 .transition(Motion.tabPush(forward: browser.lastTabSwipeForward))
-                .overlay {
-                    if let error = tab.loadError {
-                        ErrorPage(tab: tab, error: error).transition(.opacity)
-                    }
-                }
-                .animation(Motion.snappy, value: tab.loadError)
-                // A tab that hasn't loaded yet shows its last picture, not a blank page.
-                .overlay {
-                    if tab.isAwaitingFirstPaint, let image = browser.thumbnails[tab.id] {
-                        Color.clear
-                            // Runs under the status bar like the page it stands in for, rather than
-                            // being pushed below it.
-                            .overlay(alignment: .top) {
-                                Image(uiImage: image).resizable().scaledToFill()
-                                    .ignoresSafeArea(.container, edges: .vertical)
-                            }
-                            .clipped()
-                            .allowsHitTesting(false)
-                            .transition(.opacity)
-                    }
-                }
-                .animation(Motion.snappy, value: tab.isAwaitingFirstPaint)
         } else {
             StartPage()
         }
+    }
+
+    private func page(_ tab: BrowserTab, topInset: CGFloat, bottomInset: CGFloat, onPageTap: (() -> Void)? = nil) -> some View {
+        WebViewHost(session: browser.session(for: tab), topObscuredInset: topInset,
+                    bottomObscuredInset: bottomInset,
+                    // Fixed footers ride above the bar, and drop down with it when it shrinks.
+                    bottomCoveredInset: tab.isChromeCompact
+                        ? min(bottomInset, BarMetrics.compactCoveredInset) : bottomInset,
+                    onPageTap: onPageTap)
+            .accessibilityHidden(browser.pageCaptureMode(of: tab) != nil)
+            .id(tab.id)
+            .overlay {
+                if let error = tab.loadError {
+                    ErrorPage(tab: tab, error: error).transition(.opacity)
+                }
+            }
+            .animation(Motion.snappy, value: tab.loadError)
+            // A tab that hasn't loaded yet shows its last picture, not a blank page.
+            .overlay {
+                if tab.isAwaitingFirstPaint, let image = browser.thumbnails[tab.id] {
+                    Color.clear
+                        // Runs under the status bar like the page it stands in for, rather than
+                        // being pushed below it.
+                        .overlay(alignment: .top) {
+                            Image(uiImage: image).resizable().scaledToFill()
+                                .ignoresSafeArea(.container, edges: .vertical)
+                        }
+                        .clipped()
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                }
+            }
+            .animation(Motion.snappy, value: tab.isAwaitingFirstPaint)
+            .overlay {
+                if let mode = browser.pageCaptureMode(of: tab) {
+                    PageCapturePicker(mode: mode, topInset: topInset, bottomInset: bottomInset,
+                                      cancel: { browser.cancelPageCapture(of: tab) },
+                                      copy: { browser.copyPageArea($0, of: tab) },
+                                      copyElement: { browser.copyPageElement(at: $0, of: tab) })
+                        .onDisappear { browser.cancelPageCapture(of: tab) }
+                }
+            }
     }
 }
 

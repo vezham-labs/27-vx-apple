@@ -75,12 +75,8 @@ struct RecentTabsMenu: View {
 
     var body: some View {
         let current = browser.currentTab
-        let recent = browser.currentSpace.allTabs.sorted { a, b in
-            if a.id == current?.id { return true }
-            if b.id == current?.id { return false }
-            return a.lastActive > b.lastActive
-        }
-        ForEach(recent.prefix(Self.limit)) { tab in
+        let recent = browser.currentSpace.recentTabs(limit: Self.limit)
+        ForEach(recent) { tab in
             Button {
                 withAnimation(Motion.snappy) { browser.select(tab) }
             } label: {
@@ -92,6 +88,67 @@ struct RecentTabsMenu: View {
                 if let url = tab.url { Text(URLNormalizer.displayHost(url)) }
             }
         }
+        if recent.count > 1 {
+            Button("Recent Tab Previews", systemImage: "square.grid.2x2") {
+                browser.isRecentTabPreviewsPresented = true
+            }
+        }
+    }
+}
+
+struct RecentTabPreviews: View {
+    @Environment(BrowserState.self) private var browser
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 136, maximum: 240), spacing: 16)], spacing: 16) {
+                    ForEach(browser.currentSpace.recentTabs(limit: 8)) { tab in
+                        preview(tab)
+                    }
+                }
+                .padding(16)
+            }
+            .navigationTitle("Recent Tabs")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func preview(_ tab: BrowserTab) -> some View {
+        let selected = tab.id == browser.currentSpace.selectedTabID
+        return Button {
+            browser.select(tab)
+            browser.isTabSwitcherPresented = false
+            dismiss()
+        } label: {
+            VStack(alignment: .leading, spacing: 7) {
+                Group {
+                    if tab.isPrivate {
+                        Color(.secondarySystemGroupedBackground)
+                            .overlay { Image(systemName: "eye.slash").foregroundStyle(.secondary) }
+                            .clipShape(.rect(cornerRadius: 10))
+                    } else {
+                        TabThumbnail(tab: tab, image: browser.thumbnails[tab.id], cornerRadius: 10)
+                    }
+                }
+                .frame(height: 102)
+                .accessibilityHidden(true)
+                Label(tab.displayTitle, systemImage: selected ? "checkmark.circle.fill" : "square.on.square")
+                    .font(.subheadline.weight(selected ? .semibold : .regular))
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("recent-preview-\(tab.displayTitle)")
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 }
 
@@ -153,6 +210,15 @@ struct PageMenu: View {
                     Button("Copy Link", systemImage: "link") {
                         browser.copyToPasteboard(url); browser.showToast("Link copied")
                     }
+                    Button("Copy Full Page Image", systemImage: "camera") {
+                        presenting { browser.copyFullPageImage(of: tab) }
+                    }
+                    Button("Copy Page Area…", systemImage: "viewfinder") {
+                        presenting { browser.selectPageCapture(.area, of: tab) }
+                    }
+                    Button("Copy Page Element…", systemImage: "scope") {
+                        presenting { browser.selectPageCapture(.element, of: tab) }
+                    }
                     ShareLink(item: url)
                 }
                 Section {
@@ -166,6 +232,29 @@ struct PageMenu: View {
                     }
                     Button("Show Reader", systemImage: "doc.plaintext") { presenting { browser.showReader() } }
                     Button("Find on Page", systemImage: "doc.text.magnifyingglass") { presenting { browser.findInPage() } }
+                    if browser.currentSpace.activeSplitTabs != nil {
+                        Button("Separate Tabs", systemImage: "rectangle.split.2x1") {
+                            presenting {
+                                browser.currentSpace.separateTabs()
+                                browser.scheduleSave()
+                            }
+                        }
+                    } else if !browser.currentSpace.splitCandidates.isEmpty {
+                        Menu("Open Split View", systemImage: "rectangle.split.2x1") {
+                            ForEach(browser.currentSpace.splitCandidates) { other in
+                                Button(other.displayTitle) {
+                                    presenting {
+                                        if browser.currentSpace.splitWith(other) { browser.scheduleSave() }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if browser.editableSiteStyleHost(of: tab) != nil {
+                        Button("Edit Site Style…", systemImage: "paintbrush") {
+                            presenting { browser.editSiteStyle(of: tab) }
+                        }
+                    }
                     Button(tab.isDesktopSite ? "Request Mobile Site" : "Request Desktop Site",
                            systemImage: tab.isDesktopSite ? "iphone" : "desktopcomputer") { browser.toggleDesktopSite() }
                     Button("Reload", systemImage: "arrow.clockwise") { browser.reload() }

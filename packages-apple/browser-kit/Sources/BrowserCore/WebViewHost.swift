@@ -33,11 +33,15 @@ public struct WebViewHost: UIViewRepresentable {
 
     public func makeUIView(context: Context) -> ContainerView {
         let v = ContainerView()
-        v.webView = session.webView
+        if !session.isRetired { v.webView = session.webView }
         return v
     }
 
     public func updateUIView(_ uiView: ContainerView, context: Context) {
+        guard !session.isRetired else {
+            uiView.webView = nil
+            return
+        }
         uiView.webView = session.webView
         uiView.claimIfOrphaned()
         session.recoverIfNeeded()

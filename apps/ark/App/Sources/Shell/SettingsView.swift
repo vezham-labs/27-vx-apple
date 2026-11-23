@@ -259,6 +259,8 @@ private struct ArkSpaceLinkDocument: FileDocument {
 private struct SpaceEditorRow: View {
     @Environment(BrowserState.self) private var browser
     @Bindable var space: Space
+    @State private var profileName = ""
+    @State private var creatingProfile = false
 
     private let symbols = ["house.fill", "briefcase.fill", "book.fill", "gamecontroller.fill",
                            "cart.fill", "airplane", "paintpalette.fill", "hammer.fill"]
@@ -286,12 +288,50 @@ private struct SpaceEditorRow: View {
             } label: {
                 Circle().fill(SpacePalette.color(space.colorIndex)).frame(width: 18, height: 18)
             }
+            profileMenu
+        }
+        .alert("New Website Profile", isPresented: $creatingProfile) {
+            TextField("Profile Name", text: $profileName)
+            Button("Cancel", role: .cancel) {}
+            Button("Create") {
+                guard let profile = WebsiteProfile(name: profileName) else { return }
+                browser.settings.websiteProfiles.append(profile)
+                browser.assignWebsiteProfile(profile.id, to: space)
+            }
+            .disabled(profileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        } message: {
+            Text("A profile keeps website sign-ins and storage separate. Changing profiles reloads the Space’s tabs.")
         }
         .swipeActions {
             if browser.regularSpaces.count > 1 {
                 Button("Delete", role: .destructive) { browser.deleteSpace(space) }
             }
         }
+    }
+
+    private var profileMenu: some View {
+        let selected = browser.settings.websiteProfiles.first { $0.id == space.websiteProfileID }
+        return Menu {
+            Picker("Website Profile", selection: Binding(
+                get: { space.websiteProfileID },
+                set: { browser.assignWebsiteProfile($0, to: space) }
+            )) {
+                Text("Default Profile").tag(UUID?.none)
+                ForEach(browser.settings.websiteProfiles) { profile in
+                    Text(profile.name).tag(Optional(profile.id))
+                }
+            }
+            Divider()
+            Button("New Website Profile…") {
+                profileName = ""
+                creatingProfile = true
+            }
+        } label: {
+            Image(systemName: "person.crop.circle")
+                .foregroundStyle(space.websiteProfileID == nil ? Color.secondary : Color.primary)
+        }
+        .accessibilityLabel("Website Profile for \(space.name)")
+        .accessibilityValue(selected?.name ?? "Default")
     }
 }
 

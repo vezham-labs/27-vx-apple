@@ -11,6 +11,7 @@ public final class TabSession: NSObject {
     public let webView: WKWebView
     private var observations: [NSKeyValueObservation] = []
     private weak var browser: BrowserState?
+    private(set) var isRetired = false
     /// Set when the user navigates from the address bar so history records a "typed" visit.
     var pendingVisitSource: Frecency.VisitSource?
     private var chromeTracker = ScrollChromeTracker()
@@ -49,7 +50,7 @@ public final class TabSession: NSObject {
         } else if tab.interactionState != nil || tab.url != nil {
             showLastPictureUntilPainted()
             browser.pool.afterContentRules { [weak self] in
-                guard let self else { return }
+                guard let self, !isRetired else { return }
                 if let state = tab.interactionState {
                     webView.interactionState = state
                     Task { [weak self] in
@@ -163,7 +164,7 @@ public final class TabSession: NSObject {
 
     /// Restoring saved state can come to nothing, leaving the tab showing a URL the web view doesn't have.
     private func loadIfRestoreStalled() {
-        guard webView.url == nil, !webView.isLoading, let url = tab.url else { return }
+        guard !isRetired, webView.url == nil, !webView.isLoading, let url = tab.url else { return }
         webViewLog.notice("restore stalled, loading: \(url.host() ?? "no host", privacy: .public)")
         webView.load(URLRequest(url: url))
     }
@@ -171,6 +172,17 @@ public final class TabSession: NSObject {
     /// Captures state so the web view can be torn down and rebuilt later.
     func freeze() {
         tab.interactionState = webView.interactionState as? Data
+        tab.websiteSessionProfileID = webView.configuration.websiteDataStore.identifier
+    }
+
+    func retire() {
+        isRetired = true
+        observations.removeAll()
+        webView.navigationDelegate = nil
+        webView.uiDelegate = nil
+        webView.stopLoading()
+        webView.removeFromSuperview()
+        browser = nil
     }
 }
 

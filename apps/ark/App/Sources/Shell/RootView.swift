@@ -115,14 +115,18 @@ struct WebContentView: View {
     }
 
     private func page(_ tab: BrowserTab, topInset: CGFloat, bottomInset: CGFloat, onPageTap: (() -> Void)? = nil) -> some View {
-        WebViewHost(session: browser.session(for: tab), topObscuredInset: topInset,
+        // Track this even when the session pool can satisfy the request from memory.
+        let profileID = browser.currentSpace.websiteProfileID
+        let session = browser.session(for: tab)
+        return WebViewHost(session: session, topObscuredInset: topInset,
                     bottomObscuredInset: bottomInset,
                     // Fixed footers ride above the bar, and drop down with it when it shrinks.
                     bottomCoveredInset: tab.isChromeCompact
                         ? min(bottomInset, BarMetrics.compactCoveredInset) : bottomInset,
                     onPageTap: onPageTap)
             .accessibilityHidden(browser.pageCaptureMode(of: tab) != nil)
-            .id(tab.id)
+            .id(ObjectIdentifier(session.webView))
+            .id(profileID)
             .overlay {
                 if let error = tab.loadError {
                     ErrorPage(tab: tab, error: error).transition(.opacity)

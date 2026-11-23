@@ -11,12 +11,49 @@ extension BrowserState {
     public func clearWebsiteData() async {
         await WKWebsiteDataStore.default().removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
                                                       modifiedSince: .distantPast)
+        for id in Set(settings.websiteProfiles.map(\.id) + regularSpaces.compactMap(\.websiteProfileID)) {
+            let store = pool.regularConfiguration(for: id).websiteDataStore
+            await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
+        }
         HTTPCookieStorage.shared.removeCookies(since: .distantPast)
         // The open page still looks signed in until it's loaded again.
         if currentTab?.isPrivate == false { reload() }
     }
 
     // MARK: Spaces
+
+    func websiteProfileID(for tab: BrowserTab) -> UUID? {
+        guard !tab.isPrivate else { return nil }
+        return spaces.first { $0.allTabs.contains { $0 === tab } }?.websiteProfileID
+    }
+
+    public func assignWebsiteProfile(_ id: UUID?, to space: Space) {
+        guard regularSpaces.contains(where: { $0 === space }), space.websiteProfileID != id,
+              id.map({ id in settings.websiteProfiles.contains { $0.id == id } }) ?? true else { return }
+        for tab in space.allTabs {
+            cancelPrompts(for: tab.id)
+            cancelPageCapture(of: tab)
+            pool.resetSession(for: tab.id)
+            tab.interactionState = nil
+            tab.websiteSessionProfileID = nil
+            tab.loadError = nil
+            tab.canGoBack = false
+            tab.canGoForward = false
+            tab.isLoading = false
+            tab.isAwaitingFirstPaint = false
+            tab.isChromeCompact = false
+            tab.pageBackground = nil
+            discardTabThumbnail(tab.id)
+        }
+        if currentSpace === space {
+            readerArticle = nil
+            siteStyleHost = nil
+            isTabSwitcherPresented = false
+            isRecentTabPreviewsPresented = false
+        }
+        space.websiteProfileID = id
+        scheduleSave()
+    }
 
     public func addSpace() {
         let used = Set(spaces.map(\.colorIndex))
@@ -65,9 +102,7 @@ extension BrowserState {
 
     public func restoreFromArchive(_ tab: BrowserTab) {
         archive.removeAll { $0.id == tab.id }
-        tab.lastActive = .now
-        regularTargetSpace.today.insert(tab, at: 0)
-        select(tab)
+        restoreTabInCurrentProfile(tab)
     }
 
     public func clearArchive() {

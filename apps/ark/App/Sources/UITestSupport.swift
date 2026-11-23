@@ -1,6 +1,7 @@
 #if DEBUG
 import Foundation
 import BrowserCore
+import WebKit
 
 /// Launch arguments for the UI tests: a throwaway state file and a few local tabs, so tests never
 /// touch your real tabs or the network. The arguments do nothing in release builds.
@@ -10,6 +11,7 @@ import BrowserCore
 /// - `--capture-fixture`: add a page element below the capture controls.
 /// - `--site-style-fixture`: load synthetic markup with an HTTPS base URL.
 /// - `--split-fixture`: use two synthetic web pages with distinct content.
+/// - `--website-profile-fixture`: verify isolated profile stores without loading a website.
 enum UITestSupport {
     static var forcedUnfolded: Bool? {
         guard let i = CommandLine.arguments.firstIndex(of: "--posture"), i + 1 < CommandLine.arguments.count else { return nil }
@@ -25,6 +27,14 @@ enum UITestSupport {
                                    snapshotURL: dir.appending(path: "state.json"),
                                    thumbnailStore: nil)
         browser.settings.blockContent = false
+        if CommandLine.arguments.contains("--website-profile-fixture") {
+            let tab = browser.newTab(url: nil)
+            Task { @MainActor in
+                tab.customTitle = await verifyWebsiteProfiles(browser, tab: tab)
+                    ? "Website profiles verified" : "Website profile verification failed"
+            }
+            return browser
+        }
         if CommandLine.arguments.contains("--split-fixture") {
             for number in 1...2 {
                 guard let url = URL(string: "https://split-fixture.test/pane-\(number)") else { continue }
@@ -57,6 +67,44 @@ enum UITestSupport {
             _ = browser.newTab(url: URL(string: "data:text/html," + (html.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "")))
         }
         return browser
+    }
+
+    @MainActor private static func verifyWebsiteProfiles(_ browser: BrowserState, tab: BrowserTab) async -> Bool {
+        guard let profile = WebsiteProfile(name: "Fixture"),
+              let second = browser.regularSpaces.first(where: { $0 !== browser.currentSpace }) else { return false }
+        let first = browser.currentSpace
+        browser.settings.websiteProfiles = [profile]
+        let ordinaryTab = browser.newTab(url: nil, in: second)
+        browser.select(tab)
+        let previous = browser.session(for: tab)
+        browser.assignWebsiteProfile(profile.id, to: first)
+        let isolated = browser.session(for: tab)
+        browser.assignWebsiteProfile(profile.id, to: second)
+        let shared = browser.session(for: ordinaryTab)
+        let passed = await checkCookies(isolated: isolated, shared: shared, defaultSession: previous, id: profile.id)
+        browser.assignWebsiteProfile(nil, to: first)
+        browser.assignWebsiteProfile(nil, to: second)
+        let rebuilt = browser.session(for: tab)
+        browser.settings.websiteProfiles = []
+        return passed && isolated !== previous && rebuilt !== isolated
+            && rebuilt.webView.configuration.websiteDataStore.identifier == nil
+    }
+
+    @MainActor private static func checkCookies(isolated: TabSession, shared: TabSession,
+                                               defaultSession: TabSession, id: UUID) async -> Bool {
+        let named = isolated.webView.configuration.websiteDataStore
+        let same = shared.webView.configuration.websiteDataStore
+        let standard = defaultSession.webView.configuration.websiteDataStore
+        guard named.identifier == id, same.identifier == id, standard.identifier == nil,
+              let cookie = HTTPCookie(properties: [
+                .domain: "profile-fixture.invalid", .path: "/", .name: id.uuidString,
+                .value: "isolated", .expires: Date.now.addingTimeInterval(600),
+              ]) else { return false }
+        await named.httpCookieStore.setCookie(cookie)
+        let shares = await same.httpCookieStore.allCookies().contains { $0.name == cookie.name }
+        let leaks = await standard.httpCookieStore.allCookies().contains { $0.name == cookie.name }
+        await named.httpCookieStore.deleteCookie(cookie)
+        return shares && !leaks
     }
 }
 #endif

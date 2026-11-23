@@ -149,3 +149,14 @@ final class MobileSplitViewUITests: XCTestCase {
         XCTAssertTrue(app.webViews.staticTexts["Split page 1"].exists)
     }
 }
+
+@MainActor
+final class WebsiteProfileUITests: XCTestCase {
+    func testNamedProfileSharesCookiesAcrossSpacesAndIsolatesDefault() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "1", "--posture", "folded", "--website-profile-fixture"]
+        app.launch()
+        let result = app.buttons.matching(identifier: "Website profiles verified").firstMatch
+        XCTAssertTrue(result.waitForExistence(timeout: 45))
+    }
+}

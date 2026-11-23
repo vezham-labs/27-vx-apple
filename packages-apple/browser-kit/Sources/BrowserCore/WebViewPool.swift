@@ -13,6 +13,7 @@ final class WebViewPool {
     private var loadsWaitingForContentRules: [() -> Void] = []
 
     let configuration: WKWebViewConfiguration
+    private var namedConfigurations: [UUID: WKWebViewConfiguration] = [:]
     /// Shared by every private tab, so they share a sign-in, like Safari's private tabs.
     /// Its data store is replaced when the last private tab closes, which throws its cookies and storage away.
     let privateConfiguration: WKWebViewConfiguration
@@ -49,11 +50,25 @@ final class WebViewPool {
     func session(for tab: BrowserTab, browser: BrowserState) -> TabSession {
         touch(tab.id)
         if let s = sessions[tab.id] { return s }
-        let s = TabSession(tab: tab, configuration: tab.isPrivate ? privateConfiguration : configuration,
+        let profileID = browser.websiteProfileID(for: tab)
+        if tab.websiteSessionProfileID != profileID {
+            tab.interactionState = nil
+            tab.websiteSessionProfileID = nil
+        }
+        let config = tab.isPrivate ? privateConfiguration : regularConfiguration(for: profileID)
+        let s = TabSession(tab: tab, configuration: config,
                            browser: browser)
         sessions[tab.id] = s
         evictIfNeeded(keeping: tab.id, split: browser.currentSpace.activeSplitTabs == nil ? nil : browser.currentSpace.splitPair)
         return s
+    }
+
+    func regularConfiguration(for profileID: UUID?) -> WKWebViewConfiguration {
+        guard let profileID else { return configuration }
+        if let existing = namedConfigurations[profileID] { return existing }
+        let configuration = Self.makeConfiguration(store: WKWebsiteDataStore(forIdentifier: profileID))
+        namedConfigurations[profileID] = configuration
+        return configuration
     }
 
     /// Runs `load` once the content rule lists are installed, so a tab restored at launch can't
@@ -88,6 +103,11 @@ final class WebViewPool {
         sessions[id]?.webView.stopLoading()
         sessions[id] = nil
         lru.removeAll { $0 == id }
+    }
+
+    func resetSession(for id: UUID) {
+        sessions[id]?.retire()
+        remove(id)
     }
 
     /// The Private space closed: forget everything its tabs stored.

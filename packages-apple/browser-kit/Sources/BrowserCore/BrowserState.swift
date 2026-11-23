@@ -90,6 +90,8 @@ public final class BrowserState {
     @ObservationIgnored private let snapshotURL: URL?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored let thumbnailStore: ThumbnailStore?
+    @ObservationIgnored private var thumbnailFileTasks: [UUID: (generation: UUID, task: Task<Void, Never>)] = [:]
+    @ObservationIgnored private var discardedThumbnailIDs: Set<UUID>? = []
     /// The space you were in before going into Private, to go back to when it closes.
     @ObservationIgnored var spaceBeforePrivate: UUID?
 
@@ -120,13 +122,14 @@ public final class BrowserState {
     }
 
     private func loadSavedThumbnails() {
-        guard let thumbnailStore else { return }
+        guard let thumbnailStore else { discardedThumbnailIDs = nil; return }
         let ids = Set((spaces.flatMap(\.allTabs) + archive).map(\.id) + saved.map(\.id))
         Task {
             let saved = await Task.detached(priority: .utility) { thumbnailStore.loadAll(keeping: ids) }.value
-            for (id, data) in saved where thumbnails[id] == nil {
+            for (id, data) in saved where thumbnails[id] == nil && discardedThumbnailIDs?.contains(id) != true {
                 thumbnails[id] = UIImage(data: data)
             }
+            discardedThumbnailIDs = nil
         }
     }
 
@@ -288,12 +291,8 @@ public final class BrowserState {
             }
         }
         pool.remove(tab.id)
-        thumbnails[tab.id] = nil
+        discardTabThumbnail(tab.id)
         if let p = privateSpace, p.allTabs.isEmpty { closePrivateSpace() }
-        if let thumbnailStore {
-            let id = tab.id
-            Task.detached(priority: .utility) { thumbnailStore.remove(id) }
-        }
         scheduleSave()
     }
 
@@ -313,14 +312,44 @@ public final class BrowserState {
         thumbnails[tab.id] = image
         guard !tab.isPrivate, let thumbnailStore, let data = image.jpegData(compressionQuality: 0.7) else { return }
         let id = tab.id
-        Task.detached(priority: .utility) { thumbnailStore.save(data, for: id) }
+        updateThumbnailFile(id) { thumbnailStore.save(data, for: id) }
+    }
+
+    func discardTabThumbnail(_ id: UUID) {
+        thumbnails[id] = nil
+        discardedThumbnailIDs?.insert(id)
+        if let thumbnailStore { updateThumbnailFile(id) { thumbnailStore.remove(id) } }
+    }
+
+    /// Keep saves and deletions ordered for each tab even when a profile switch races a save.
+    private func updateThumbnailFile(_ id: UUID, _ update: @escaping @Sendable () -> Void) {
+        let previous = thumbnailFileTasks[id]?.task
+        let generation = UUID()
+        let task = Task { [weak self] in
+            await previous?.value
+            await Task.detached(priority: .utility, operation: update).value
+            if self?.thumbnailFileTasks[id]?.generation == generation {
+                self?.thumbnailFileTasks[id] = nil
+            }
+        }
+        thumbnailFileTasks[id] = (generation, task)
     }
 
     /// Cmd-Shift-T: bring back the last closed tab, with its back/forward history.
     public func reopenClosedTab() {
         guard let tab = recentlyClosed.popLast() else { return }
+        restoreTabInCurrentProfile(tab)
+    }
+
+    func restoreTabInCurrentProfile(_ tab: BrowserTab) {
+        let space = regularTargetSpace
+        if tab.websiteSessionProfileID != space.websiteProfileID {
+            tab.interactionState = nil
+            tab.websiteSessionProfileID = nil
+            discardTabThumbnail(tab.id)
+        }
         tab.lastActive = .now
-        regularTargetSpace.today.insert(tab, at: 0)
+        space.today.insert(tab, at: 0)
         select(tab)
     }
 

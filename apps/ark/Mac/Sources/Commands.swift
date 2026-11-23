@@ -45,6 +45,8 @@ struct BrowserCommands: Commands {
                 .disabled(browser == nil || library.recentlyClosed.isEmpty)
             Button("Move Tab to New Window") { if let tab { browser?.openInNewWindow(tab) } }
                 .disabled(tab == nil)
+            Button("Copy Full Page Image") { browser?.copyFullPageImage() }
+                .disabled(!hasPage)
         }
 
         CommandGroup(after: .pasteboard) {

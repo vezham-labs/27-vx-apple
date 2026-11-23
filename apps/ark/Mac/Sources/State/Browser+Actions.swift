@@ -55,6 +55,7 @@ extension Browser {
             if let url = tab.url {
                 out.append(BrowserCommand(id: "copy-link", title: "Copy Link", subtitle: url.absoluteString, keywords: ["url", "share"]))
                 out.append(BrowserCommand(id: "copy-markdown", title: "Copy Link as Markdown", keywords: ["url", "md", "share"]))
+                out.append(BrowserCommand(id: "copy-page-image", title: "Copy Full Page Image", keywords: ["capture", "screenshot", "png"]))
                 out.append(BrowserCommand(id: "reload", title: "Reload Page", keywords: ["refresh"]))
                 out.append(BrowserCommand(id: "find", title: "Find on Page", keywords: ["search", "text"]))
                 out.append(BrowserCommand(id: "reader", title: isReaderShowing ? "Hide Reader" : "Show Reader",
@@ -136,7 +137,7 @@ extension Browser {
         "panel": "sidebar.right", "private": "eye.slash", "close-private": "eye.slash", "new-space": "plus.rectangle.on.rectangle",
         "downloads": "arrow.down.circle", "archive": "archivebox", "settings": "gearshape", "library": "square.grid.2x2", "space": "square.stack",
         "move": "arrow.right.square", "restore": "archivebox", "ext": "puzzlepiece.extension",
-        "copy-markdown": "link.badge.plus", "clear-today": "xmark.circle", "inspector": "hammer",
+        "copy-markdown": "link.badge.plus", "copy-page-image": "camera.viewfinder", "clear-today": "xmark.circle", "inspector": "hammer",
     ]
 
     func run(command id: String) {
@@ -159,6 +160,7 @@ extension Browser {
         case "close": if let t = currentTab { close(t) }
         case "copy-link": copyCurrentLink()
         case "copy-markdown": copyCurrentLinkAsMarkdown()
+        case "copy-page-image": copyFullPageImage()
         case "clear-today": withAnimation(Motion.snappy) { clearToday() }
         case "inspector": showWebInspector()
         case "reload": reload()

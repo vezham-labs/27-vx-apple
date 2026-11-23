@@ -11,6 +11,12 @@ public struct LiveFolderFeed: Codable, Equatable, Sendable {
     public let title: String
     public let articles: [Article]
 
+    public init(source: URL, title: String, articles: [Article]) {
+        self.source = source
+        self.title = title
+        self.articles = articles
+    }
+
     static let byteLimit = 2_000_000
     static let articleLimit = 30
 

@@ -290,9 +290,13 @@ public struct WebsiteProfile: Codable, Equatable, Identifiable, Sendable {
     public private(set) var name: String
 
     public init?(name: String) {
+        self.init(id: UUID(), name: name)
+    }
+
+    public init?(id: UUID, name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        id = UUID()
+        self.id = id
         self.name = String(trimmed.prefix(80))
     }
 

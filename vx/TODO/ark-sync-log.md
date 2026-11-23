@@ -47,6 +47,17 @@ git log --oneline 19eef7990aec8bd5491ef06ffc14928b7a73033f..FETCH_HEAD
 
 The adjacent **Mini player** row was reviewed against Search’s 1,704-line `Float.swift`. Ark’s system PiP provides native playback controls, while Search’s Ark-owned video window adds custom controls, positioning, resize, and docking behavior. Those custom window behaviors remain open; the comparison stays **Partial** on Mac.
 
+### Search audit increment: Mac floating-window compositing
+
+Search’s `Float.swift` records lower WindowServer GPU time for a live video window without its shadow in its 1080p and 4K checks. Ark applies that setting to the live WebKit call panel in `CallPiP.swift` (`hasShadow = false`). The clean Mac Nx build passed. Ark’s own runtime GPU benchmark and visual review remain open, and the ordinary-video mini player remains a separate gap.
+
+| Field                | Value                                                                                                                                                                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reference repository | [driceroland/Search](https://github.com/driceroland/Search)                                                                                                                                                                                         |
+| Search source SHA    | [`6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`](https://github.com/driceroland/Search/commit/6f2b186bfa862d282ee9f424be1dfd5eb8ddc316)                                                                                                                |
+| Ark commit           | [`cdfb068`](../../../../commit/cdfb068)                                                                                                                                                                                                             |
+| Verification         | `pnpm nx run ark:build-mac` passed. No simulator was started. Ark runtime GPU measurement and floating-panel visual review are pending; no Ark performance delta is claimed.                                                                         |
+
 ### Search follow-up: manual Mac PiP control
 
 | Field                | Value                                                                                                                                                                                                                                                                         |

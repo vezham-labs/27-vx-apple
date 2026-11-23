@@ -602,6 +602,8 @@ enum Preferences {
     private static var d: UserDefaults { .standard }
     static let externalLinksInPreviewKey = "externalLinksInPreview"
     static var externalLinksInPreview: Bool { d.bool(forKey: externalLinksInPreviewKey) }
+    static let automaticVideoPiPKey = "automaticVideoPiP"
+    static var automaticVideoPiP: Bool { d.bool(forKey: automaticVideoPiPKey) }
 
     /// Set once the welcome tab has opened, so the intro plays on first launch only.
     static var hasSeenWelcome: Bool {

@@ -86,6 +86,7 @@ final class Library {
     /// that window for (the capsule leads back to them instead).
     var pipTabID: UUID?
     var pipClosedFor: Set<UUID> = []
+    @ObservationIgnored let videoPictureInPicture = VideoPictureInPicture()
     let history: HistoryStore
     let profileHistory: ProfileHistoryStores
     @ObservationIgnored private let suggestionSeeds = SeedProvider.bundled()
@@ -449,6 +450,13 @@ final class Library {
     /// Moves a tab's page to the engine `url` belongs on, and loads `url` there. The old page goes.
     func swapEngine(of tab: BrowserTab, to url: URL, source: Frecency.VisitSource = .link) {
         let target = engine(for: tab, url: url)
+        videoPictureInPicture.beforeTabUnload(tab.id) { [weak self] in
+            self?.finishEngineSwap(of: tab, to: url, using: target, source: source)
+        }
+    }
+
+    private func finishEngineSwap(of tab: BrowserTab, to url: URL, using target: any BrowserEngine,
+                                  source: Frecency.VisitSource) {
         if let old = controllers[tab.id] {
             old.page.close()
             controllers[tab.id] = nil
@@ -494,6 +502,10 @@ final class Library {
 
     /// Saves a page's back/forward list onto its tab and lets the page go.
     private func unload(_ id: UUID) {
+        videoPictureInPicture.beforeTabUnload(id) { [weak self] in self?.finishUnload(id) }
+    }
+
+    private func finishUnload(_ id: UUID) {
         if let c = controllers[id] {
             c.freeze()
             c.page.close()

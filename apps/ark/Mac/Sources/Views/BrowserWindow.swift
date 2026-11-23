@@ -6,6 +6,7 @@ import BrowserCore
 struct BrowserWindow: View {
     @Environment(Browser.self) private var browser
     @Environment(\.colorScheme) private var colorScheme
+    @AppStorage(Preferences.automaticVideoPiPKey) private var automaticVideoPiP = false
     /// Hides the peeking sidebar a moment after the pointer leaves it. Cancelled if the pointer comes
     /// back first, so a brief exit (a tooltip, a menu, the full-screen menu bar dropping over it)
     /// doesn't snap the sidebar away and back.
@@ -79,6 +80,10 @@ struct BrowserWindow: View {
             }
         }
         .onChange(of: browser.selectedSpaceID) { browser.isSidebarPeeking = false }
+        .onChange(of: browser.visibleTabIDs) { previous, current in
+            browser.library.videoPictureInPicture.visibleTabsChanged(in: browser, from: previous, to: current)
+        }
+        .onChange(of: automaticVideoPiP) { if !automaticVideoPiP { browser.library.videoPictureInPicture.stop() } }
         // A space set to Light or Dark switches the window as you move to it, or as you change its theme.
         .onChange(of: SpacePalette.appearance(for: browser.currentSpace)?.name) {
             if let window = browser.nsWindow { configure(window) }

@@ -98,6 +98,8 @@ struct BrowserCommands: Commands {
         CommandGroup(before: .toolbar) {
             Button("Edit Site Style…") { browser?.editSiteStyle() }
                 .disabled(browser?.editableSiteStyleHost == nil)
+            Button("Hide Page Element…") { browser?.selectSiteElementToHide() }
+                .disabled(browser?.editableSiteStyleHost == nil)
             Button(browser?.isReaderShowing == true ? "Hide Reader" : "Show Reader") { browser?.toggleReader() }
                 .keyboardShortcut(keys.shortcut(.reader))
                 .disabled(!hasPage)

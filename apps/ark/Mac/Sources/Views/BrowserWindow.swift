@@ -73,7 +73,8 @@ struct BrowserWindow: View {
         .sheet(isPresented: Binding(get: { browser.siteStyleHost != nil },
                                     set: { if !$0 { browser.siteStyleHost = nil } })) {
             if let host = browser.siteStyleHost {
-                SiteStyleEditor(host: host, css: browser.library.siteStyles[host] ?? "")
+                SiteStyleEditor(host: host, css: browser.library.siteStyles[host] ?? "",
+                                hiddenSelectors: browser.library.siteStyles.hiddenSelectors(for: host))
                     .environment(browser)
             }
         }

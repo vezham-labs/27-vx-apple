@@ -195,7 +195,7 @@ final class TabController: EnginePageDelegate {
             if abs(page.zoom - z) > 0.001 { setZoom(z) }
         }
         guard !tab.isPrivate, let library, !library.agents.isInAgentSpace(tab),
-              let host = SiteStyles.host(of: url), library.siteStyles[host] != nil,
+              let host = SiteStyles.host(of: url), library.siteStyles.hasStyle(for: host),
               let view = page.view as? WKWebView else { return }
         Task { await library.siteStyles.apply(to: view, on: host) }
     }

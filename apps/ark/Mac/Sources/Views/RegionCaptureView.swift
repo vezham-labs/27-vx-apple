@@ -15,6 +15,15 @@ final class RegionCaptureView: NSView {
     private let mode: Mode
     private let completion: (Selection) -> Void
 
+    static func present(on page: NSView, mode: Mode, completion: @escaping (Selection) -> Void) -> RegionCaptureView? {
+        guard let window = page.window, let container = page.superview,
+              !container.subviews.contains(where: { $0 is RegionCaptureView }) else { return nil }
+        let picker = RegionCaptureView(page: page, mode: mode, completion: completion)
+        container.addSubview(picker, positioned: .above, relativeTo: page)
+        window.makeFirstResponder(picker)
+        return picker
+    }
+
     init(page: NSView, mode: Mode, completion: @escaping (Selection) -> Void) {
         self.page = page
         self.mode = mode

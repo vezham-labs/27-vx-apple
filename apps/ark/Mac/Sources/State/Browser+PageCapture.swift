@@ -44,12 +44,11 @@ extension Browser {
     private func selectPageCapture(_ mode: RegionCaptureView.Mode, to clipboard: NSPasteboard) -> RegionCaptureView? {
         guard !isCapturingPage, let tab = currentTab, let url = tab.url else { return nil }
         guard let webView = currentController?.page.view as? WKWebView,
-              let window = webView.window, let container = webView.superview else {
+              webView.window != nil, webView.superview != nil else {
             showToast("Couldn’t capture this page")
             return nil
         }
-        guard !container.subviews.contains(where: { $0 is RegionCaptureView }) else { return nil }
-        let picker = RegionCaptureView(page: webView, mode: mode) { [weak self, weak webView] selection in
+        let picker = RegionCaptureView.present(on: webView, mode: mode) { [weak self, weak webView] selection in
             guard let self, let webView, !isCapturingPage, currentTab === tab, tab.url == url else { return }
             isCapturingPage = true
             Task {
@@ -88,9 +87,9 @@ extension Browser {
                 copyCapture(png, isPrivate: tab.isPrivate, to: clipboard, confirmation: confirmation)
             }
         }
-        container.addSubview(picker, positioned: .above, relativeTo: webView)
-        window.makeFirstResponder(picker)
-        showToast(mode == .area ? "Drag to select an area · Esc to cancel" : "Click an element · Esc to cancel")
+        if picker != nil {
+            showToast(mode == .area ? "Drag to select an area · Esc to cancel" : "Click an element · Esc to cancel")
+        }
         return picker
     }
 

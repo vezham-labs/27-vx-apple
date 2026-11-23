@@ -93,6 +93,7 @@ extension Browser {
         out.append(BrowserCommand(id: "import-space-links", title: "Import Space Links…", keywords: ["restore", "tabs", "bookmarks", "json"]))
         if let host = editableSiteStyleHost {
             out.append(BrowserCommand(id: "edit-site-style", title: "Edit Site Style…", subtitle: host, keywords: ["css", "boost", "customize"]))
+            out.append(BrowserCommand(id: "hide-site-element", title: "Hide Page Element…", keywords: ["boost", "element", "customize"]))
         }
         if !splitCandidates.isEmpty {
             out.append(BrowserCommand(id: "split-view", title: "Split View With…", keywords: ["pane", "side by side", "stack"]))
@@ -192,6 +193,7 @@ extension Browser {
         case "export-space-links": exportSpaceLinks()
         case "import-space-links": importSpaceLinks()
         case "edit-site-style": editSiteStyle()
+        case "hide-site-element": selectSiteElementToHide()
         case "split-view": isSplitPickerPresented = true
         case "separate-split": separateSplit()
         case "clear-today": withAnimation(Motion.snappy) { clearToday() }

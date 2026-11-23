@@ -905,6 +905,7 @@ final class ArkVideoFloat {
                 target.origin.y = min(max(area.minY, target.minY), area.maxY - tall)
             }
             tuck.image = glyph("plus", 11)
+            tuck.setAccessibilityLabel("Restore Mini Player")
             hideTransport(true)
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = 0.18
@@ -918,6 +919,7 @@ final class ArkVideoFloat {
             tuckedFrom = nil
             tuckedMin = nil
             tuck.image = glyph("minus", 11)
+            tuck.setAccessibilityLabel("Minimize Mini Player")
             hideTransport(false)
             NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0.18

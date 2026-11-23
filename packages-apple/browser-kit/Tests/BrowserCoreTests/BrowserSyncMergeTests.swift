@@ -115,3 +115,24 @@ import Testing
     let files = try FileManager.default.contentsOfDirectory(atPath: root.path)
     #expect(files.isEmpty)
 }
+
+@Test @MainActor func syncCoordinatorPersistsFolderAccessAndRunsAMerge() async throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: "ark-sync-config-\(UUID().uuidString)")
+    let sharedFolder = root.appending(path: "shared")
+    let configurationURL = root.appending(path: "settings/sync.json")
+    try FileManager.default.createDirectory(at: sharedFolder, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let coordinator = BrowserSyncCoordinator(configurationURL: configurationURL)
+    try coordinator.selectFolder(sharedFolder)
+    #expect(coordinator.isConfigured)
+    #expect(coordinator.folderName == "shared")
+
+    let snapshot = BrowserSnapshot(spaces: [], selectedSpaceID: nil, favorites: [], archive: [], settings: nil, saved: nil)
+    let merged = await coordinator.synchronize(snapshot)
+    #expect(merged?.spaces.isEmpty == true)
+
+    let restored = BrowserSyncCoordinator(configurationURL: configurationURL)
+    #expect(restored.isConfigured)
+    #expect(restored.folderName == "shared")
+}

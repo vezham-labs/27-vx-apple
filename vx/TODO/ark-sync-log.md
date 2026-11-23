@@ -204,3 +204,9 @@ The production iOS build and all 107 BrowserKit tests passed. A standalone Swift
 ### Mac Split View startup archive
 
 The startup archive sweep now runs after AppKit finishes restoring windows, giving the SwiftUI window roots a chance to register visible panes. A temporary Mac fixture restored a four-pane group from saved state with all panes old enough to archive. It retained the group's saved orientation, divider sizes, and focus while sending an unrelated stale tab to Archive. The production Mac build passed. Full macOS quit-and-relaunch verification remains open.
+
+### Clean Links
+
+Search’s `CleanLink.swift` preserves the raw query fields and skips signed URLs. Ark now does the same in BrowserKit while preserving its existing tracker list for Mac and mobile copy and navigation. The 12-URL fixture covered signed queries, encoding, repeated and empty fields, fragments, and site rule boundaries. The previous code passed six cases. The updated code passed all 12, and all 107 existing BrowserKit tests passed. The [Mac preview](../../preview/ark/mac/features/clean-link-copy.png) shows the Copy Link command.
+
+In a local release-optimized Swift benchmark, the median of seven paired runs over the same 60,000-URL batch fell from 1,144 ms to 755 ms. Each batch mixed untracked, tracked, encoded, and signed URLs. This measures URL cleaning, including result serialization, within a single process.

@@ -17,6 +17,8 @@ public struct PinFolderList<TabRow: View>: View {
     @State private var loadingFeed = false
     @State private var feedAddress = ""
     @State private var feedError: String?
+    @State private var folderDropTarget: UUID?
+    @State private var folderRowHeights: [UUID: CGFloat] = [:]
 
     public init(
         space: Space, save: @escaping () -> Void,
@@ -79,7 +81,14 @@ public struct PinFolderList<TabRow: View>: View {
                     case .folder(let folder, let depth):
                         measuredFolderRow(folder).padding(.leading, CGFloat(depth) * 12)
                     case .tab(let tab, let depth):
-                        tabRow(tab).padding(.leading, CGFloat(depth) * 12)
+                        tabRow(tab)
+                            .padding(.leading, CGFloat(depth) * 12)
+                            .dropDestination(for: String.self) { items, _ in
+                                guard let id = items.first.flatMap(UUID.init(uuidString:)),
+                                      space.movePinFolder(id, into: tab.pinFolderID) else { return false }
+                                save()
+                                return true
+                            }
                     case .article(_, let article, let depth):
                         Button { openArticle?(article.url) } label: {
                             Label(article.title, systemImage: "doc.text")
@@ -102,6 +111,12 @@ public struct PinFolderList<TabRow: View>: View {
                         .padding(.vertical, 5)
                 }
                 .buttonStyle(.plain)
+                .dropDestination(for: String.self) { items, _ in
+                    guard let id = items.first.flatMap(UUID.init(uuidString:)),
+                          space.movePinFolder(id, into: nil) else { return false }
+                    save()
+                    return true
+                }
                 if openArticle != nil {
                     Button { editFeed() } label: {
                         Label(loadingFeed ? "Adding Live Folder…" : "New Live Folder", systemImage: "dot.radiowaves.left.and.right")
@@ -192,13 +207,33 @@ public struct PinFolderList<TabRow: View>: View {
             .padding(.vertical, 6)
             .contentShape(Rectangle())
             .background {
-                if dropTarget == folder.id {
+                if dropTarget == folder.id || folderDropTarget == folder.id {
                     RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.23))
                 }
             }
         }
         .buttonStyle(.plain)
         .accessibilityValue(folder.isCollapsed ? "Collapsed" : "Expanded")
+        .accessibilityHint("Drag above or below another folder to reorder, or to the center of a folder to nest.")
+        .draggable(folder.id.uuidString) {
+            Label(folder.name, systemImage: "folder")
+                .padding(10)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        }
+        .dropDestination(for: String.self, action: { items, location in
+            guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
+            let fraction = location.y / max(folderRowHeights[folder.id] ?? 32, 1)
+            let moved = space.movePinFolder(id, relativeTo: folder.id, verticalFraction: fraction)
+            if moved { save() }
+            return moved
+        }, isTargeted: { targeted in
+                if targeted { folderDropTarget = folder.id }
+                else if folderDropTarget == folder.id { folderDropTarget = nil }
+            }
+        )
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+            if folderRowHeights[folder.id] != height { folderRowHeights[folder.id] = height }
+        }
         .contextMenu {
             Button("Rename Folder…", systemImage: "pencil") { edit(folder) }
             if allowsCollectionSharing, let archive = SpaceLinkArchive(space: space, folderID: folder.id) {

@@ -38,6 +38,39 @@ struct PinFolderTests {
         #expect(restored.rootPins.first?.id == tab.id)
     }
 
+    @Test @MainActor func movesFoldersAmongSiblingsAndIntoFoldersWithoutCyclesOrExcessDepth() throws {
+        let space = Space(name: "Work")
+        let first = try #require(space.addPinFolder(named: "First"))
+        let second = try #require(space.addPinFolder(named: "Second"))
+        let third = try #require(space.addPinFolder(named: "Third"))
+        let child = try #require(space.addPinFolder(named: "Child", inside: first.id))
+        let grandchild = try #require(space.addPinFolder(named: "Grandchild", inside: child.id))
+
+        #expect(space.movePinFolder(third.id, into: nil, before: first.id))
+        #expect(space.pinFolders.filter { $0.parentID == nil }.map(\.name) == ["Third", "First", "Second"])
+        #expect(space.movePinFolder(second.id, into: first.id))
+        #expect(space.pinFolders.first { $0.id == second.id }?.parentID == first.id)
+        #expect(space.movePinFolder(second.id, into: first.id, before: child.id))
+        #expect(space.pinFolders.filter { $0.parentID == first.id }.map(\.name) == ["Second", "Child"])
+        #expect(!space.movePinFolder(first.id, into: child.id))
+        #expect(!space.movePinFolder(third.id, into: grandchild.id))
+        #expect(!space.movePinFolder(child.id, into: second.id, before: third.id))
+    }
+
+    @Test @MainActor func draggedFoldersReorderAboveAndBelowOrNestInTheMiddle() throws {
+        let space = Space(name: "Work")
+        let first = try #require(space.addPinFolder(named: "First"))
+        let second = try #require(space.addPinFolder(named: "Second"))
+        let third = try #require(space.addPinFolder(named: "Third"))
+
+        #expect(space.movePinFolder(third.id, relativeTo: first.id, verticalFraction: 0.1))
+        #expect(space.pinFolders.filter { $0.parentID == nil }.map(\.name) == ["Third", "First", "Second"])
+        #expect(space.movePinFolder(second.id, relativeTo: first.id, verticalFraction: 0.5))
+        #expect(space.pinFolders.first { $0.id == second.id }?.parentID == first.id)
+        #expect(space.movePinFolder(second.id, relativeTo: first.id, verticalFraction: 0.9))
+        #expect(space.pinFolders.filter { $0.parentID == nil }.map(\.name) == ["Third", "First", "Second"])
+    }
+
     @Test @MainActor func portableLinksRecreateFoldersWithFreshIDs() throws {
         let url = try #require(URL(string: "https://example.com/reference"))
         let tab = BrowserTab(url: url, isPinned: true)

@@ -71,6 +71,83 @@ extension Space {
         for tab in pinned where tab.pinFolderID == id { tab.pinFolderID = parent }
     }
 
+    /// Reorders a folder among its siblings or nests it in another folder.
+    /// `beforeID` is a sibling in the destination; nil places the folder last.
+    @discardableResult
+    public func movePinFolder(_ id: UUID, into parentID: UUID?, before beforeID: UUID? = nil) -> Bool {
+        guard !isPrivate, pinFolders.contains(where: { $0.id == id }), beforeID != id else { return false }
+        let recordsByID = Dictionary(uniqueKeysWithValues: pinFolders.map { ($0.id, $0) })
+        let childrenByParent = Dictionary(grouping: pinFolders, by: \.parentID)
+        if let parentID {
+            guard let parent = recordsByID[parentID], parent.feed == nil else { return false }
+        }
+
+        var descendants: Set<UUID> = [id]
+        var frontier = [id]
+        while let current = frontier.popLast() {
+            for child in childrenByParent[current] ?? [] {
+                if descendants.insert(child.id).inserted { frontier.append(child.id) }
+            }
+        }
+        guard parentID.map({ !descendants.contains($0) }) ?? true else { return false }
+
+        var subtreeHeight = 1
+        var levels: [(UUID, Int)] = [(id, 1)]
+        var heightVisited: Set<UUID> = []
+        while let (current, depth) = levels.popLast() {
+            guard heightVisited.insert(current).inserted else { continue }
+            subtreeHeight = max(subtreeHeight, depth)
+            for child in childrenByParent[current] ?? [] { levels.append((child.id, depth + 1)) }
+        }
+
+        var parentDepth = 0
+        var ancestor = parentID
+        var ancestorVisited: Set<UUID> = []
+        while let current = ancestor {
+            guard ancestorVisited.insert(current).inserted,
+                  let record = recordsByID[current] else { return false }
+            parentDepth += 1
+            ancestor = record.parentID
+        }
+        guard parentDepth + subtreeHeight <= PinFolder.maxDepth else { return false }
+        if let beforeID {
+            guard let before = recordsByID[beforeID], before.parentID == parentID else { return false }
+        }
+
+        var updated = pinFolders
+        guard let index = updated.firstIndex(where: { $0.id == id }) else { return false }
+        var moved = updated.remove(at: index)
+        moved.parentID = parentID
+        let insertion: Int
+        if let beforeID, let before = updated.firstIndex(where: { $0.id == beforeID }) {
+            insertion = before
+        } else {
+            insertion = updated.lastIndex(where: { $0.parentID == parentID }).map { $0 + 1 } ?? updated.endIndex
+        }
+        updated.insert(moved, at: insertion)
+        guard updated != pinFolders else { return false }
+        pinFolders = updated
+        return true
+    }
+
+    /// Applies the destination for a dragged folder over a folder heading.
+    /// The top and bottom bands reorder it; the middle of a regular folder nests it.
+    @discardableResult
+    public func movePinFolder(_ id: UUID, relativeTo targetID: UUID, verticalFraction: Double) -> Bool {
+        guard let target = pinFolders.first(where: { $0.id == targetID }), targetID != id else { return false }
+        if target.feed != nil || verticalFraction < 0.30 {
+            return movePinFolder(id, into: target.parentID, before: target.id)
+        }
+        if verticalFraction <= 0.70 {
+            return movePinFolder(id, into: target.id)
+        }
+        let siblings = pinFolders.filter { $0.parentID == target.parentID }
+        let next = siblings.firstIndex { $0.id == target.id }.flatMap { index in
+            siblings.dropFirst(index + 1).first
+        }
+        return movePinFolder(id, into: target.parentID, before: next?.id)
+    }
+
     @discardableResult
     public func addLiveFolder(address: String, inside parentID: UUID? = nil) async throws -> PinFolder? {
         guard !isPrivate, parentID.map(canNestPinFolder) ?? true else { return nil }

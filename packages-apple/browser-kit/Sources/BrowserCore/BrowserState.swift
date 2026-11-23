@@ -65,7 +65,7 @@ public final class BrowserState {
                 || settings.blockingDisabledHosts != oldValue.blockingDisabledHosts {
                 applyContentBlocking()
             }
-            scheduleSave()
+            if !isApplyingSync { scheduleSave() }
         }
     }
     public var searchEngine: SearchEngine { settings.searchEngine }
@@ -86,6 +86,7 @@ public final class BrowserState {
 
     public let history: HistoryStore
     let profileHistory: ProfileHistoryStores
+    public let syncCoordinator: BrowserSyncCoordinator
     @ObservationIgnored private let suggestionSeeds = SeedProvider.bundled()
     @ObservationIgnored let pool = WebViewPool()
     @ObservationIgnored let siteStyles: SiteStyles
@@ -95,6 +96,7 @@ public final class BrowserState {
     @ObservationIgnored let thumbnailStore: ThumbnailStore?
     @ObservationIgnored private var thumbnailFileTasks: [UUID: (generation: UUID, task: Task<Void, Never>)] = [:]
     @ObservationIgnored private var discardedThumbnailIDs: Set<UUID>? = []
+    @ObservationIgnored private var isApplyingSync = false
     /// The space you were in before going into Private, to go back to when it closes.
     @ObservationIgnored var spaceBeforePrivate: UUID?
 
@@ -104,6 +106,9 @@ public final class BrowserState {
         self.history = history
         profileHistory = ProfileHistoryStores(defaultStore: history)
         self.snapshotURL = snapshotURL
+        syncCoordinator = BrowserSyncCoordinator(
+            configurationURL: snapshotURL?.deletingLastPathComponent().appending(path: "sync-folder.json")
+        )
         siteStyles = SiteStyles(fileURL: snapshotURL?.deletingLastPathComponent().appending(path: "site-styles.json"))
         self.thumbnailStore = thumbnailStore
         if let snapshotURL, let data = try? Data(contentsOf: snapshotURL),
@@ -428,7 +433,7 @@ public final class BrowserState {
         }
     }
 
-    public func saveNow() {
+    public func saveNow(sync: Bool = true) {
         guard let snapshotURL else { return }
         pool.freezeAll()
         // Private is never saved. Next launch opens in the space you came to it from.
@@ -441,6 +446,88 @@ public final class BrowserState {
                                                  withIntermediateDirectories: true)
         try? data.write(to: snapshotURL, options: .atomic)
         Task { await profileHistory.saveNow() }
+        if sync, syncCoordinator.isConfigured {
+            Task { [weak self] in await self?.syncNow() }
+        }
+    }
+
+    /// Pulls the selected shared folder and applies changes while retaining live
+    /// WebKit sessions for tabs whose stable ID and URL did not change.
+    public func syncNow() async {
+        let local = currentSnapshot()
+        guard let merged = await syncCoordinator.synchronize(local),
+              BrowserSyncItems.values(from: local) != BrowserSyncItems.values(from: merged) else { return }
+        applySyncedSnapshot(merged)
+    }
+
+    private func currentSnapshot() -> BrowserSnapshot {
+        let selected = currentSpace.isPrivate ? (spaceBeforePrivate ?? regularSpaces.first?.id) : selectedSpaceID
+        return BrowserSnapshot(spaces: regularSpaces.map(\.record), selectedSpaceID: selected,
+                               favorites: profileFavorites[FavoriteProfileKey.default] ?? [],
+                               archive: archive.map(\.record), settings: settings, saved: saved,
+                               profileFavorites: profileFavorites)
+    }
+
+    private func applySyncedSnapshot(_ snapshot: BrowserSnapshot) {
+        isApplyingSync = true
+        defer { isApplyingSync = false }
+
+        let existingSpaces = Dictionary(uniqueKeysWithValues: regularSpaces.map { ($0.id, $0) })
+        let existingTabs = Dictionary(uniqueKeysWithValues: regularSpaces.flatMap(\.allTabs).map { ($0.id, $0) })
+        var retainedTabIDs: Set<UUID> = []
+
+        func tab(_ record: TabRecord) -> BrowserTab {
+            retainedTabIDs.insert(record.id)
+            let result = existingTabs[record.id] ?? BrowserTab(record)
+            if existingTabs[record.id] != nil, result.url != record.url { pool.resetSession(for: record.id) }
+            result.url = record.url
+            result.title = record.title
+            result.isPinned = record.isPinned
+            result.lastActive = record.lastActive
+            result.interactionState = record.interactionState
+            result.isPrivate = false
+            result.favoriteID = record.favoriteID
+            result.windowKey = record.windowKey
+            result.customTitle = record.customTitle
+            result.pinFolderID = record.isPinned ? record.pinFolderID : nil
+            result.websiteSessionProfileID = record.websiteSessionProfileID
+            return result
+        }
+
+        let updatedSpaces = snapshot.spaces.map { record -> Space in
+            let current = existingSpaces[record.id]
+            let space = current ?? Space(id: record.id, name: record.name, symbol: record.symbol,
+                                         colorIndex: record.colorIndex, isSyncLocalOnly: record.isSyncLocalOnly)
+            space.name = record.name
+            space.symbol = record.symbol
+            space.colorIndex = record.colorIndex
+            space.themeHue = record.themeHue
+            space.themeShade = record.themeShade
+            space.appearance = record.appearance
+            space.websiteProfileID = record.websiteProfileID
+            space.isSyncLocalOnly = record.isSyncLocalOnly
+            space.pinned = record.pinned.map(tab)
+            space.today = record.today.map(tab)
+            space.selectedTabID = record.selectedTabID
+            space.isSidebarOpen = record.isSidebarOpen
+            space.restorePinFolders(record.pinFolders ?? [])
+            space.splitPair = record.splitPair
+            return space
+        }
+
+        for id in Set(existingTabs.keys).subtracting(retainedTabIDs) {
+            pool.remove(id)
+            discardTabThumbnail(id)
+        }
+        spaces = updatedSpaces + spaces.filter(\.isPrivate)
+        if !spaces.contains(where: { $0.id == selectedSpaceID }) {
+            selectedSpaceID = updatedSpaces.first?.id ?? selectedSpaceID
+        }
+        profileFavorites = snapshot.profileFavorites ?? [FavoriteProfileKey.default: snapshot.favorites]
+        archive = snapshot.archive.map(BrowserTab.init)
+        saved = snapshot.saved ?? []
+        if let syncedSettings = snapshot.settings { settings = syncedSettings }
+        saveNow(sync: false)
     }
 }
 #endif

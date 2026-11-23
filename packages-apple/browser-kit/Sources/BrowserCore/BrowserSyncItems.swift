@@ -51,7 +51,8 @@ public enum BrowserSyncItems {
     /// to merge without replacing an entire snapshot.
     public static func values(from snapshot: BrowserSnapshot) -> [String: String] {
         var values: [String: String] = [:]
-        let spaces = snapshot.spaces
+        let spaces = snapshot.spaces.filter { !$0.isSyncLocalOnly }
+        let localOnlyProfileIDs = Set(snapshot.spaces.filter(\.isSyncLocalOnly).compactMap(\.websiteProfileID))
         values["spaces:order"] = BrowserSyncMerge.text(spaces.map { $0.id.uuidString })
 
         for space in spaces {
@@ -82,7 +83,9 @@ public enum BrowserSyncItems {
         }
 
         let profileFavorites = snapshot.profileFavorites ?? [FavoriteProfileKey.default: snapshot.favorites]
-        for (profile, favorites) in profileFavorites {
+        for (profile, favorites) in profileFavorites where !localOnlyProfileIDs.contains(where: {
+            $0.uuidString.caseInsensitiveCompare(profile) == .orderedSame
+        }) {
             let safe = favorites.filter { isShareable($0.url) }
             values["favorites:order:\(profile)"] = BrowserSyncMerge.text(safe.map { $0.id.uuidString })
             for favorite in safe {
@@ -107,7 +110,7 @@ public enum BrowserSyncItems {
             encode(settings.filterGroups.map(\.rawValue).sorted(), key: "setting:filterGroups", into: &values)
             encode(settings.blockingDisabledHosts.sorted(), key: "setting:blockingDisabledHosts", into: &values)
 
-            let profiles = settings.websiteProfiles
+            let profiles = settings.websiteProfiles.filter { !localOnlyProfileIDs.contains($0.id) }
             values["websiteProfiles:order"] = BrowserSyncMerge.text(profiles.map { $0.id.uuidString })
             for profile in profiles {
                 let item = SyncedProfile(id: profile.id, name: profile.name)
@@ -129,7 +132,7 @@ public enum BrowserSyncItems {
         let localSpaces = Dictionary(uniqueKeysWithValues: snapshot.spaces.map { ($0.id, $0) })
         let order = (decodeStrings(values["spaces:order"]) ?? []).compactMap(UUID.init(uuidString:))
         let orderedSpaceIDs = ordered(Set(syncedSpaces.keys), by: order, fallback: snapshot.spaces.map(\.id))
-        let spaces = orderedSpaceIDs.compactMap { id -> SpaceRecord? in
+        var spaces = orderedSpaceIDs.compactMap { id -> SpaceRecord? in
             guard let metadata = syncedSpaces[id] else { return nil }
             let local = localSpaces[id]
             let pinPrefix = "pin:\(id.uuidString):"
@@ -179,6 +182,31 @@ public enum BrowserSyncItems {
                                pinFolders: folders.isEmpty ? nil : folders, splitPair: local?.splitPair,
                                websiteProfileID: metadata.websiteProfileID)
         }
+        let sharedSpaceIDs = Set(syncedSpaces.keys)
+        let localOnlySpaces = snapshot.spaces.filter { space in
+            !space.today.isEmpty && !sharedSpaceIDs.contains(space.id)
+        }.map { source -> SpaceRecord in
+            var local = source
+            local.isSyncLocalOnly = true
+            local.pinned = []
+            local.pinFolders = nil
+            local.today = local.today.map { tab in
+                var tab = tab
+                tab.isPinned = false
+                tab.favoriteID = nil
+                tab.pinFolderID = nil
+                return tab
+            }
+            let todayIDs = Set(local.today.map(\.id))
+            if let selected = local.selectedTabID, !todayIDs.contains(selected) {
+                local.selectedTabID = local.today.first?.id
+            }
+            if let split = local.splitPair, split.tabs.contains(where: { !todayIDs.contains($0) }) {
+                local.splitPair = nil
+            }
+            return local
+        }
+        spaces.append(contentsOf: localOnlySpaces)
         guard !spaces.isEmpty else { return snapshot }
 
         var favorites = snapshot.profileFavorites ?? [FavoriteProfileKey.default: snapshot.favorites]
@@ -210,7 +238,8 @@ public enum BrowserSyncItems {
             if favorites[profile] == nil, isValidProfileKey(profile) { favorites[profile] = [] }
         }
 
-        let settings = applyingSettings(values, to: snapshot.settings)
+        let retainedProfiles = Set(localOnlySpaces.compactMap(\.websiteProfileID))
+        let settings = applyingSettings(values, to: snapshot.settings, retainingProfiles: retainedProfiles)
         let selectedSpace = snapshot.selectedSpaceID.flatMap { id in spaces.contains(where: { $0.id == id }) ? id : nil }
         let legacyFavorites = favorites[FavoriteProfileKey.default] ?? []
         return BrowserSnapshot(spaces: spaces, selectedSpaceID: selectedSpace, favorites: legacyFavorites,
@@ -252,7 +281,8 @@ public enum BrowserSyncItems {
         }
     }
 
-    private static func applyingSettings(_ values: [String: String], to existing: BrowserSettings?) -> BrowserSettings? {
+    private static func applyingSettings(_ values: [String: String], to existing: BrowserSettings?,
+                                         retainingProfiles: Set<UUID>) -> BrowserSettings? {
         let knownSettingKeys = values.keys.filter { $0.hasPrefix("setting:") || $0.hasPrefix("websiteProfile:") || $0 == "websiteProfiles:order" }
         guard !knownSettingKeys.isEmpty else { return existing }
         var settings = existing ?? BrowserSettings()
@@ -275,11 +305,15 @@ public enum BrowserSyncItems {
         let profilesByID = decodeItems(SyncedProfile.self, values: values, prefix: "websiteProfile:")
         if values["websiteProfiles:order"] != nil {
             let order = (decodeStrings(values["websiteProfiles:order"]) ?? []).compactMap(UUID.init(uuidString:))
-            settings.websiteProfiles = ordered(Set(profilesByID.keys), by: order, fallback: settings.websiteProfiles.map(\.id))
-                .compactMap { id in
+            let profiles: [WebsiteProfile] = ordered(Set(profilesByID.keys), by: order,
+                                                     fallback: settings.websiteProfiles.map(\.id))
+                .compactMap { id -> WebsiteProfile? in
                     guard let value = profilesByID[id] else { return nil }
                     return WebsiteProfile(id: value.id, name: value.name)
                 }
+            let retained = existing?.websiteProfiles.filter { retainingProfiles.contains($0.id) } ?? []
+            let currentIDs = Set(profiles.map(\.id))
+            settings.websiteProfiles = profiles + retained.filter { !currentIDs.contains($0.id) }
         }
         return settings
     }

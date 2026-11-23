@@ -26,7 +26,7 @@ final class Library {
                 || settings.blockingDisabledHosts != oldValue.blockingDisabledHosts {
                 applyBlocking()
             }
-            scheduleSave()
+            if !isApplyingSync { scheduleSave() }
         }
     }
     /// Sends the Global Privacy Control signal (`navigator.globalPrivacyControl`) to every site.
@@ -97,6 +97,8 @@ final class Library {
     @ObservationIgnored private var lru: [UUID] = []
     @ObservationIgnored private let capacity = 24
     @ObservationIgnored private let snapshotURL: URL?
+    let syncCoordinator: BrowserSyncCoordinator
+    @ObservationIgnored private var isApplyingSync = false
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var blockingTask: Task<Void, Never>?
     @ObservationIgnored private var idlePageTask: Task<Void, Never>?
@@ -115,6 +117,8 @@ final class Library {
         self.history = history
         profileHistory = ProfileHistoryStores(defaultStore: history)
         self.snapshotURL = snapshotURL
+        syncCoordinator = BrowserSyncCoordinator(
+            configurationURL: snapshotURL?.deletingLastPathComponent().appending(path: "sync-folder.json"))
         globalPrivacyControl = Preferences.globalPrivacyControl
         clearDataOnQuit = Preferences.clearDataOnQuit
         developerTools = Preferences.developerTools
@@ -1031,7 +1035,7 @@ final class Library {
         }
     }
 
-    func saveNow() {
+    func saveNow(sync: Bool = true) {
         guard let snapshotURL else { return }
         for c in controllers.values { c.freeze() }
         // Next launch opens on the space the active window shows (never Private).
@@ -1045,6 +1049,86 @@ final class Library {
         try? FileManager.default.createDirectory(at: snapshotURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: snapshotURL, options: .atomic)
         Task { await profileHistory.saveNow() }
+        if sync, syncCoordinator.isConfigured {
+            Task { [weak self] in await self?.syncNow() }
+        }
+    }
+
+    func syncNow() async {
+        let local = currentSnapshot()
+        guard let merged = await syncCoordinator.synchronize(local),
+              BrowserSyncItems.values(from: local) != BrowserSyncItems.values(from: merged) else { return }
+        applySyncedSnapshot(merged)
+    }
+
+    private func currentSnapshot() -> BrowserSnapshot {
+        let shown = activeWindow?.currentSpace
+        let selected = shown.flatMap { $0.isPrivate ? nil : $0.id } ?? launchSpaceID
+        return BrowserSnapshot(spaces: regularSpaces.map(\.record), selectedSpaceID: selected,
+                               favorites: favorites(for: nil), archive: archive.map(\.record), settings: settings,
+                               saved: savedSites, profileFavorites: favoritesByProfile)
+    }
+
+    private func applySyncedSnapshot(_ snapshot: BrowserSnapshot) {
+        isApplyingSync = true
+        defer { isApplyingSync = false }
+
+        let oldRegularSpaces = regularSpaces
+        let existingSpaces = Dictionary(uniqueKeysWithValues: oldRegularSpaces.map { ($0.id, $0) })
+        let existingTabs = Dictionary(uniqueKeysWithValues: regularSpaces.flatMap(\.allTabs).map { ($0.id, $0) })
+        var retainedTabIDs: Set<UUID> = []
+
+        func tab(_ record: TabRecord) -> BrowserTab {
+            retainedTabIDs.insert(record.id)
+            let result = existingTabs[record.id] ?? BrowserTab(record)
+            if existingTabs[record.id] != nil, result.url != record.url { resetBrowsingSession(of: result) }
+            result.url = record.url
+            result.title = record.title
+            result.isPinned = record.isPinned
+            result.lastActive = record.lastActive
+            result.interactionState = record.interactionState
+            result.isPrivate = false
+            result.favoriteID = record.favoriteID
+            result.windowKey = record.windowKey
+            result.customTitle = record.customTitle
+            result.websiteSessionProfileID = record.websiteSessionProfileID
+            return result
+        }
+
+        let restored = snapshot.spaces.map { record -> Space in
+            let space = existingSpaces[record.id] ?? Space(record)
+            space.name = record.name
+            space.symbol = record.symbol
+            space.colorIndex = record.colorIndex
+            space.themeHue = record.themeHue
+            space.themeShade = record.themeShade
+            space.appearance = record.appearance
+            space.pinned = record.pinned.map(tab)
+            for (pinRecord, pin) in zip(record.pinned, space.pinned) {
+                space.setPinFolder(pinRecord.pinFolderID, for: pin)
+            }
+            space.today = record.today.map(tab)
+            space.selectedTabID = record.selectedTabID
+            space.isSidebarOpen = record.isSidebarOpen
+            space.websiteProfileID = record.websiteProfileID
+            space.isSyncLocalOnly = record.isSyncLocalOnly
+            space.restorePinFolders(record.pinFolders ?? [])
+            return space
+        }
+
+        let remoteIDs = Set(restored.map(\.id))
+        for space in oldRegularSpaces where !remoteIDs.contains(space.id) {
+            for tab in space.allTabs where !retainedTabIDs.contains(tab.id) { unload(tab.id) }
+        }
+        for tab in existingTabs.values where !retainedTabIDs.contains(tab.id) { unload(tab.id) }
+
+        spaces = restored + spaces.filter(\.isPrivate)
+        for window in windows where !remoteIDs.contains(window.selectedSpaceID) { window.leaveSpace() }
+        launchSpaceID = snapshot.selectedSpaceID.flatMap { id in restored.first { $0.id == id }?.id }
+            ?? restored.first?.id ?? launchSpaceID
+        favoritesByProfile = snapshot.profileFavorites ?? [FavoriteProfileKey.default: snapshot.favorites]
+        if let settings = snapshot.settings { self.settings = settings }
+        saveNow(sync: false)
     }
 }
 

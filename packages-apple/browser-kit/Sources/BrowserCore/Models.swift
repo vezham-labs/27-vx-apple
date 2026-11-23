@@ -101,6 +101,9 @@ public final class Space: Identifiable {
     public var today: [BrowserTab]
     public var selectedTabID: UUID?
     public var websiteProfileID: UUID?
+    /// A shared Space was removed elsewhere while this device still had local Today tabs open.
+    /// The retained Space stays on this device and is omitted from browser sync.
+    public var isSyncLocalOnly = false
     public internal(set) var splitPair: TabSplitPair?
     public var isSidebarOpen: Bool
     /// The Private space: shows in the spaces list only while it has tabs, and is never saved.
@@ -108,7 +111,7 @@ public final class Space: Identifiable {
 
     public init(id: UUID = UUID(), name: String, symbol: String = "circle.fill", colorIndex: Int = 0,
                 pinned: [BrowserTab] = [], today: [BrowserTab] = [], selectedTabID: UUID? = nil, isSidebarOpen: Bool = true,
-                isPrivate: Bool = false) {
+                isPrivate: Bool = false, isSyncLocalOnly: Bool = false) {
         self.id = id
         self.name = name
         self.symbol = symbol
@@ -118,6 +121,7 @@ public final class Space: Identifiable {
         self.selectedTabID = selectedTabID
         self.isSidebarOpen = isSidebarOpen
         self.isPrivate = isPrivate
+        self.isSyncLocalOnly = isSyncLocalOnly
     }
 
     public var allTabs: [BrowserTab] { pinned + today }
@@ -494,6 +498,53 @@ public struct SpaceRecord: Codable, Sendable {
     public var pinFolders: [PinFolder]? = nil
     public var splitPair: TabSplitPair? = nil
     public var websiteProfileID: UUID? = nil
+    public var isSyncLocalOnly = false
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, symbol, colorIndex, pinned, today, selectedTabID, isSidebarOpen
+        case themeHue, themeShade, appearance, pinFolders, splitPair, websiteProfileID, isSyncLocalOnly
+    }
+
+    public init(id: UUID, name: String, symbol: String, colorIndex: Int,
+                pinned: [TabRecord], today: [TabRecord], selectedTabID: UUID?, isSidebarOpen: Bool,
+                themeHue: Double? = nil, themeShade: Double? = nil, appearance: String? = nil,
+                pinFolders: [PinFolder]? = nil, splitPair: TabSplitPair? = nil,
+                websiteProfileID: UUID? = nil, isSyncLocalOnly: Bool = false) {
+        self.id = id
+        self.name = name
+        self.symbol = symbol
+        self.colorIndex = colorIndex
+        self.pinned = pinned
+        self.today = today
+        self.selectedTabID = selectedTabID
+        self.isSidebarOpen = isSidebarOpen
+        self.themeHue = themeHue
+        self.themeShade = themeShade
+        self.appearance = appearance
+        self.pinFolders = pinFolders
+        self.splitPair = splitPair
+        self.websiteProfileID = websiteProfileID
+        self.isSyncLocalOnly = isSyncLocalOnly
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        name = try values.decode(String.self, forKey: .name)
+        symbol = try values.decode(String.self, forKey: .symbol)
+        colorIndex = try values.decode(Int.self, forKey: .colorIndex)
+        pinned = try values.decodeIfPresent([TabRecord].self, forKey: .pinned) ?? []
+        today = try values.decodeIfPresent([TabRecord].self, forKey: .today) ?? []
+        selectedTabID = try values.decodeIfPresent(UUID.self, forKey: .selectedTabID)
+        isSidebarOpen = try values.decodeIfPresent(Bool.self, forKey: .isSidebarOpen) ?? true
+        themeHue = try values.decodeIfPresent(Double.self, forKey: .themeHue)
+        themeShade = try values.decodeIfPresent(Double.self, forKey: .themeShade)
+        appearance = try values.decodeIfPresent(String.self, forKey: .appearance)
+        pinFolders = try values.decodeIfPresent([PinFolder].self, forKey: .pinFolders)
+        splitPair = try values.decodeIfPresent(TabSplitPair.self, forKey: .splitPair)
+        websiteProfileID = try values.decodeIfPresent(UUID.self, forKey: .websiteProfileID)
+        isSyncLocalOnly = try values.decodeIfPresent(Bool.self, forKey: .isSyncLocalOnly) ?? false
+    }
 }
 
 public struct BrowserSnapshot: Codable, Sendable {
@@ -554,12 +605,14 @@ extension Space {
                     themeHue: themeHue, themeShade: themeShade,
                     appearance: appearance,
                     pinFolders: pinFolders.isEmpty ? nil : pinFolders,
-                    splitPair: splitPair, websiteProfileID: isPrivate ? nil : websiteProfileID)
+                    splitPair: splitPair, websiteProfileID: isPrivate ? nil : websiteProfileID,
+                    isSyncLocalOnly: isSyncLocalOnly)
     }
     public convenience init(_ r: SpaceRecord) {
         self.init(id: r.id, name: r.name, symbol: r.symbol, colorIndex: r.colorIndex,
                   pinned: r.pinned.map(BrowserTab.init), today: r.today.map(BrowserTab.init),
-                  selectedTabID: r.selectedTabID, isSidebarOpen: r.isSidebarOpen)
+                  selectedTabID: r.selectedTabID, isSidebarOpen: r.isSidebarOpen,
+                  isSyncLocalOnly: r.isSyncLocalOnly)
         themeHue = r.themeHue
         themeShade = r.themeShade
         appearance = r.appearance

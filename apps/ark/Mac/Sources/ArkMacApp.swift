@@ -193,6 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         ArkAppearance.apply()
+        Task { await library.syncNow() }
         // tools/audio-bench opens its page at launch (test builds only; see AudioBench).
         if let url = AudioBench.launchURL { openAudioBenchPage(url, attempt: 0) }
         if let every = AudioBench.tabSwitchSeconds { scheduleAudioBenchTabSwitch(every: every) }
@@ -350,5 +351,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidResignActive(_ notification: Notification) {
         library.saveNow()
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        Task { await library.syncNow() }
     }
 }

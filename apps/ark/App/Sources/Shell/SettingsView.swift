@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var exportDocument: ArkSpaceLinkDocument?
     @State private var isExportingSpace = false
     @State private var isImportingSpace = false
+    @State private var isChoosingSyncFolder = false
     @State private var spaceFileMessage: String?
 
     private func groupBinding(_ group: FilterGroup) -> Binding<Bool> {
@@ -154,6 +155,26 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    LabeledContent("Folder", value: browser.syncCoordinator.folderName ?? "Not configured")
+                    LabeledContent("Status", value: syncStatus)
+                    if let lastSyncedAt = browser.syncCoordinator.lastSyncedAt {
+                        LabeledContent("Last synced", value: lastSyncedAt.formatted(.relative(presentation: .named)))
+                    }
+                    Button("Choose Shared Folder…", systemImage: "folder") { isChoosingSyncFolder = true }
+                    Button("Sync Now", systemImage: "arrow.triangle.2.circlepath") {
+                        Task { await browser.syncNow() }
+                    }
+                    .disabled(!browser.syncCoordinator.isConfigured || isSyncing)
+                    if browser.syncCoordinator.isConfigured {
+                        Button("Disconnect", role: .destructive) { browser.syncCoordinator.disconnect() }
+                    }
+                } header: {
+                    Text("Sync")
+                } footer: {
+                    Text("Choose the same shared folder on each device. Ark syncs Spaces, pinned links, favourites and selected settings. Today tabs and history stay on this device.")
+                }
+
+                Section {
                     Button("Clear History", role: .destructive) { confirmClearHistory = true }
                     Button("Clear Cookies and Site Data", role: .destructive) { confirmClearWebsiteData = true }
                 } footer: {
@@ -182,6 +203,15 @@ struct SettingsView: View {
                 if case .brave(let key) = browser.settings.searchEngine { braveKey = key }
             }
             .fileImporter(isPresented: $isImportingSpace, allowedContentTypes: [.json], onCompletion: importSpaceLinks)
+            .fileImporter(isPresented: $isChoosingSyncFolder, allowedContentTypes: [.folder]) { result in
+                if case .failure(let error) = result, error is CancellationError { return }
+                do {
+                    try browser.syncCoordinator.selectFolder(result.get())
+                    Task { await browser.syncNow() }
+                } catch {
+                    spaceFileMessage = error.localizedDescription
+                }
+            }
             .fileExporter(isPresented: $isExportingSpace, document: exportDocument, contentType: .json,
                           defaultFilename: "Ark Space") { result in
                 if case .failure = result { spaceFileMessage = "Couldn’t export Space links." }
@@ -193,6 +223,21 @@ struct SettingsView: View {
             } message: {
                 Text(spaceFileMessage ?? "")
             }
+        }
+    }
+
+    private var isSyncing: Bool {
+        if case .syncing = browser.syncCoordinator.state { return true }
+        return false
+    }
+
+    private var syncStatus: String {
+        switch browser.syncCoordinator.state {
+        case .off: "Off"
+        case .ready: "Ready"
+        case .syncing: "Syncing…"
+        case .synced: "Synced"
+        case .failed(let message): message
         }
     }
 

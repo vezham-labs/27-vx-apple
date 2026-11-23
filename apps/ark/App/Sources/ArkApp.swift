@@ -30,7 +30,9 @@ struct ArkApp: App {
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .active: browser.archiveStaleTabs()
+            case .active:
+                browser.archiveStaleTabs()
+                Task { await browser.syncNow() }
             // Still on screen, so the picture isn't blank. It's what the tab shows after a relaunch.
             case .inactive: if let tab = browser.currentTab { browser.captureThumbnail(of: tab) }
             case .background: browser.saveNow()

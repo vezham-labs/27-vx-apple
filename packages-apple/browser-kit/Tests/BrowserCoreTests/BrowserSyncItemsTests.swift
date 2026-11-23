@@ -111,6 +111,44 @@ import Testing
     #expect(restored.favorites.isEmpty)
 }
 
+@Test func deletedSharedSpaceRetainsItsTodayTabsAsDeviceLocal() throws {
+    let removedSpaceID = UUID()
+    let survivingSpaceID = UUID()
+    let profileID = UUID()
+    let today = tab(id: UUID(), url: URL(string: "https://local.example/"), title: "Keep me", isPinned: false)
+    var removedSpace = spaceRecord(id: removedSpaceID, name: "Research", today: [today], selectedTabID: today.id)
+    removedSpace.websiteProfileID = profileID
+    var localSettings = BrowserSettings()
+    localSettings.websiteProfiles = [try #require(WebsiteProfile(id: profileID, name: "Research"))]
+    let local = BrowserSnapshot(spaces: [removedSpace, spaceRecord(id: survivingSpaceID)],
+                                selectedSpaceID: removedSpaceID, favorites: [], archive: [],
+                                settings: localSettings, saved: nil)
+    let remote = BrowserSnapshot(spaces: [spaceRecord(id: survivingSpaceID)], selectedSpaceID: survivingSpaceID,
+                                 favorites: [], archive: [], settings: BrowserSettings(), saved: nil)
+
+    let restored = BrowserSyncItems.applying(BrowserSyncItems.values(from: remote), to: local)
+    let localOnly = try #require(restored.spaces.first { $0.id == removedSpaceID })
+    let restoredTab = try #require(localOnly.today.first)
+
+    #expect(localOnly.isSyncLocalOnly)
+    #expect(localOnly.pinned.isEmpty)
+    #expect(restoredTab.id == today.id)
+    #expect(restoredTab.url == today.url)
+    #expect(restored.settings?.websiteProfiles.contains { $0.id == profileID } == true)
+    #expect(BrowserSyncItems.values(from: restored)["space:\(removedSpaceID.uuidString)"] == nil)
+}
+
+@Test func olderSpaceRecordDefaultsSyncLocalOnlyToFalse() throws {
+    let id = UUID()
+    let older = """
+    {"id":"\(id.uuidString)","name":"Personal","symbol":"house.fill","colorIndex":0,"pinned":[],"today":[],"isSidebarOpen":true}
+    """
+    let decoded = try JSONDecoder().decode(SpaceRecord.self, from: Data(older.utf8))
+    #expect(!decoded.isSyncLocalOnly)
+    let roundTrip = try JSONDecoder().decode(SpaceRecord.self, from: JSONEncoder().encode(decoded))
+    #expect(!roundTrip.isSyncLocalOnly)
+}
+
 private func tab(id: UUID, url: URL?, title: String, isPinned: Bool,
                  interactionState: Data? = nil) -> TabRecord {
     TabRecord(id: id, url: url, title: title, isPinned: isPinned, lastActive: .distantPast,

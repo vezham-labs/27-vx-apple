@@ -5,6 +5,7 @@ import BrowserCore
 import BrowserEngine
 import Suggest
 import Extensibility
+import UniformTypeIdentifiers
 
 /// Ark > Settings (Cmd-,): toolbar tabs in a preferences title bar, like Safari and Mail.
 struct SettingsView: View {
@@ -23,6 +24,7 @@ struct SettingsView: View {
         Pane(id: "shortcuts", title: "Shortcuts", symbol: "keyboard"),
         Pane(id: "privacy", title: "Privacy", symbol: "hand.raised"),
         Pane(id: "audio", title: "Audio", symbol: "waveform"),
+        Pane(id: "sync", title: "Sync", symbol: "arrow.triangle.2.circlepath"),
         Pane(id: "agents", title: "Agents", symbol: AgentIdentity.symbol),
         Pane(id: "engine", title: "Advanced", symbol: "gearshape.2"),
     ]
@@ -46,9 +48,69 @@ struct SettingsView: View {
         case "shortcuts": ShortcutSettings()
         case "privacy": PrivacySettings()
         case "audio": AudioSettings()
+        case "sync": SyncSettings()
         case "agents": AgentSettings()
         case "engine": EngineSettings()
         default: GeneralSettings()
+        }
+    }
+}
+
+private struct SyncSettings: View {
+    @Environment(Library.self) private var library
+    @State private var choosingFolder = false
+    @State private var errorMessage: String?
+
+    private var isSyncing: Bool {
+        if case .syncing = library.syncCoordinator.state { return true }
+        return false
+    }
+
+    private var status: String {
+        switch library.syncCoordinator.state {
+        case .off: "Off"
+        case .ready: "Ready"
+        case .syncing: "Syncing…"
+        case .synced: "Synced"
+        case .failed(let message): message
+        }
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent("Folder", value: library.syncCoordinator.folderName ?? "Not configured")
+                LabeledContent("Status", value: status)
+                if let date = library.syncCoordinator.lastSyncedAt {
+                    LabeledContent("Last synced", value: date.formatted(.relative(presentation: .named)))
+                }
+                Button("Choose Shared Folder…", systemImage: "folder") { choosingFolder = true }
+                Button("Sync Now", systemImage: "arrow.triangle.2.circlepath") {
+                    Task { await library.syncNow() }
+                }
+                .disabled(!library.syncCoordinator.isConfigured || isSyncing)
+                if library.syncCoordinator.isConfigured {
+                    Button("Disconnect", role: .destructive) { library.syncCoordinator.disconnect() }
+                }
+            } footer: {
+                Text("Choose the same shared folder on each device. Ark syncs Spaces, pinned links, favourites and selected settings. Today tabs and history stay on this device.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .fileImporter(isPresented: $choosingFolder, allowedContentTypes: [.folder]) { result in
+            if case .failure(let error) = result, error is CancellationError { return }
+            do {
+                try library.syncCoordinator.selectFolder(result.get())
+                Task { await library.syncNow() }
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+        .alert("Ark Sync", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("OK", role: .cancel) { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "")
         }
     }
 }

@@ -185,7 +185,7 @@ extension Space {
         tab.pinFolderID = id
     }
 
-    func restorePinFolders(_ records: [PinFolder]) {
+    public func restorePinFolders(_ records: [PinFolder]) {
         var seen = Set<UUID>()
         pinFolders = isPrivate ? [] : records.filter { seen.insert($0.id).inserted }
         let parents = Dictionary(uniqueKeysWithValues: pinFolders.map { ($0.id, $0.parentID) })

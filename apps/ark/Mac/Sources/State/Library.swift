@@ -530,7 +530,9 @@ final class Library {
                    at index: Int = 0, for window: Browser? = nil, promoting glance: GlanceSession? = nil) -> BrowserTab {
         let wantsPrivate = isPrivate || space.isPrivate
         let target = wantsPrivate ? openPrivateSpace() : space
-        let tab = BrowserTab(url: nil, isPrivate: wantsPrivate)
+        // vx-bot/NOTE: Extension pages need their context's configuration when the web view is created.
+        let extensionURL = url?.scheme == "webkit-extension" ? url : nil
+        let tab = BrowserTab(url: extensionURL, isPrivate: wantsPrivate)
         tab.windowKey = (window ?? activeWindow)?.windowKey
         target.today.insert(tab, at: min(index, target.today.count))
         if let url, let glance, glance.loadedURL == url, !glance.page.state.isLoading,
@@ -541,7 +543,10 @@ final class Library {
             controller.registerPromotedPage(url: url, source: source)
         } else {
             glance?.page.close()
-            if let url { controller(for: tab).load(url, source: source) }
+            if let url {
+                let controller = controller(for: tab)
+                if extensionURL == nil { controller.load(url, source: source) }
+            }
         }
         scheduleSave()
         return tab

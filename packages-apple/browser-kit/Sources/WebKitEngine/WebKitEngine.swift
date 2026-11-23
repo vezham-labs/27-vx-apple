@@ -125,13 +125,8 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
             return page
         }
         var configuration = configuration(for: options.profile)
-        switch options.profile {
-        case .named:
-            break
-        case .standard, .ephemeral:
-            if #available(macOS 15.4, *), let url = options.url, let own = webExtensions?.configuration(for: url) {
-                configuration = own
-            }
+        if #available(macOS 15.4, *), let url = options.url, let own = webExtensions?.configuration(for: url) {
+            configuration = own
         }
         let page = WebKitPage(configuration: configuration, engine: self, profile: options.profile)
         page.delegate = delegate
@@ -174,6 +169,8 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
             if let existing = namedConfigurations[id] { return existing }
             let configuration = Self.makeConfiguration(store: WKWebsiteDataStore(forIdentifier: id))
             Self.setDeveloperExtras(developerToolsEnabled, on: configuration)
+            // vx-bot/NOTE: Extensions are shared across profiles; website cookies and storage stay in this profile's store.
+            if #available(macOS 15.4, *) { configuration.webExtensionController = webExtensions?.controller }
             namedConfigurations[id] = configuration
             return configuration
         }

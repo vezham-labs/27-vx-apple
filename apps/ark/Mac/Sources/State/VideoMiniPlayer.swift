@@ -352,7 +352,11 @@ final class ArkVideoFloat {
         var onEnter: (() -> Void)?
 
         var playing = true {
-            didSet { pause.image = glyph(playing ? "pause.fill" : "play.fill", 17) }
+            didSet {
+                guard playing != oldValue else { return }
+                pause.image = glyph(playing ? "pause.fill" : "play.fill", 17)
+                pause.setAccessibilityLabel(playing ? "Pause video" : "Play video")
+            }
         }
 
         /// Nought to one. Drawn as a hairline along the bottom edge.

@@ -345,7 +345,7 @@ final class SidebarDragging {
     /// A tab can join the favourites if it has an address that isn't one already.
     func canFavourite(_ tab: BrowserTab, browser: Browser) -> Bool {
         guard !tab.isPrivate, let url = tab.url, !Welcome.isWelcome(url) else { return false }
-        return !browser.library.isFavorite(url)
+        return !browser.isFavorite(url)
     }
 
     private func slot(of tab: BrowserTab, in space: Space) -> Target {

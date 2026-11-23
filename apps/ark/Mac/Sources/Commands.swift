@@ -185,7 +185,7 @@ struct BrowserCommands: Commands {
             }
             .keyboardShortcut(keys.shortcut(.pin))
             .disabled(tab == nil || tab?.isPrivate == true)
-            Button(tab?.url.map { library.isFavorite($0) } == true ? "Remove from Favourites" : "Add to Favourites") {
+            Button(tab?.url.map { browser?.isFavorite($0) == true } == true ? "Remove from Favourites" : "Add to Favourites") {
                 browser?.toggleFavoriteForCurrentTab()
             }
             .keyboardShortcut(keys.shortcut(.favourite))

@@ -536,14 +536,14 @@ final class ArkVideoFloat {
             }
             ignoringDrag = false
             stopGlide()
-            grab = NSEvent.mouseLocation
+            grab = window.convertPoint(toScreen: event.locationInWindow)
             origin = window.frame
             stretching = atCorner(convert(event.locationInWindow, from: nil))
         }
 
         override func mouseDragged(with event: NSEvent) {
             guard let window, !ignoringDrag else { return }
-            let now = NSEvent.mouseLocation
+            let now = window.convertPoint(toScreen: event.locationInWindow)
             let dx = now.x - grab.x
             let dy = now.y - grab.y
 
@@ -855,7 +855,7 @@ final class ArkVideoFloat {
 
         private func resize(to width: CGFloat, from was: NSRect, around anchor: NSPoint? = nil) {
             guard let window, was.width > 0 else { return }
-            let limit = NSScreen.main?.visibleFrame.width ?? 1600
+            let limit = (window.screen ?? NSScreen.main)?.visibleFrame.width ?? 1600
             // Keeps the shape: a video window that can be squashed is a video
             // window showing bars.
             let wide = min(max(window.minSize.width, width), limit * 0.85)

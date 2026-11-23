@@ -23,6 +23,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
     weak var host: (any EngineExtensionHost)?
     private(set) var loaded: [EngineExtension] = []
     private var contexts: [String: WKWebExtensionContext] = [:]
+    private var loadGeneration = UUID()
     private var windows: [UUID: ExtensionWindow] = [:]
     /// Where the popup of the button being clicked should appear.
     private weak var popupAnchor: NSView?
@@ -63,6 +64,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
     }
 
     func loadInstalled(folders: [ExtensionFolder] = [], includeApps: Bool = true) async -> [String] {
+        let generation = loadGeneration
         var (bundles, problems) = includeApps ? Self.installedBundles() : ([], [])
         // Unpacked extensions: Ark's store installs and folders the user picked.
         for folder in folders {
@@ -73,6 +75,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
                 let url = try ExtensionCompat.prepare(folder.url, id: id,
                                                       in: AppFolders.support.appending(path: "Extensions (WebKit)"))
                 let ext = try await WKWebExtension(resourceBaseURL: url)
+                guard generation == loadGeneration else { return problems }
                 let context = WKWebExtensionContext(for: ext)
                 context.uniqueIdentifier = id
                 // The same address every launch, so restored tabs showing the extension's pages still work.
@@ -85,6 +88,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
                 loaded.append(describe(ext, context: context, id: id))
                 problems += (ext.errors + context.errors).map { "\(id): \($0.localizedDescription)" }
             } catch {
+                guard generation == loadGeneration else { return problems }
                 problems.append("\(id): \(error)")
             }
         }
@@ -95,6 +99,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
             guard let bundle = Bundle(url: url), let id = bundle.bundleIdentifier, contexts[id] == nil else { continue }
             do {
                 let ext = try await WKWebExtension(appExtensionBundle: bundle)
+                guard generation == loadGeneration else { return problems }
                 if unpackedNames.contains(Self.comparableName(ext.displayName ?? "")) {
                     engineLog.info("extension: skipped the Safari copy of \(ext.displayName ?? id, privacy: .public); the store version is in use")
                     continue
@@ -112,6 +117,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
                 problems += (ext.errors + context.errors).map { "\(id): \($0.localizedDescription)" }
                 engineLog.info("extension loaded: \(id, privacy: .public)")
             } catch {
+                guard generation == loadGeneration else { return problems }
                 problems.append("\(id): \(error.localizedDescription)")
             }
         }
@@ -219,6 +225,12 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
     }
 
     func unloadAll() {
+        loadGeneration = UUID()
+        keepAliveTimers.values.forEach { $0.invalidate() }
+        keepAliveTimers.removeAll()
+        keepAlives.values.forEach { $0.stopLoading() }
+        keepAlives.removeAll()
+        keepAliveLastPing.removeAll()
         for c in contexts.values { ExtensionOffscreen.close(for: c); try? controller.unload(c) }
         contexts = [:]
         loaded = []

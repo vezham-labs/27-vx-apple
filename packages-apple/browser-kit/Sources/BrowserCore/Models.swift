@@ -485,20 +485,30 @@ public struct BrowserSnapshot: Codable, Sendable {
     public var spaces: [SpaceRecord]
     public var selectedSpaceID: UUID?
     public var favorites: [Favorite]
+    /// Profile-scoped favorites. Missing in older snapshots; their global favorites
+    /// are migrated into the Default profile when loaded.
+    public var profileFavorites: [String: [Favorite]]?
     public var archive: [TabRecord]
     public var settings: BrowserSettings?
     /// Missing in state saved before Saved Sites existed.
     public var saved: [SavedSite]?
 
     public init(spaces: [SpaceRecord], selectedSpaceID: UUID?, favorites: [Favorite], archive: [TabRecord],
-                settings: BrowserSettings?, saved: [SavedSite]?) {
+                settings: BrowserSettings?, saved: [SavedSite]?, profileFavorites: [String: [Favorite]]? = nil) {
         self.spaces = spaces
         self.selectedSpaceID = selectedSpaceID
         self.favorites = favorites
+        self.profileFavorites = profileFavorites
         self.archive = archive
         self.settings = settings
         self.saved = saved
     }
+}
+
+/// Stable snapshot keys for profile-scoped favorites; nil is the legacy Default profile.
+public enum FavoriteProfileKey {
+    public static let `default` = "default"
+    public static func key(for profileID: UUID?) -> String { profileID?.uuidString ?? Self.default }
 }
 
 extension BrowserTab {

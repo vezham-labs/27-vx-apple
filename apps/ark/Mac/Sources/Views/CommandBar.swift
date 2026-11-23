@@ -266,12 +266,12 @@ struct CommandBar: View {
                 Divider().opacity(0.6)
                 ToolStrip(highlighted: model?.toolHighlighted) { close() }
                     .onAppear { model?.toolCount = browser.library.workbench.panelTools.count + 1 }
-            } else if mode == .newTab, model?.isTyping != true, !browser.library.favorites.isEmpty {
+            } else if mode == .newTab, model?.isTyping != true, !browser.favorites.isEmpty {
                 // Favourites across the top, so they're a keystroke away even in full screen with the sidebar hidden.
                 Divider().opacity(0.6)
                 FavouritesStrip(highlighted: model?.toolHighlighted) { close() }
                     .onAppear {
-                        model?.toolCount = browser.library.favorites.count
+                        model?.toolCount = browser.favorites.count
                         model?.favouritesInRow = true
                     }
             }
@@ -347,7 +347,7 @@ struct CommandBar: View {
 
     private func submit(_ text: String) {
         if let t = model?.toolHighlighted, mode == .newTab {
-            let favourites = browser.library.sortedFavorites
+            let favourites = browser.sortedFavorites
             close()
             if favourites.indices.contains(t) { browser.open(favourites[t]) }
             return
@@ -369,7 +369,7 @@ struct CommandBar: View {
 
     private func preview(_ text: String) -> Bool {
         if let i = model?.toolHighlighted {
-            let favorites = browser.library.sortedFavorites
+            let favorites = browser.sortedFavorites
             guard mode == .newTab, favorites.indices.contains(i) else { return false }
             return browser.previewLink(favorites[i].url, from: nil)
         }
@@ -524,7 +524,7 @@ private struct FavouritesStrip: View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
-                    ForEach(Array(browser.library.sortedFavorites.enumerated()), id: \.element.id) { i, favorite in
+                    ForEach(Array(browser.sortedFavorites.enumerated()), id: \.element.id) { i, favorite in
                         Button {
                             done()
                             browser.open(favorite)

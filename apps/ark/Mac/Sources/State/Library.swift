@@ -15,8 +15,8 @@ private let windowLog = Logger(subsystem: "app.vezham.ark", category: "windows")
 @MainActor @Observable
 final class Library {
     var spaces: [Space]
-    /// Shared across spaces, like Arc's favourites row.
-    var favorites: [Favorite]
+    /// Saved sites scoped to each website profile, like Search's bookmark stores.
+    var favoritesByProfile: [String: [Favorite]]
     var archive: [BrowserTab] = []
     var settings = BrowserSettings() {
         didSet {
@@ -127,7 +127,7 @@ final class Library {
            let snap = try? JSONDecoder().decode(BrowserSnapshot.self, from: data), !snap.spaces.isEmpty {
             spaces = snap.spaces.map(Space.init)
             launchSpaceID = snap.selectedSpaceID ?? snap.spaces[0].id
-            favorites = snap.favorites
+            favoritesByProfile = snap.profileFavorites ?? [FavoriteProfileKey.default: snap.favorites]
             archive = snap.archive.map(BrowserTab.init)
             savedSites = snap.saved ?? []
             if let s = snap.settings { settings = s }
@@ -135,7 +135,7 @@ final class Library {
             let personal = Space(name: "Personal", symbol: "house.fill", colorIndex: 0)
             spaces = [personal, Space(name: "Work", symbol: "briefcase.fill", colorIndex: 1)]
             launchSpaceID = personal.id
-            favorites = Self.starterFavorites
+            favoritesByProfile = [FavoriteProfileKey.default: Self.starterFavorites]
         }
         engine.developerToolsEnabled = developerTools
         if let calls = engine as? CallAudioConfigurable {
@@ -670,37 +670,45 @@ final class Library {
 
     // MARK: Favourites
 
-    func isFavorite(_ url: URL) -> Bool {
-        let key = URLNormalizer.key(for: url)
-        return favorites.contains { URLNormalizer.key(for: $0.url) == key }
+    func favorites(for profileID: UUID?) -> [Favorite] {
+        favoritesByProfile[FavoriteProfileKey.key(for: profileID)] ?? []
     }
 
-    func addFavorite(url: URL, title: String) {
-        guard !isFavorite(url) else { return }
-        favorites.append(Favorite(url: url, title: title, order: (favorites.map(\.order).max() ?? -1) + 1))
-        Task { await history.setBookmarked(url, true) }
+    func isFavorite(_ url: URL, profileID: UUID? = nil) -> Bool {
+        let key = URLNormalizer.key(for: url)
+        return favorites(for: profileID).contains { URLNormalizer.key(for: $0.url) == key }
+    }
+
+    func addFavorite(url: URL, title: String, profileID: UUID? = nil) {
+        let key = FavoriteProfileKey.key(for: profileID)
+        var items = favorites(for: profileID)
+        guard !isFavorite(url, profileID: profileID) else { return }
+        items.append(Favorite(url: url, title: title, order: (items.map(\.order).max() ?? -1) + 1))
+        favoritesByProfile[key] = items
+        Task { await profileHistory.store(for: profileID).setBookmarked(url, true) }
         scheduleSave()
     }
 
-    func removeFavorite(_ fav: Favorite) {
-        favorites.removeAll { $0.id == fav.id }
+    func removeFavorite(_ fav: Favorite, profileID: UUID? = nil) {
+        let key = FavoriteProfileKey.key(for: profileID)
+        favoritesByProfile[key, default: []].removeAll { $0.id == fav.id }
         // Its tabs go back to being ordinary Today tabs.
         for tab in allTabs where tab.favoriteID == fav.id { tab.favoriteID = nil }
-        Task { await history.setBookmarked(fav.url, false) }
+        Task { await profileHistory.store(for: profileID).setBookmarked(fav.url, false) }
         scheduleSave()
     }
 
-    func moveFavorite(_ fav: Favorite, before target: Favorite?) {
-        var sorted = sortedFavorites
+    func moveFavorite(_ fav: Favorite, before target: Favorite?, profileID: UUID? = nil) {
+        var sorted = sortedFavorites(for: profileID)
         sorted.removeAll { $0.id == fav.id }
         let i = target.flatMap { t in sorted.firstIndex { $0.id == t.id } } ?? sorted.endIndex
         sorted.insert(fav, at: i)
         for j in sorted.indices { sorted[j].order = j }
-        favorites = sorted
+        favoritesByProfile[FavoriteProfileKey.key(for: profileID)] = sorted
         scheduleSave()
     }
 
-    var sortedFavorites: [Favorite] { favorites.sorted { $0.order < $1.order } }
+    func sortedFavorites(for profileID: UUID?) -> [Favorite] { favorites(for: profileID).sorted { $0.order < $1.order } }
 
     // MARK: Spaces
 
@@ -870,7 +878,7 @@ final class Library {
         let inPrivate = window.currentSpace.isPrivate
         return SuggestEngine(
             history: profileHistory.store(for: profileID),
-            favorites: { [weak self] in await MainActor.run { self?.favorites ?? [] } },
+            favorites: { [weak self] in await MainActor.run { self?.favorites(for: profileID) ?? [] } },
             openTabs: { [weak self, weak window] in
                 await MainActor.run {
                     guard let self, let window else { return [] }
@@ -917,8 +925,8 @@ final class Library {
         let selected = shown.flatMap { $0.isPrivate ? nil : $0.id } ?? launchSpaceID
         launchSpaceID = selected
         let snap = BrowserSnapshot(spaces: regularSpaces.map(\.record), selectedSpaceID: selected,
-                                   favorites: favorites, archive: archive.map(\.record), settings: settings,
-                                   saved: savedSites)
+                                   favorites: favorites(for: nil), archive: archive.map(\.record), settings: settings,
+                                   saved: savedSites, profileFavorites: favoritesByProfile)
         guard let data = try? JSONEncoder().encode(snap) else { return }
         try? FileManager.default.createDirectory(at: snapshotURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: snapshotURL, options: .atomic)

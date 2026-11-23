@@ -165,13 +165,13 @@ extension BrowserState {
     public func addFavorite(url: URL, title: String) {
         guard !isFavorite(url) else { return }
         favorites.append(Favorite(url: url, title: title, order: (favorites.map(\.order).max() ?? -1) + 1))
-        Task { await history.setBookmarked(url, true) }
+        Task { await profileHistory.store(for: currentSpace.websiteProfileID).setBookmarked(url, true) }
         scheduleSave()
     }
 
     public func removeFavorite(_ fav: Favorite) {
         favorites.removeAll { $0.id == fav.id }
-        Task { await history.setBookmarked(fav.url, false) }
+        Task { await profileHistory.store(for: currentSpace.websiteProfileID).setBookmarked(fav.url, false) }
         scheduleSave()
     }
 

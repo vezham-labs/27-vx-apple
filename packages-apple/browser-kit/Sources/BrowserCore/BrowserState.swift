@@ -10,7 +10,11 @@ import Suggest
 public final class BrowserState {
     public var spaces: [Space]
     public var selectedSpaceID: UUID
-    public var favorites: [Favorite]
+    private var profileFavorites: [String: [Favorite]]
+    public var favorites: [Favorite] {
+        get { profileFavorites[FavoriteProfileKey.key(for: currentSpace.websiteProfileID)] ?? [] }
+        set { profileFavorites[FavoriteProfileKey.key(for: currentSpace.websiteProfileID)] = newValue }
+    }
     public var archive: [BrowserTab] = []
     /// Saved sites, newest first.
     public var saved: [SavedSite] = []
@@ -106,7 +110,7 @@ public final class BrowserState {
            let snap = try? JSONDecoder().decode(BrowserSnapshot.self, from: data), !snap.spaces.isEmpty {
             spaces = snap.spaces.map(Space.init)
             selectedSpaceID = snap.selectedSpaceID ?? snap.spaces[0].id
-            favorites = snap.favorites
+            profileFavorites = snap.profileFavorites ?? [FavoriteProfileKey.default: snap.favorites]
             archive = snap.archive.map(BrowserTab.init)
             saved = snap.saved ?? []
             if let s = snap.settings { settings = s }
@@ -114,7 +118,7 @@ public final class BrowserState {
             let personal = Space(name: "Personal", symbol: "house.fill", colorIndex: 0)
             spaces = [personal, Space(name: "Work", symbol: "briefcase.fill", colorIndex: 1)]
             selectedSpaceID = personal.id
-            favorites = []
+            profileFavorites = [FavoriteProfileKey.default: []]
         }
         applyContentBlocking()
         loadSavedThumbnails()
@@ -383,7 +387,7 @@ public final class BrowserState {
         return SuggestEngine(
             history: profileHistory.store(for: profileID),
             favorites: { [weak self] in
-                await MainActor.run { self?.favorites ?? [] }
+                await MainActor.run { self?.profileFavorites[FavoriteProfileKey.key(for: profileID)] ?? [] }
             },
             openTabs: { [weak self] in
                 await MainActor.run {
@@ -430,8 +434,8 @@ public final class BrowserState {
         // Private is never saved. Next launch opens in the space you came to it from.
         let selected = currentSpace.isPrivate ? (spaceBeforePrivate ?? regularSpaces.first?.id) : selectedSpaceID
         let snap = BrowserSnapshot(spaces: regularSpaces.map(\.record), selectedSpaceID: selected,
-                                   favorites: favorites, archive: archive.map(\.record), settings: settings,
-                                   saved: saved)
+                                   favorites: profileFavorites[FavoriteProfileKey.default] ?? [], archive: archive.map(\.record), settings: settings,
+                                   saved: saved, profileFavorites: profileFavorites)
         guard let data = try? JSONEncoder().encode(snap) else { return }
         try? FileManager.default.createDirectory(at: snapshotURL.deletingLastPathComponent(),
                                                  withIntermediateDirectories: true)

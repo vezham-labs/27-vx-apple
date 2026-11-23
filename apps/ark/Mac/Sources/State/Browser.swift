@@ -138,8 +138,8 @@ final class Browser {
     var spaces: [Space] { library.spaces }
     var regularSpaces: [Space] { library.regularSpaces }
     var privateSpace: Space? { library.privateSpace }
-    var favorites: [Favorite] { library.favorites }
-    var sortedFavorites: [Favorite] { library.sortedFavorites }
+    var favorites: [Favorite] { library.favorites(for: currentSpace.websiteProfileID) }
+    var sortedFavorites: [Favorite] { library.sortedFavorites(for: currentSpace.websiteProfileID) }
     var archive: [BrowserTab] { library.archive }
     var settings: BrowserSettings {
         get { library.settings }
@@ -154,10 +154,10 @@ final class Browser {
 
     func space(containing tab: BrowserTab) -> Space? { library.space(containing: tab) }
     func controller(for tab: BrowserTab) -> TabController { library.controller(for: tab) }
-    func isFavorite(_ url: URL) -> Bool { library.isFavorite(url) }
-    func addFavorite(url: URL, title: String) { library.addFavorite(url: url, title: title) }
-    func removeFavorite(_ fav: Favorite) { library.removeFavorite(fav) }
-    func moveFavorite(_ fav: Favorite, before target: Favorite?) { library.moveFavorite(fav, before: target) }
+    func isFavorite(_ url: URL) -> Bool { library.isFavorite(url, profileID: currentSpace.websiteProfileID) }
+    func addFavorite(url: URL, title: String) { library.addFavorite(url: url, title: title, profileID: currentSpace.websiteProfileID) }
+    func removeFavorite(_ fav: Favorite) { library.removeFavorite(fav, profileID: currentSpace.websiteProfileID) }
+    func moveFavorite(_ fav: Favorite, before target: Favorite?) { library.moveFavorite(fav, before: target, profileID: currentSpace.websiteProfileID) }
     func togglePinned(_ tab: BrowserTab) { library.togglePinned(tab) }
     func move(_ tab: BrowserTab, to space: Space) { library.move(tab, to: space) }
     func move(_ tab: BrowserTab, before target: BrowserTab?, pinned: Bool) {

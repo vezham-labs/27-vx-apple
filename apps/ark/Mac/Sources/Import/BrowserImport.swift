@@ -460,7 +460,7 @@ extension Library {
             _ = await history.importVisits(marks.map { .init(url: $0.url, title: $0.title, visitCount: 1, lastVisit: now, isBookmark: true) })
             result.bookmarks = marks.count
             if options.bookmarks == .searchAndFavourites {
-                let room = max(0, options.favouriteCount - favorites.count)
+                let room = max(0, options.favouriteCount - favorites(for: nil).count)
                 for b in data.bar.filter({ $0.url.scheme?.hasPrefix("http") == true }).prefix(room) where !isFavorite(b.url) {
                     addFavorite(url: b.url, title: b.title)
                     result.favourites += 1

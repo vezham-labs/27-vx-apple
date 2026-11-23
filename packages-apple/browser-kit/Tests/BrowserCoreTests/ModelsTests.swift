@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import BrowserCore
+import Suggest
 
 @Test @MainActor func recentTabsPreferTheSelectionAndLimitResults() {
     let pinned = BrowserTab(url: nil, title: "Pinned", isPinned: true, lastActive: Date(timeIntervalSince1970: 30))
@@ -124,6 +125,7 @@ import Testing
         let old = #"{"spaces":[],"favorites":[],"archive":[]}"#
         let snap = try JSONDecoder().decode(BrowserSnapshot.self, from: Data(old.utf8))
         #expect(snap.saved == nil)
+        #expect(snap.profileFavorites == nil)
     }
 
     @Test func savedSitesRoundTrip() throws {
@@ -131,6 +133,18 @@ import Testing
         let snap = BrowserSnapshot(spaces: [], selectedSpaceID: nil, favorites: [], archive: [], settings: nil, saved: [site])
         let back = try JSONDecoder().decode(BrowserSnapshot.self, from: JSONEncoder().encode(snap))
         #expect(back.saved == [site])
+    }
+    @Test func profileFavoritesRoundTripWithoutChangingLegacyDefaultField() throws {
+        let defaultFavorite = Favorite(url: URL(string: "https://default.example")!, title: "Default", order: 0)
+        let workID = UUID(uuidString: "A1111111-2222-4333-8444-555555555555")!
+        let workFavorite = Favorite(url: URL(string: "https://work.example")!, title: "Work", order: 0)
+        let profileFavorites = [FavoriteProfileKey.default: [defaultFavorite], workID.uuidString: [workFavorite]]
+        let snap = BrowserSnapshot(spaces: [], selectedSpaceID: nil, favorites: [defaultFavorite], archive: [],
+                                   settings: nil, saved: nil, profileFavorites: profileFavorites)
+        let back = try JSONDecoder().decode(BrowserSnapshot.self, from: JSONEncoder().encode(snap))
+        #expect(back.favorites == [defaultFavorite])
+        #expect(back.profileFavorites == profileFavorites)
+        #expect(FavoriteProfileKey.key(for: workID) == workID.uuidString)
     }
     @Test func tabsFromBeforeWindowKeysStillLoad() throws {
         let old = #"{"id":"6F1C2D4E-0000-4000-8000-000000000001","title":"A","isPinned":false,"lastActive":0}"#

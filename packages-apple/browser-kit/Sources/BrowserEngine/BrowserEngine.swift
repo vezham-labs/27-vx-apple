@@ -39,6 +39,9 @@ public protocol BrowserEngine: AnyObject {
     /// Clears a named profile's persistent store and releases its cached configuration after its pages close.
     func deleteWebsiteDataStore(for profile: BrowsingProfile) async
 
+    /// The Mac click modifier that opens a link in a temporary preview.
+    var linkPreviewModifier: LinkPreviewModifier { get set }
+
     /// Throws away everything the ephemeral (private) profile stored. Its pages must be closed first.
     func resetEphemeralProfile()
 
@@ -71,6 +74,7 @@ public protocol BrowserEngine: AnyObject {
 
 public extension BrowserEngine {
     func deleteWebsiteDataStore(for profile: BrowsingProfile) async {}
+    var linkPreviewModifier: LinkPreviewModifier { get { .option } set {} }
     var extensions: [EngineExtension] { [] }
     var extensionHost: (any EngineExtensionHost)? { get { nil } set {} }
     func loadInstalledExtensions() async -> [String] { [] }
@@ -82,6 +86,23 @@ public extension BrowserEngine {
     func performAction(extensionID: String, for page: (any EnginePage)?, anchor: PlatformView?) {}
     func extensionActionState(extensionID: String, for page: (any EnginePage)?) -> EngineActionState? { nil }
     func pageDidBecomeActive(_ page: any EnginePage) {}
+}
+
+public enum LinkPreviewModifier: String, CaseIterable, Identifiable, Sendable {
+    case option
+    case shift
+    case optionShift
+    case optionCommand
+
+    public var id: Self { self }
+    public var title: String {
+        switch self {
+        case .option: "Option-click"
+        case .shift: "Shift-click"
+        case .optionShift: "Option-Shift-click"
+        case .optionCommand: "Option-Command-click"
+        }
+    }
 }
 
 // MARK: - Extensions
@@ -434,7 +455,7 @@ public struct NavigationRequest: Sendable {
     public let wantsNewTab: Bool
     /// Shift was held too, so the new tab should come to the front.
     public let wantsForeground: Bool
-    /// Option-click on a link: the user wants a quick look (Glance) without leaving the page.
+    /// The configured modified click on a link: the user wants a quick look (Glance) without leaving the page.
     public let wantsGlance: Bool
 
     public init(url: URL, kind: Kind, isMainFrame: Bool, method: String, wantsNewTab: Bool = false, wantsForeground: Bool = false,

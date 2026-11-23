@@ -111,6 +111,7 @@ final class Library {
          history: HistoryStore = HistoryStore(fileURL: HistoryStore.defaultFileURL()),
          snapshotURL: URL? = Library.defaultSnapshotURL()) {
         self.engine = engine
+        engine.linkPreviewModifier = Preferences.linkPreviewModifier
         self.history = history
         profileHistory = ProfileHistoryStores(defaultStore: history)
         self.snapshotURL = snapshotURL

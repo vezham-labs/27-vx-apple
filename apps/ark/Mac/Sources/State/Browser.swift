@@ -61,7 +61,7 @@ final class Browser {
     /// Buttons on the toast, e.g. "Keep in Personal" after Space Routing moved a tab.
     var toastActions: [ToastAction] = []
     @ObservationIgnored var isCapturingPage = false
-    /// A link opened for a quick look over the page (Option-click), not yet a tab.
+    /// A link opened for a quick look over the page using the configured click modifier, not yet a tab.
     var glance: GlanceSession?
     var activePrompt: Prompt?
     var siteStyleHost: String?
@@ -605,6 +605,10 @@ enum Preferences {
     static var externalLinksInPreview: Bool { d.bool(forKey: externalLinksInPreviewKey) }
     static let automaticVideoPiPKey = "automaticVideoPiP"
     static var automaticVideoPiP: Bool { d.bool(forKey: automaticVideoPiPKey) }
+    static var linkPreviewModifier: LinkPreviewModifier {
+        get { d.string(forKey: "linkPreviewModifier").flatMap(LinkPreviewModifier.init(rawValue:)) ?? .option }
+        set { d.set(newValue.rawValue, forKey: "linkPreviewModifier") }
+    }
 
     /// Set once the welcome tab has opened, so the intro plays on first launch only.
     static var hasSeenWelcome: Bool {

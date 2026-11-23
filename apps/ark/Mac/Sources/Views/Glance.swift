@@ -3,7 +3,7 @@ import AppKit
 import BrowserCore
 import BrowserEngine
 
-/// Glance: Option-click a link to look at it in a card over the page, like Zen's Glance and Arc's
+/// Glance: a configured modified click previews a link in a card over the page, like Zen's Glance and Arc's
 /// Peek. Esc (or a click outside) puts it away; ⌘Return or the expand button makes it a tab.
 @MainActor @Observable
 final class GlanceSession: Identifiable, EnginePageDelegate {

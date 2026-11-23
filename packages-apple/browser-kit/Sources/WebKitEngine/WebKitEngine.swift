@@ -15,6 +15,7 @@ let engineLog = Logger(subsystem: "app.vezham.ark", category: "webkit")
 public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
     public let info: EngineInfo
     public var downloadsDirectory: URL
+    public var linkPreviewModifier: LinkPreviewModifier = .option
     public var developerToolsEnabled = false {
         didSet {
             for c in [standardConfiguration, ephemeralConfiguration] { Self.setDeveloperExtras(developerToolsEnabled, on: c) }
@@ -173,6 +174,16 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
             if #available(macOS 15.4, *) { configuration.webExtensionController = webExtensions?.controller }
             namedConfigurations[id] = configuration
             return configuration
+        }
+    }
+
+    func shouldPreviewLink(on flags: NSEvent.ModifierFlags) -> Bool {
+        let flags = flags.intersection([.option, .shift, .command, .control])
+        return switch linkPreviewModifier {
+        case .option: flags == [.option]
+        case .shift: flags == [.shift]
+        case .optionShift: flags == [.option, .shift]
+        case .optionCommand: flags == [.option, .command]
         }
     }
 

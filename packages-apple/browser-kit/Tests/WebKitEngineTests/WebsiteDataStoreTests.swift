@@ -3,10 +3,26 @@ import AppKit
 import BrowserEngine
 import Testing
 import WebKit
-import WebKitEngine
+@testable import WebKitEngine
 
 @Suite(.serialized)
 struct WebsiteDataStoreTests {
+    @Test @MainActor func configuredPreviewModifierMatchesOnlyItsExactCombination() {
+        let engine = WebKitEngine()
+        engine.linkPreviewModifier = .option
+        #expect(engine.shouldPreviewLink(on: [.option]))
+        #expect(!engine.shouldPreviewLink(on: [.option, .command]))
+        engine.linkPreviewModifier = .shift
+        #expect(engine.shouldPreviewLink(on: [.shift]))
+        #expect(!engine.shouldPreviewLink(on: [.shift, .control]))
+        engine.linkPreviewModifier = .optionShift
+        #expect(engine.shouldPreviewLink(on: [.option, .shift]))
+        #expect(!engine.shouldPreviewLink(on: [.option, .shift, .command]))
+        engine.linkPreviewModifier = .optionCommand
+        #expect(engine.shouldPreviewLink(on: [.option, .command]))
+        #expect(!engine.shouldPreviewLink(on: [.option]))
+    }
+
     @Test @MainActor func deletingNamedProfileStoreRemovesItsPersistentCookies() async throws {
         let id = UUID()
         let engine = WebKitEngine()

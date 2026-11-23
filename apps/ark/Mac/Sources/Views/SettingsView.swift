@@ -61,6 +61,7 @@ private struct GeneralSettings: View {
     @AppStorage(ArkAppearance.key) private var appearance = ""
     @AppStorage(Preferences.externalLinksInPreviewKey) private var externalLinksInPreview = false
     @AppStorage(Preferences.automaticVideoPiPKey) private var automaticVideoPiP = false
+    @AppStorage("linkPreviewModifier") private var linkPreviewModifier = LinkPreviewModifier.option.rawValue
     @AppStorage(ArkVideoFloat.flicksKey) private var miniPlayerFlicks = false
 
     var body: some View {
@@ -78,6 +79,16 @@ private struct GeneralSettings: View {
                 Toggle("Open links from other apps in a preview window", isOn: $externalLinksInPreview)
                 Toggle("Float videos when switching tabs or apps", isOn: $automaticVideoPiP)
                 Toggle("Swipe to snap and dock Mini Player", isOn: $miniPlayerFlicks)
+                Picker("Peek at a link with", selection: $linkPreviewModifier) {
+                    ForEach(LinkPreviewModifier.allCases) { modifier in
+                        Text(modifier.title).tag(modifier.rawValue)
+                    }
+                }
+                .onChange(of: linkPreviewModifier) { _, value in
+                    let modifier = LinkPreviewModifier(rawValue: value) ?? .option
+                    Preferences.linkPreviewModifier = modifier
+                    browser.engine.linkPreviewModifier = modifier
+                }
                 LabeledContent("Import") {
                     Button("Import from Another Browser…") { importing = true }
                         .sheet(isPresented: $importing) { ImportSheet().environment(browser) }

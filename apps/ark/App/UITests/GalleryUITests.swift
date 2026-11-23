@@ -123,26 +123,21 @@ final class SidebarUITests: XCTestCase {
 
 @MainActor
 final class MobileSplitViewUITests: XCTestCase {
-    func testOpensTwoLivePanesAndFocusesTheOtherTab() throws {
+    func testOpensTwoLivePanesAndFocusesTheOtherTab() {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing", "2", "--split-fixture", "--posture", "folded"]
         app.launch()
         XCTAssertTrue(app.webViews.staticTexts["Split page 2"].waitForExistence(timeout: 30))
-        let more = app.buttons["More"].firstMatch
-        if !more.exists {
-            let address = try XCTUnwrap(app.buttons.matching(identifier: "Pane 2").allElementsBoundByIndex
-                .first { $0.frame.width > 44 })
-            address.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        }
-        XCTAssertTrue(more.waitForExistence(timeout: 10))
-        more.tap()
-        let split = app.descendants(matching: .any)["Open Split View"].firstMatch
+        let tabs = app.buttons["Tabs"].firstMatch
+        XCTAssertTrue(tabs.waitForExistence(timeout: 10))
+        tabs.tap()
+        let card = app.buttons.matching(identifier: "tabCard").matching(NSPredicate(format: "label == %@", "Pane 1")).firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 15))
+        card.press(forDuration: 1)
+        let split = app.buttons["Open in Split View"].firstMatch
         XCTAssertTrue(split.waitForExistence(timeout: 15))
         split.tap()
-        let other = app.buttons["Pane 1"].firstMatch
-        XCTAssertTrue(other.waitForExistence(timeout: 10))
-        other.tap()
         XCTAssertTrue(app.webViews.staticTexts["Split page 1"].waitForExistence(timeout: 20))
         XCTAssertTrue(app.webViews.staticTexts["Split page 2"].exists)
         let firstPane = app.buttons["split-pane-Pane 1"]

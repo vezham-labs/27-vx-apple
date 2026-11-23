@@ -193,6 +193,14 @@ struct TabMenu: View {
     let tab: BrowserTab
 
     var body: some View {
+        if browser.currentSpace.splitCandidates.contains(where: { $0 === tab }) {
+            Button("Open in Split View", systemImage: "rectangle.split.2x1") {
+                if browser.currentSpace.splitWith(tab) {
+                    browser.isTabSwitcherPresented = false
+                    browser.scheduleSave()
+                }
+            }
+        }
         if !tab.isPrivate {
             Button(tab.isPinned ? "Unpin" : "Pin", systemImage: tab.isPinned ? "pin.slash" : "pin") {
                 browser.togglePinned(tab)

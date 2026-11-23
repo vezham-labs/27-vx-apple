@@ -35,6 +35,18 @@ git log --oneline 19eef7990aec8bd5491ef06ffc14928b7a73033f..FETCH_HEAD
 | Verification           | The Ark Mac build passed. A 500-by-300 WebKit viewport produced a 500-by-1600 PNG that included offscreen content.                  |
 | Pending review         | Region capture, mobile split tabs and site styles, pin folders, and iCloud sync.                                                    |
 
+### Search audit increment: Mac automatic video PiP
+
+| Field                 | Value                                                                                                                                                                                                                                                                                                                              |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reference repository  | [driceroland/Search](https://github.com/driceroland/Search)                                                                                                                                                                                                                                                                        |
+| Search source SHA     | [`6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`](https://github.com/driceroland/Search/commit/6f2b186bfa862d282ee9f424be1dfd5eb8ddc316)                                                                                                                                                                                               |
+| Ark implementation    | `d8d7209466f8c6438a7fd0f19381e33a7bc2f43a` adds opt-in Mac PiP for eligible ordinary videos and closes Ark-owned PiP before tab unload.                                                                                                                                                                                                       |
+| Search files reviewed | `Sources/Search/NativePiP.swift`, `Float.swift`, and `Player.swift`. Ark adapted native system PiP; Search’s own floating WebView player remains a separate, open Mini player feature.                                                                                                                                                |
+| Verification          | The isolated macOS 27.2 fixture passed tab-switch PiP, return to inline playback, muted-video exclusion, site-PiP ownership, and source-tab cleanup. Clean Mac Nx build passed. Mobile, app-deactivation, streaming-service, and performance checks remain open. The comparison and [Search audit](ark-search-audit.md) record scope and limitations. |
+
+The adjacent **Mini player** row was reviewed against Search’s 1,704-line `Float.swift`. Ark’s system PiP provides native playback controls, while Search’s Ark-owned video window adds custom controls, positioning, resize, and docking behavior. Those custom window behaviors remain open; the comparison stays **Partial** on Mac.
+
 ### Feature audit
 
 The [Search feature audit](ark-search-audit.md) maps all 42 comparison rows to Search and Ark code. This pass adds a last-used-tab action and versioned Space link export on Mac. It also moves full-page PNG rasterization and encoding off the main thread.

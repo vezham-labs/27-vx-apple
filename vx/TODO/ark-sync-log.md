@@ -351,3 +351,7 @@ Search's `Profiles.swift` exposes profile creation, renaming, and deletion. Ark'
 ### Mac Peek click modifier
 
 Search's `Prefs.swift` and `Peek.swift` let the user choose Shift-click, Option-Shift-click, or Option-Command-click. Ark's General settings now offer those choices plus the existing Option-click default. WebKit opens Glance only when the exact configured modifier set is held, leaving command-click and middle-click new-tab behavior intact for the other choices. BrowserKit tests cover all four mappings and reject extra modifiers. Hover previews remain open. Search reference SHA: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`.
+
+### Profile scope comparison
+
+The pinned Search `Profiles.swift` models separate browser profiles that own Space collections and browsing data, while intentionally sharing a single WebExtension controller across profiles. Ark's `WebsiteProfile` instead scopes website data to a profile assigned per Space. The comparison remains Partial because these are different profile boundaries and mobile rename/delete plus Duo runtime checks remain open; shared installed extensions match Search's explicit design and are not a Search parity gap. Search reference SHA: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`.

@@ -50,6 +50,7 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
 
     private let standardConfiguration: WKWebViewConfiguration
     private var ephemeralConfiguration: WKWebViewConfiguration
+    private var namedConfigurations: [UUID: WKWebViewConfiguration] = [:]
     /// For pages the app renders (Reader): no storage, no JavaScript, no rules or scripts.
     private let staticConfiguration: WKWebViewConfiguration
     private var ruleLists: [WKContentRuleList] = []
@@ -120,9 +121,14 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
             if let url = options.url { page.load(url) }
             return page
         }
-        var configuration = options.profile == .ephemeral ? ephemeralConfiguration : standardConfiguration
-        if #available(macOS 15.4, *), let url = options.url, let own = webExtensions?.configuration(for: url) {
-            configuration = own
+        var configuration = configuration(for: options.profile)
+        switch options.profile {
+        case .named:
+            break
+        case .standard, .ephemeral:
+            if #available(macOS 15.4, *), let url = options.url, let own = webExtensions?.configuration(for: url) {
+                configuration = own
+            }
         }
         let page = WebKitPage(configuration: configuration, engine: self, profile: options.profile)
         page.delegate = delegate
@@ -152,7 +158,21 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
         livePages = livePages.filter { $0.value.page != nil }
         // A popup can bring its own content controller; give it the current rules and scripts.
         install(on: page.webView.configuration.userContentController)
-        if #available(macOS 15.4, *) { webExtensions?.pageOpened(page) }
+        if #available(macOS 15.4, *), page.webView.configuration.webExtensionController != nil {
+            webExtensions?.pageOpened(page)
+        }
+    }
+
+    private func configuration(for profile: BrowsingProfile) -> WKWebViewConfiguration {
+        switch profile {
+        case .standard: return standardConfiguration
+        case .ephemeral: return ephemeralConfiguration
+        case .named(let id):
+            if let existing = namedConfigurations[id] { return existing }
+            let configuration = Self.makeConfiguration(store: WKWebsiteDataStore(forIdentifier: id))
+            namedConfigurations[id] = configuration
+            return configuration
+        }
     }
 
     func unregister(_ page: WebKitPage) {
@@ -312,7 +332,7 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
     // MARK: Data
 
     public func clearWebsiteData(for profile: BrowsingProfile) async {
-        let store = profile == .ephemeral ? ephemeralConfiguration.websiteDataStore : standardConfiguration.websiteDataStore
+        let store = configuration(for: profile).websiteDataStore
         await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
         if profile == .standard { HTTPCookieStorage.shared.removeCookies(since: .distantPast) }
     }

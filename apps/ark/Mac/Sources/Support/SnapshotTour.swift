@@ -4,6 +4,8 @@ import SwiftUI
 import BrowserCore
 import BrowserEngine
 import Suggest
+import WebKit
+import WebKitEngine
 
 /// Debug only: with ARK_SNAPSHOT=<folder> set, walks through the main screens and saves a PNG of
 /// the window at each step, then quits. For checking layouts on a Mac nobody is looking at.
@@ -149,6 +151,7 @@ struct SnapshotTour {
         guard let window = browser.nsWindow else { note("missing window"); return }
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        await namedProfileCheck()
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
         browser.newTab(url: first)
@@ -256,6 +259,49 @@ struct SnapshotTour {
         await baselinePreviews(browser, window: window, atlas: atlas, otherPage: second)
         await settingsPreviews(browser, window: window)
     }
+
+    private func namedProfileCheck() async {
+        let first = UUID()
+        let second = UUID()
+        await checkNamedStores(first, second)
+        for id in [first, second] {
+            try? await WKWebsiteDataStore.remove(forIdentifier: id)
+        }
+    }
+
+    private func checkNamedStores(_ first: UUID, _ second: UUID) async {
+        let engine = WebKitEngine()
+        let delegate = ProfileCheckDelegate()
+        func store(_ profile: BrowsingProfile) -> WKWebsiteDataStore? {
+            let page = engine.makePage(options: PageOptions(profile: profile), delegate: delegate)
+            defer { page.close() }
+            return (page.view as? WKWebView)?.configuration.websiteDataStore
+        }
+        guard let writer = store(.named(first)), let reader = store(.named(first)),
+              let other = store(.named(second)), let standard = store(.standard),
+              let ephemeral = store(.ephemeral),
+              let cookie = HTTPCookie(properties: [
+                .domain: "profile-fixture.invalid", .path: "/", .name: first.uuidString,
+                .value: "isolated", .expires: Date.now.addingTimeInterval(600),
+              ]) else {
+            note("named profile fixture could not create its stores")
+            return
+        }
+        await writer.httpCookieStore.setCookie(cookie)
+        func hasFixtureCookie(_ store: WKWebsiteDataStore) async -> Bool {
+            await store.httpCookieStore.allCookies().contains { $0.name == cookie.name && $0.value == cookie.value }
+        }
+        let sameProfile = await hasFixtureCookie(reader)
+        let differentProfile = await hasFixtureCookie(other)
+        let defaultProfile = await hasFixtureCookie(standard)
+        let privateProfile = await hasFixtureCookie(ephemeral)
+        note("named store shares cookies only within the same profile: \(sameProfile && !differentProfile && !defaultProfile && !privateProfile)")
+        await engine.clearWebsiteData(for: .named(first))
+        let cleared = await hasFixtureCookie(reader) == false
+        note("named profile website data cleared: \(cleared)")
+    }
+
+    private final class ProfileCheckDelegate: EnginePageDelegate {}
 
     private func arcFolderImportCheck(_ browser: Browser, window: NSWindow, page: URL) async {
         let data = Data("""

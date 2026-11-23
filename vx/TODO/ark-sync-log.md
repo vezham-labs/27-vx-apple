@@ -166,3 +166,5 @@ The iOS build and all 106 BrowserKit tests passed. The model test checks selecti
 ### Profiles per Space
 
 Source audit confirmed that Mac `WebKitEngine` and mobile `WebViewPool` share the default WebKit website data store across regular Spaces and use a temporary store for Private. Search’s `Profiles.swift` keeps the default store for the existing profile and creates persistent WebKit stores keyed by UUID for additional profiles. The comparison records the current gap on all four platforms. Profile assignment, history and extension isolation, and runtime verification remain open.
+
+The Mac engine now accepts a named browsing profile and reuses the persistent WebKit store for its UUID. Named pages have no extension controller while profile-aware extension isolation is open. The Mac build passed. A local debug fixture verified that two pages with the same profile share a cookie, other named, default, and private stores cannot read it, and clearing the named profile removes the cookie. Space assignments, mobile stores, scoped history and extension support remain open.

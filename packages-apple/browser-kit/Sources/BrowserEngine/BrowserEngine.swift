@@ -228,6 +228,8 @@ public struct EngineCapabilities: OptionSet, Sendable, Hashable {
 public enum BrowsingProfile: Hashable, Sendable {
     /// Saved between launches.
     case standard
+    /// Persistent website data shared by pages assigned the same identifier.
+    case named(UUID)
     /// In memory, shared by every private page, gone once they all close.
     case ephemeral
 }

@@ -413,7 +413,7 @@ extension Preferences {
         if let t = UserDefaults.standard.string(forKey: "agentToken") { return t }
         var bytes = [UInt8](repeating: 0, count: 24)
         _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        let t = "ark_" + Data(bytes).base64EncodedString()
+        let t = "vx-ark-" + Data(bytes).base64EncodedString()
             .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
         UserDefaults.standard.set(t, forKey: "agentToken")
         return t

@@ -471,8 +471,7 @@ struct TabMenu: View {
             }
             .disabled(browser.isFavorite(url))
             Button("Copy Link", systemImage: "link") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(url.absoluteString, forType: .string)
+                browser.copyLink(url)
             }
             Button("Duplicate Tab", systemImage: "plus.square.on.square") {
                 browser.newTab(url: url, in: browser.space(containing: tab), source: .link)

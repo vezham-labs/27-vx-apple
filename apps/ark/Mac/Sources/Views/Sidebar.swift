@@ -685,8 +685,7 @@ struct FavoriteTile: View {
                 Button("Open in New Tab", systemImage: "plus.square.on.square") { browser.newTab(url: favorite.url, source: .bookmark) }
                 PreviewLinkButton(url: favorite.url)
                 Button("Copy Link", systemImage: "link") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(favorite.url.absoluteString, forType: .string)
+                    browser.copyLink(favorite.url)
                 }
                 Divider()
                 Button("Remove from Favourites", systemImage: "star.slash", role: .destructive) {

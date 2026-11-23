@@ -53,7 +53,7 @@ extension Browser {
             }
             out.append(BrowserCommand(id: "close", title: "Close Tab", keywords: ["tab"]))
             if let url = tab.url {
-                out.append(BrowserCommand(id: "copy-link", title: "Copy Link", subtitle: url.absoluteString, keywords: ["url", "share"]))
+                out.append(BrowserCommand(id: "copy-link", title: "Copy Link", subtitle: linkForCopy(url).absoluteString, keywords: ["url", "share"]))
                 out.append(BrowserCommand(id: "copy-markdown", title: "Copy Link as Markdown", keywords: ["url", "md", "share"]))
                 out.append(BrowserCommand(id: "copy-page-image", title: "Copy Full Page Image", keywords: ["capture", "screenshot", "png"]))
                 out.append(BrowserCommand(id: "copy-page-area", title: "Copy Page Area…", keywords: ["capture", "region", "screenshot", "png"]))
@@ -260,21 +260,27 @@ extension Browser {
 
     func copyCurrentLink() {
         guard let url = currentTab?.url else { return }
-        let clean = settings.cleanLinks ? LinkCleaner.cleaned(url) : url
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(clean.absoluteString, forType: .string)
+        copyLink(url)
         showToast("Link copied")
+    }
+
+    func copyLink(_ url: URL, to pasteboard: NSPasteboard = .general) {
+        pasteboard.clearContents()
+        pasteboard.setString(linkForCopy(url).absoluteString, forType: .string)
     }
 
     /// `[Title](url)`, like Arc's ⌥⇧⌘C.
     func copyCurrentLinkAsMarkdown() {
         guard let tab = currentTab, let url = tab.url else { return }
-        let clean = settings.cleanLinks ? LinkCleaner.cleaned(url) : url
         let title = tab.displayTitle.replacingOccurrences(of: "[", with: "\\[").replacingOccurrences(of: "]", with: "\\]")
-        let link = clean.absoluteString.replacingOccurrences(of: "(", with: "%28").replacingOccurrences(of: ")", with: "%29")
+        let link = linkForCopy(url).absoluteString.replacingOccurrences(of: "(", with: "%28").replacingOccurrences(of: ")", with: "%29")
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString("[\(title)](\(link))", forType: .string)
         showToast("Markdown link copied")
+    }
+
+    private func linkForCopy(_ url: URL) -> URL {
+        settings.cleanLinks ? LinkCleaner.cleaned(url) : url
     }
 
     /// ⌥⌘I. WebKit has no public call to open the inspector, so this uses the one Safari's

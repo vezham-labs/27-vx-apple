@@ -226,3 +226,7 @@ Sidebar tabs and favourites and command-bar URL results now offer **Preview Link
 Search’s `Peek.swift` offers keeping the preview beside its source. Ark’s **Open in Split View** button and ⌥⌘Return put Glance beside the current page or add it to that Space’s open split. The action is available when the website profile matches, the current tab can split, and the group has room.
 
 The Mac fixture sent the keyboard shortcut, verified separate visible frames for both pages, and confirmed the transferred WebKit view used one main-document request from preview through handoff. It added a third and fourth pane without dropping the original tabs, rejected a fifth pane, and checked that a private preview could not enter a regular split. The [Mac screenshot](../../preview/ark/mac/features/glance-split-view.png) shows the loaded pages side by side.
+
+### Mac sidebar Clean Links
+
+Copy Link from a sidebar tab or favourite now takes the same path as the Mac command-bar action, and the command-bar subtitle shows the URL the action will copy. The fixture used a separate pasteboard and verified that the setting controls the copied URL and subtitle, that encoded values and fragments survive, and that signed URLs and the already open tab URL stay intact. The [Mac preview](../../preview/ark/mac/features/clean-link-copy.png) shows the cleaned URL. WebKit’s separate Mac Copy Link action for links inside a page still needs coverage. Search’s `Tab.swift` implements its clean command by invoking the native copy action and polling the general pasteboard.

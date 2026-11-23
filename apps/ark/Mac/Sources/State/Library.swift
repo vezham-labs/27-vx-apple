@@ -734,7 +734,7 @@ final class Library {
             guard !stale.isEmpty else { continue }
             let staleIDs = Set(stale.map(\.id))
             for window in windows {
-                if let split = window.splitBySpace[space.id], staleIDs.contains(split.first) || staleIDs.contains(split.second) {
+                if let split = window.splitBySpace[space.id], split.tabs.contains(where: staleIDs.contains) {
                     window.splitBySpace[space.id] = nil
                 }
             }

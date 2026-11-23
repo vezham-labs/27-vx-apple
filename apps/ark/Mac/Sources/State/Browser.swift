@@ -253,10 +253,10 @@ final class Browser {
             if !busy { return }
             tabSelection[space.id] = nil
         }
-        if let pair = splitBySpace[space.id], let (first, second) = splitMembers(of: pair, in: space) {
+        if let pair = splitBySpace[space.id], splitMembers(of: pair, in: space) != nil {
             // Scene storage keeps this window's presentation even if another window changed the Space's selection.
             if pair.isOpen, canShowSplit(pair, in: space) {
-                tabSelection[space.id] = pair.focused == second.id ? second.id : first.id
+                tabSelection[space.id] = pair.contains(pair.focused) ? pair.focused : pair.first
                 return
             }
         } else {

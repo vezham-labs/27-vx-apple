@@ -12,8 +12,8 @@ struct PageArea: View {
     var body: some View {
         ZStack {
             if let pair = browser.activeSplit,
-               let (first, second) = browser.splitMembers(of: pair, in: browser.currentSpace) {
-                SplitPageView(pair: pair, first: first, second: second)
+               let tabs = browser.splitMembers(of: pair, in: browser.currentSpace) {
+                SplitPageView(split: pair, tabs: tabs)
             } else if browser.currentTab.map({ Welcome.isWelcome($0.url) }) == true {
                 WelcomePage()
             } else if browser.currentTab.map({ LibraryPage.isLibrary($0.url) }) == true {

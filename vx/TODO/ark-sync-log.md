@@ -188,3 +188,9 @@ Mac can pair a pinned web tab with a Today tab or another pin in the same Space.
 ### Pinned tabs in mobile Split View
 
 Mobile uses the same tab actions to pair a pin or Today web tab with the focused tab. Pinning and unpinning preserves the pair and divider. Closing a pinned pane ends the split and keeps the pin in the gallery or sidebar. Closing the focused pane selects its partner when the split is visible. All 107 existing BrowserKit tests passed after updating the existing Split View assertion for pinned membership. The iPhone 18 Pro runtime check passed. It opened a pinned pane through the gallery, switched focus between both live pages, and closed the pinned pane while retaining the pin and showing its partner. The temporary fixture stayed outside the commit. iPad and Duo pinned-pane verification remain open.
+
+### Four-pane Mac Split View
+
+**Add Pane** in Split View options adds up to four live web tabs from the current Space, following Search’s ordered groups in `Split.swift`. Dividers resize adjacent panes. Closing a pane preserves the group and focuses its neighbor when the closing pane was focused. Existing two-pane state decodes with its original orientation, focus, and size.
+
+A temporary local Mac fixture verified four live views in order, neighbor-only resizing, saved proportions, and closing one pane while keeping the remaining three. A standalone Swift check verified legacy state and divider bounds. The [Mac preview](../../preview/ark/mac/features/four-pane-split-view.png) shows the resized four-pane layout. The temporary fixture stayed outside the commit. Multiple mobile panes beyond two and Mac relaunch verification remain open.

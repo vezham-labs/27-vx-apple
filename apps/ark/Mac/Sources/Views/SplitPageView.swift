@@ -3,23 +3,27 @@ import BrowserCore
 
 struct SplitPageView: View {
     @Environment(Browser.self) private var browser
-    @GestureState private var drag: CGFloat = 0
-    let pair: TabSplit
-    let first: BrowserTab
-    let second: BrowserTab
+    @GestureState private var drag: DividerDrag?
+    let split: TabSplit
+    let tabs: [BrowserTab]
+
+    private struct DividerDrag {
+        let index: Int
+        let distance: CGFloat
+    }
 
     var body: some View {
         GeometryReader { geometry in
-            let horizontal = pair.axis == .sideBySide
+            let horizontal = split.axis == .sideBySide
             let layout = horizontal ? AnyLayout(HStackLayout(spacing: 0)) : AnyLayout(VStackLayout(spacing: 0))
-            let length = max(1, (horizontal ? geometry.size.width : geometry.size.height) - 8)
-            let firstLength = min(0.8 * length, max(0.2 * length, pair.fraction * length + drag))
+            let length = max(1, (horizontal ? geometry.size.width : geometry.size.height) - CGFloat(tabs.count - 1) * 8)
+            let shares = drag.map { split.resizedShares(after: $0.index, by: $0.distance / length) } ?? split.shares
             layout {
-                pane(first)
-                    .frame(width: horizontal ? firstLength : nil, height: horizontal ? nil : firstLength)
-                divider(horizontal: horizontal, length: length)
-                pane(second)
-                    .frame(width: horizontal ? length - firstLength : nil, height: horizontal ? nil : length - firstLength)
+                ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
+                    let paneLength = shares[index] * length
+                    pane(tab).frame(width: horizontal ? paneLength : nil, height: horizontal ? nil : paneLength)
+                    if index < tabs.count - 1 { divider(after: index, horizontal: horizontal, length: length) }
+                }
             }
         }
     }
@@ -44,7 +48,15 @@ struct SplitPageView: View {
                     Menu {
                         Button("Side by Side") { browser.setSplitAxis(.sideBySide) }
                         Button("Stacked") { browser.setSplitAxis(.stacked) }
-                        Button("Equal Panes") { browser.resizeSplit(to: 0.5) }
+                        Button("Equal Panes") { browser.equaliseSplit() }
+                        let candidates = browser.additionalSplitCandidates
+                        if !candidates.isEmpty {
+                            Menu("Add Pane") {
+                                ForEach(candidates) { other in
+                                    Button(other.displayTitle) { browser.addToSplit(other) }
+                                }
+                            }
+                        }
                         Button("Separate Tabs") { browser.separateSplit() }
                     } label: {
                         Image(systemName: "ellipsis")
@@ -83,7 +95,7 @@ struct SplitPageView: View {
         .clipShape(.rect(cornerRadius: PageCard.radius))
     }
 
-    private func divider(horizontal: Bool, length: CGFloat) -> some View {
+    private func divider(after index: Int, horizontal: Bool, length: CGFloat) -> some View {
         Rectangle()
             .fill(.clear)
             .contentShape(Rectangle())
@@ -95,18 +107,18 @@ struct SplitPageView: View {
             .frame(maxWidth: horizontal ? nil : .infinity, maxHeight: horizontal ? .infinity : nil)
             .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
                 .updating($drag) { value, state, _ in
-                    state = horizontal ? value.translation.width : value.translation.height
+                    state = DividerDrag(index: index, distance: horizontal ? value.translation.width : value.translation.height)
                 }
                 .onEnded { value in
                     let delta = horizontal ? value.translation.width : value.translation.height
-                    browser.resizeSplit(to: pair.fraction + delta / length)
+                    browser.resizeSplit(after: index, by: delta / length)
                 })
-            .accessibilityLabel("Split Divider")
-            .accessibilityValue("\(Int(pair.fraction * 100)) percent")
+            .accessibilityLabel("Split Divider \(index + 1)")
+            .accessibilityValue("\(Int(split.shares[index] * 100)) percent")
             .accessibilityAdjustableAction { direction in
                 switch direction {
-                case .increment: browser.resizeSplit(to: pair.fraction + 0.05)
-                case .decrement: browser.resizeSplit(to: pair.fraction - 0.05)
+                case .increment: browser.resizeSplit(after: index, by: 0.05)
+                case .decrement: browser.resizeSplit(after: index, by: -0.05)
                 @unknown default: break
                 }
             }

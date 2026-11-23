@@ -61,6 +61,7 @@ private struct GeneralSettings: View {
     @AppStorage(ArkAppearance.key) private var appearance = ""
     @AppStorage(Preferences.externalLinksInPreviewKey) private var externalLinksInPreview = false
     @AppStorage(Preferences.automaticVideoPiPKey) private var automaticVideoPiP = false
+    @AppStorage(ArkVideoFloat.flicksKey) private var miniPlayerFlicks = false
 
     var body: some View {
         @Bindable var browser = browser
@@ -76,6 +77,7 @@ private struct GeneralSettings: View {
                 }
                 Toggle("Open links from other apps in a preview window", isOn: $externalLinksInPreview)
                 Toggle("Float videos when switching tabs", isOn: $automaticVideoPiP)
+                Toggle("Swipe to snap and dock Mini Player", isOn: $miniPlayerFlicks)
                 LabeledContent("Import") {
                     Button("Import from Another Browser…") { importing = true }
                         .sheet(isPresented: $importing) { ImportSheet().environment(browser) }

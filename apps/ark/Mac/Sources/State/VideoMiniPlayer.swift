@@ -60,7 +60,7 @@ final class ArkVideoFloat {
 
     /// Two fingers flick the window to a corner instead of pushing it
     /// along (Settings › General). Off unless asked for.
-    static var flicks = false
+    static let flicksKey = "ark.video-float.flicks"
 
     /// A button that tucks the window into a corner (Settings › Browsing).
     /// Off unless asked for. The window up now hears a change at once.
@@ -567,7 +567,7 @@ final class ArkVideoFloat {
             // Only while fingers are actually down. Letting the glide continue
             // would fling the pointer across the screen after them.
             guard event.momentumPhase == [] else { return }
-            if ArkVideoFloat.flicks { return flickWheel(with: event) }
+            if UserDefaults.standard.bool(forKey: ArkVideoFloat.flicksKey) { return flickWheel(with: event) }
             // Docked, and flicks turned off since: out first, where it was.
             if docked != nil { return undock() }
 

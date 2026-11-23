@@ -407,7 +407,8 @@ final class Browser {
 
     @discardableResult
     func newTab(url: URL?, in space: Space? = nil, isPrivate: Bool = false,
-                source: Frecency.VisitSource = .typed, select shouldSelect: Bool = true) -> BrowserTab {
+                source: Frecency.VisitSource = .typed, select shouldSelect: Bool = true,
+                promoting glance: GlanceSession? = nil) -> BrowserTab {
         // Space Routing: a site with a rule opens in its Space, unless a Space was asked for or the tab is private.
         var target = space ?? currentSpace
         var routed: SpaceRouter.Match?
@@ -417,7 +418,7 @@ final class Browser {
             routed = match
         }
         let from = currentSpace
-        let tab = library.insertTab(url: url, in: target, isPrivate: isPrivate, source: source, for: self)
+        let tab = library.insertTab(url: url, in: target, isPrivate: isPrivate, source: source, for: self, promoting: glance)
         if shouldSelect { select(tab) }
         if let routed { announceRoute(routed, tab: tab, from: from, quiet: shouldSelect) }
         return tab

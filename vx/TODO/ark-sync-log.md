@@ -199,7 +199,7 @@ A temporary local Mac fixture verified four live views in order, neighbor-only r
 
 **Add Pane** in the page menu and **Add to Split View** in the tab context menu can add up to four pinned or Today pages in a Space. The layout remains stacked on narrow displays and side by side at wider widths. Resizing a divider moves only its adjacent panes. Closing a pane keeps the remaining group and focuses a neighbor when needed. Visible panes stay in the WebKit pool and out of auto-archive. Existing two-pane snapshots decode with the same proportions.
 
-The production iOS build and all 107 BrowserKit tests passed. A standalone Swift check verified legacy decoding, divider bounds, and the four-pane round trip. The first iPad run started with three panes, then the gallery long-press selected the candidate without opening its context menu. A retry exercises **Add Pane** from the page menu with a pinned candidate. iPhone and Duo four-pane runtime checks remain open.
+The production iOS build and all 107 BrowserKit tests passed. A standalone Swift check verified legacy decoding, divider bounds, and the four-pane round trip. The first iPad run started with three panes, then the gallery long-press selected the candidate without opening its context menu. The page-menu retry hit a split heading while looking for the address bar and timed out before opening **More**. The corrected run was canceled during launch when the audit switched to Mac first. Four-pane runtime checks on iPhone, iPad, and Duo remain open.
 
 ### Mac Split View startup archive
 
@@ -210,3 +210,9 @@ The startup archive sweep now runs after AppKit finishes restoring windows, givi
 Search’s `CleanLink.swift` preserves the raw query fields and skips signed URLs. Ark now does the same in BrowserKit while preserving its existing tracker list for Mac and mobile copy and navigation. The 12-URL fixture covered signed queries, encoding, repeated and empty fields, fragments, and site rule boundaries. The previous code passed six cases. The updated code passed all 12, and all 107 existing BrowserKit tests passed. The [Mac preview](../../preview/ark/mac/features/clean-link-copy.png) shows the Copy Link command.
 
 In a local release-optimized Swift benchmark, the median of seven paired runs over the same 60,000-URL batch fell from 1,144 ms to 755 ms. Each batch mixed untracked, tracked, encoded, and signed URLs. This measures URL cleaning, including result serialization, within a single process.
+
+### Mac Glance handoff
+
+Search’s `Peek.swift` moves the live preview into the tab. Ark now does the same for a finished Glance page when the destination uses the same website profile and engine and the URL needs no cleanup. The normal tab-opening path remains in use for other destinations and incomplete pages.
+
+A loopback fixture served a page with caching disabled. Expanding Glance went from two main-document requests to one and retained the same WebKit view and a DOM change. The fixture also verified that the promoted page mounted in the browser window and entered history. Promotion from Default to Private created a separate view with a nonpersistent data store.

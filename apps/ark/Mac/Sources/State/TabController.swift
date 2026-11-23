@@ -71,6 +71,12 @@ final class TabController: EnginePageDelegate {
         page.load(url)
     }
 
+    func registerPromotedPage(url: URL, source: Frecency.VisitSource) {
+        pendingSource = source
+        self.page(page, didCommit: url)
+        self.page(page, didFinish: url, title: page.state.title)
+    }
+
     func freeze() {
         if let state = page?.sessionState() {
             tab.interactionState = state
@@ -140,9 +146,7 @@ final class TabController: EnginePageDelegate {
             library.swapEngine(of: tab, to: request.url)
             return .cancel
         }
-        if request.isMainFrame, library.settings.cleanLinks, request.method == "GET",
-           !library.settings.blockingDisabled(for: request.url.host()),
-           let clean = LinkCleaner.clean(request.url) {
+        if request.isMainFrame, request.method == "GET", let clean = library.cleanedNavigationURL(request.url) {
             return .redirect(clean)
         }
         return .allow

@@ -8,11 +8,13 @@ import BrowserEngine
 final class GlanceSession: Identifiable, EnginePageDelegate {
     let id = UUID()
     let page: any EnginePage
-    let isPrivate: Bool
+    let profile: BrowsingProfile
+    var isPrivate: Bool { profile == .ephemeral }
+    @ObservationIgnored private(set) var loadedURL: URL?
     @ObservationIgnored weak var browser: Browser?
 
     init(url: URL, profile: BrowsingProfile, browser: Browser) {
-        self.isPrivate = profile == .ephemeral
+        self.profile = profile
         self.browser = browser
         page = browser.engine.makePage(options: PageOptions(profile: profile, url: url),
                                        delegate: GlanceSession.placeholder)
@@ -33,6 +35,11 @@ final class GlanceSession: Identifiable, EnginePageDelegate {
         }
         return .allow
     }
+
+    func page(_ page: any EnginePage, didCommit url: URL?) { loadedURL = nil }
+    func page(_ page: any EnginePage, didFinish url: URL, title: String) { loadedURL = url }
+    func page(_ page: any EnginePage, didFailWith error: NSError) { loadedURL = nil }
+    func pageContentProcessDidTerminate(_ page: any EnginePage) { loadedURL = nil }
 
     func page(_ page: any EnginePage, openedPopup popup: any EnginePage, url: URL?) -> (any EnginePageDelegate)? {
         if let url { browser?.newTab(url: url, isPrivate: isPrivate, source: .link) }
@@ -58,12 +65,12 @@ extension Browser {
         glance = nil
     }
 
-    /// Keeps it: a new tab for what the Glance shows now.
+    /// Keeps the live document when the destination uses the same website profile and engine.
     func expandGlance() {
-        guard let g = glance else { return }
-        let url = g.url
-        closeGlance()
-        if let url { newTab(url: url, isPrivate: g.isPrivate, source: .link) }
+        guard let glance else { return }
+        guard let url = glance.url else { return closeGlance() }
+        self.glance = nil
+        newTab(url: url, isPrivate: glance.isPrivate, source: .link, promoting: glance)
     }
 }
 

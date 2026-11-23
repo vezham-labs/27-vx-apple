@@ -1,12 +1,10 @@
 ---
-title: 'Glance (spike)'
+title: Glance
 ---
 
-Option-click a link to look at it in a card over the page (Zen's Glance, Arc's Peek). Esc or a click
-outside closes it; ⌘Return or the expand button opens it as a tab. Links inside stay in the card;
-⌘-click and new windows become tabs. Private tabs glance privately.
+Option-click a link to preview it over the current page. Press Esc or click outside the card to close it. Press ⌘Return or choose **Open as a Tab** to keep the preview. A finished page stays loaded when the tab uses the same website profile and engine and the URL needs no cleanup. Links inside the card open there. ⌘-click and new windows open as tabs. Previews from Private use the private website store.
 
 Code: `NavigationRequest.wantsGlance` (set by WebKitPage for Option-click on http(s) links, before
 Safari's option-click download), `TabController.page(_:decide:)`, `Mac/Sources/Views/Glance.swift`.
 
-Not yet: hover-and-hold preview, glancing from the sidebar or ⌘K results, a setting for the modifier.
+Hover previews, previews from the sidebar or ⌘K results, and a configurable modifier remain open.

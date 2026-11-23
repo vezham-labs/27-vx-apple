@@ -424,6 +424,11 @@ final class Library {
 
     func existingController(for tab: BrowserTab) -> TabController? { controllers[tab.id] }
 
+    func cleanedNavigationURL(_ url: URL) -> URL? {
+        guard settings.cleanLinks, !settings.blockingDisabled(for: url.host()) else { return nil }
+        return LinkCleaner.clean(url)
+    }
+
     func engine(for tab: BrowserTab, url: URL?) -> any BrowserEngine {
         if case .named = browsingProfile(for: tab) { return engine }
         return engineChooser?(tab, url) ?? engine
@@ -496,13 +501,22 @@ final class Library {
     /// A new today tab at the top of a space. Opening into Private makes the Private space.
     @discardableResult
     func insertTab(url: URL?, in space: Space, isPrivate: Bool = false, source: Frecency.VisitSource = .typed,
-                   at index: Int = 0, for window: Browser? = nil) -> BrowserTab {
+                   at index: Int = 0, for window: Browser? = nil, promoting glance: GlanceSession? = nil) -> BrowserTab {
         let wantsPrivate = isPrivate || space.isPrivate
         let target = wantsPrivate ? openPrivateSpace() : space
         let tab = BrowserTab(url: nil, isPrivate: wantsPrivate)
         tab.windowKey = (window ?? activeWindow)?.windowKey
         target.today.insert(tab, at: min(index, target.today.count))
-        if let url { controller(for: tab).load(url, source: source) }
+        if let url, let glance, glance.loadedURL == url, !glance.page.state.isLoading,
+           glance.profile == browsingProfile(for: tab), engine(for: tab, url: url).info.id == engine.info.id,
+           cleanedNavigationURL(url) == nil {
+            let controller = TabController(tab: tab, library: self) { _ in glance.page }
+            adopt(controller)
+            controller.registerPromotedPage(url: url, source: source)
+        } else {
+            glance?.page.close()
+            if let url { controller(for: tab).load(url, source: source) }
+        }
         scheduleSave()
         return tab
     }

@@ -16,9 +16,10 @@ public actor HistoryStore: HistoryIndex {
     }
 
     private var records: [String: Record] = [:]
-    private let fileURL: URL?
+    fileprivate nonisolated let fileURL: URL?
     private let frecency = Frecency()
     private var saveTask: Task<Void, Never>?
+    private var needsSave = false
 
     /// - Parameter fileURL: nil keeps history in memory only (private mode, previews).
     public init(fileURL: URL?) {
@@ -152,6 +153,7 @@ public actor HistoryStore: HistoryIndex {
 
     private func scheduleSave() {
         guard fileURL != nil else { return }
+        needsSave = true
         saveTask?.cancel()
         saveTask = Task {
             try? await Task.sleep(for: .seconds(2))
@@ -161,7 +163,45 @@ public actor HistoryStore: HistoryIndex {
     }
 
     public func saveNow() {
-        guard let fileURL, let data = try? JSONEncoder().encode(records) else { return }
-        try? data.write(to: fileURL, options: .atomic)
+        guard needsSave, let fileURL, let data = try? JSONEncoder().encode(records) else { return }
+        do {
+            try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try data.write(to: fileURL, options: .atomic)
+            needsSave = false
+        } catch {
+            // Keep the in-memory history available and retry at the next save.
+        }
+    }
+}
+
+/// Spaces with the same named profile share a history file. The default profile keeps the existing file.
+@MainActor
+public final class ProfileHistoryStores {
+    private let standard: HistoryStore
+    private var named: [UUID: HistoryStore] = [:]
+
+    public init(defaultStore: HistoryStore) { standard = defaultStore }
+
+    public func store(for id: UUID?) -> HistoryStore {
+        guard let id else { return standard }
+        if let store = named[id] { return store }
+        let url = standard.fileURL?.deletingLastPathComponent()
+            .appending(path: "Profiles", directoryHint: .isDirectory)
+            .appending(path: id.uuidString, directoryHint: .isDirectory)
+            .appending(path: "history.json")
+        let store = HistoryStore(fileURL: url)
+        named[id] = store
+        return store
+    }
+
+    public func saveNow() async {
+        for store in [standard] + Array(named.values) { await store.saveNow() }
+    }
+
+    public func clearAll(profileIDs: Set<UUID>) async {
+        for store in [standard] + profileIDs.union(named.keys).map({ self.store(for: $0) }) {
+            await store.clearAll()
+            await store.saveNow()
+        }
     }
 }

@@ -99,7 +99,11 @@ extension BrowserState {
             guard !stale.isEmpty else { continue }
             if let pair = space.splitPair, stale.contains(where: { pair.contains($0.id) }) { space.separateTabs() }
             space.today.removeAll { t in stale.contains { $0.id == t.id } }
-            stale.forEach { pool.existingSession(for: $0.id)?.freeze(); pool.remove($0.id) }
+            for tab in stale {
+                pool.existingSession(for: tab.id)?.freeze()
+                pool.remove(tab.id)
+                tab.websiteSessionProfileID = space.websiteProfileID
+            }
             archive.insert(contentsOf: stale.filter { !$0.isPrivate }, at: 0)
         }
         archive = Array(archive.prefix(500))

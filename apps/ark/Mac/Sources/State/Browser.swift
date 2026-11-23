@@ -150,7 +150,7 @@ final class Browser {
     var recentlyClosed: [BrowserTab] { library.recentlyClosed }
     var engine: any BrowserEngine { library.engine }
     var history: HistoryStore { library.history }
-    var suggest: SuggestEngine { library.suggest }
+    var suggest: SuggestEngine { library.makeSuggestEngine(for: self) }
 
     func space(containing tab: BrowserTab) -> Space? { library.space(containing: tab) }
     func controller(for tab: BrowserTab) -> TabController { library.controller(for: tab) }
@@ -225,7 +225,10 @@ final class Browser {
 
     private func selectSpace(_ space: Space, resolving: Bool) {
         guard space.id != selectedSpaceID else { return }
-        if library.browsingProfile(in: currentSpace) != library.browsingProfile(in: space) { closeGlance() }
+        if library.browsingProfile(in: currentSpace) != library.browsingProfile(in: space) {
+            closeGlance()
+            commandBar = nil
+        }
         if space.isPrivate, !currentSpace.isPrivate { spaceBeforePrivate = selectedSpaceID }
         if let from = spaces.firstIndex(where: { $0.id == selectedSpaceID }),
            let to = spaces.firstIndex(where: { $0.id == space.id }) {

@@ -207,7 +207,7 @@ extension TabSession: WKNavigationDelegate {
         let source = pendingVisitSource ?? .link
         pendingVisitSource = nil
         let title = webView.title ?? ""
-        if let history = browser?.history {
+        if let history = browser?.profileHistory.store(for: webView.configuration.websiteDataStore.identifier) {
             Task { await history.recordVisit(url: url, title: title, source: source) }
         }
     }

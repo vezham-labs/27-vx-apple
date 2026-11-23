@@ -74,7 +74,7 @@ final class TabController: EnginePageDelegate {
     func freeze() {
         if let state = page?.sessionState() {
             tab.interactionState = state
-            tab.websiteSessionProfileID = library?.space(containing: tab)?.websiteProfileID
+            tab.websiteSessionProfileID = (page.view as? WKWebView)?.configuration.websiteDataStore.identifier
         }
     }
 
@@ -198,7 +198,9 @@ final class TabController: EnginePageDelegate {
 
     func page(_ page: any EnginePage, didFinish url: URL, title: String) {
         library?.scheduleSave()
-        guard !tab.isPrivate, let history = library?.history else { pendingSource = nil; return }
+        guard !tab.isPrivate, let library else { pendingSource = nil; return }
+        let profileID = (page.view as? WKWebView)?.configuration.websiteDataStore.identifier
+        let history = library.profileHistory.store(for: profileID)
         let source = pendingSource ?? .link
         pendingSource = nil
         Task { await history.recordVisit(url: url, title: title, source: source) }

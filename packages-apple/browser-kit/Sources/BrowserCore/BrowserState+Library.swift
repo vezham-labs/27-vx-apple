@@ -7,6 +7,10 @@ import Suggest
 extension BrowserState {
     // MARK: Website data
 
+    public func clearHistory() async {
+        await profileHistory.clearAll(profileIDs: Set(settings.websiteProfiles.map(\.id) + regularSpaces.compactMap(\.websiteProfileID)))
+    }
+
     /// Forgets cookies and site storage from regular tabs. Private tabs have their own store.
     public func clearWebsiteData() async {
         await WKWebsiteDataStore.default().removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
@@ -50,6 +54,7 @@ extension BrowserState {
             siteStyleHost = nil
             isTabSwitcherPresented = false
             isRecentTabPreviewsPresented = false
+            isNewTabSheetPresented = false
         }
         space.websiteProfileID = id
         scheduleSave()

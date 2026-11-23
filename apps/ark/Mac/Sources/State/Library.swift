@@ -21,9 +21,6 @@ final class Library {
     var settings = BrowserSettings() {
         didSet {
             guard settings != oldValue else { return }
-            if settings.searchEngine != oldValue.searchEngine || settings.remoteSuggestions != oldValue.remoteSuggestions {
-                suggest = makeSuggestEngine()
-            }
             if settings.blockContent != oldValue.blockContent || settings.filterGroups != oldValue.filterGroups
                 || settings.declineCookieBanners != oldValue.declineCookieBanners
                 || settings.blockingDisabledHosts != oldValue.blockingDisabledHosts {
@@ -90,8 +87,9 @@ final class Library {
     var pipTabID: UUID?
     var pipClosedFor: Set<UUID> = []
     let history: HistoryStore
+    let profileHistory: ProfileHistoryStores
+    @ObservationIgnored private let suggestionSeeds = SeedProvider.bundled()
     @ObservationIgnored let siteStyles: SiteStyles
-    @ObservationIgnored private(set) var suggest: SuggestEngine!
     /// Live pages, by tab. The least recently used are unloaded past `capacity`.
     @ObservationIgnored private(set) var controllers: [UUID: TabController] = [:]
     @ObservationIgnored private var lru: [UUID] = []
@@ -109,6 +107,7 @@ final class Library {
          snapshotURL: URL? = Library.defaultSnapshotURL()) {
         self.engine = engine
         self.history = history
+        profileHistory = ProfileHistoryStores(defaultStore: history)
         self.snapshotURL = snapshotURL
         globalPrivacyControl = Preferences.globalPrivacyControl
         clearDataOnQuit = Preferences.clearDataOnQuit
@@ -136,7 +135,6 @@ final class Library {
             launchSpaceID = personal.id
             favorites = Self.starterFavorites
         }
-        suggest = makeSuggestEngine()
         engine.developerToolsEnabled = developerTools
         if let calls = engine as? CallAudioConfigurable {
             calls.callAudio = callAudio
@@ -243,6 +241,7 @@ final class Library {
             if let id = space.selectedTabID, kept.contains(where: { $0.id == id }) { space.selectedTabID = nil }
             for tab in kept {
                 unload(tab.id)
+                tab.websiteSessionProfileID = space.websiteProfileID
                 tab.windowKey = nil
             }
             archive.insert(contentsOf: kept.filter { $0.url != nil }, at: 0)
@@ -387,6 +386,7 @@ final class Library {
         for window in windows where window.selectedSpaceID == space.id {
             window.closeGlance()
             window.reader = nil
+            window.commandBar = nil
         }
         space.websiteProfileID = id
         pageSwaps += 1
@@ -742,7 +742,10 @@ final class Library {
                 }
             }
             space.today.removeAll { staleIDs.contains($0.id) }
-            for t in stale { unload(t.id) }
+            for tab in stale {
+                unload(tab.id)
+                tab.websiteSessionProfileID = space.websiteProfileID
+            }
             archive.insert(contentsOf: stale, at: 0)
         }
         archive = Array(archive.prefix(500))
@@ -809,7 +812,7 @@ final class Library {
     }
 
     func clearHistory() async {
-        await history.clearAll()
+        await profileHistory.clearAll(profileIDs: Set(settings.websiteProfiles.map(\.id) + regularSpaces.compactMap(\.websiteProfileID)))
         archive.removeAll()
         recentlyClosed.removeAll()
         scheduleSave()
@@ -821,30 +824,33 @@ final class Library {
 
     // MARK: Suggestions
 
-    private func makeSuggestEngine() -> SuggestEngine {
-        SuggestEngine(
-            history: history,
+    func makeSuggestEngine(for window: Browser) -> SuggestEngine {
+        let profileID = window.currentSpace.websiteProfileID
+        let inPrivate = window.currentSpace.isPrivate
+        return SuggestEngine(
+            history: profileHistory.store(for: profileID),
             favorites: { [weak self] in await MainActor.run { self?.favorites ?? [] } },
-            openTabs: { [weak self] in
+            openTabs: { [weak self, weak window] in
                 await MainActor.run {
-                    guard let self else { return [] }
-                    let window = self.activeWindow
-                    let inPrivate = window?.currentSpace.isPrivate ?? false
-                    return self.allTabs
-                        .filter { $0.url != nil && $0.id != window?.currentTab?.id && (inPrivate || !$0.isPrivate) }
+                    guard let self, let window else { return [] }
+                    return self.spaces.filter { $0.websiteProfileID == profileID && (inPrivate || !$0.isPrivate) }
+                        .flatMap(\.allTabs)
+                        .filter { $0.url != nil && $0.id != window.currentTab?.id }
                         .sorted { $0.lastActive > $1.lastActive }
                         .map { OpenTabSnapshot(id: $0.id, url: $0.url!, title: $0.title) }
                 }
             },
+            seeds: suggestionSeeds,
             searchEngine: settings.searchEngine,
             remoteSuggestionsEnabled: settings.remoteSuggestions,
             extraProviders: [
-                CommandProvider(commands: { [weak self] in
-                    await MainActor.run { self?.activeWindow?.availableCommands() ?? [] }
+                CommandProvider(commands: { [weak window] in
+                    await MainActor.run { window?.availableCommands() ?? [] }
                 }),
                 ArchivedTabsProvider(tabs: { [weak self] in
                     await MainActor.run {
-                        (self?.archive ?? []).compactMap { t in t.url.map { OpenTabSnapshot(id: t.id, url: $0, title: t.title) } }
+                        (self?.archive ?? []).filter { $0.websiteSessionProfileID == profileID }
+                            .compactMap { t in t.url.map { OpenTabSnapshot(id: t.id, url: $0, title: t.title) } }
                     }
                 }),
             ])
@@ -875,7 +881,7 @@ final class Library {
         guard let data = try? JSONEncoder().encode(snap) else { return }
         try? FileManager.default.createDirectory(at: snapshotURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: snapshotURL, options: .atomic)
-        Task { await history.saveNow() }
+        Task { await profileHistory.saveNow() }
     }
 }
 

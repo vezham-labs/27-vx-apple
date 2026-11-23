@@ -171,7 +171,7 @@ struct SettingsView: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
             .confirmationDialog("Clear all browsing history?", isPresented: $confirmClearHistory, titleVisibility: .visible) {
-                Button("Clear History", role: .destructive) { Task { await browser.history.clearAll() } }
+                Button("Clear History", role: .destructive) { Task { await browser.clearHistory() } }
             }
             .confirmationDialog("Clear all cookies and site data?", isPresented: $confirmClearWebsiteData, titleVisibility: .visible) {
                 Button("Clear Cookies and Site Data", role: .destructive) { Task { await browser.clearWebsiteData() } }

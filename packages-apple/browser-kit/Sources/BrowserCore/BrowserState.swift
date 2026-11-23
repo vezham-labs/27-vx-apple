@@ -56,9 +56,6 @@ public final class BrowserState {
     public var settings = BrowserSettings() {
         didSet {
             guard settings != oldValue else { return }
-            if settings.searchEngine != oldValue.searchEngine || settings.remoteSuggestions != oldValue.remoteSuggestions {
-                suggest = makeSuggestEngine()
-            }
             if settings.blockContent != oldValue.blockContent || settings.filterGroups != oldValue.filterGroups
                 || settings.declineCookieBanners != oldValue.declineCookieBanners
                 || settings.blockingDisabledHosts != oldValue.blockingDisabledHosts {
@@ -84,9 +81,11 @@ public final class BrowserState {
     public var tabGridHidesAddressBar = false
 
     public let history: HistoryStore
+    let profileHistory: ProfileHistoryStores
+    @ObservationIgnored private let suggestionSeeds = SeedProvider.bundled()
     @ObservationIgnored let pool = WebViewPool()
     @ObservationIgnored let siteStyles: SiteStyles
-    @ObservationIgnored public private(set) var suggest: SuggestEngine!
+    public var suggest: SuggestEngine { makeSuggestEngine(for: currentSpace) }
     @ObservationIgnored private let snapshotURL: URL?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored let thumbnailStore: ThumbnailStore?
@@ -99,6 +98,7 @@ public final class BrowserState {
                 snapshotURL: URL? = BrowserState.defaultSnapshotURL(),
                 thumbnailStore: ThumbnailStore? = ThumbnailStore()) {
         self.history = history
+        profileHistory = ProfileHistoryStores(defaultStore: history)
         self.snapshotURL = snapshotURL
         siteStyles = SiteStyles(fileURL: snapshotURL?.deletingLastPathComponent().appending(path: "site-styles.json"))
         self.thumbnailStore = thumbnailStore
@@ -116,7 +116,6 @@ public final class BrowserState {
             selectedSpaceID = personal.id
             favorites = []
         }
-        suggest = makeSuggestEngine()
         applyContentBlocking()
         loadSavedThumbnails()
     }
@@ -194,6 +193,9 @@ public final class BrowserState {
         // Picture the page we're leaving while it's still on screen.
         if let leaving = currentTab, leaving.id != tab.id { captureThumbnail(of: leaving) }
         if let space = spaces.first(where: { $0.allTabs.contains { $0.id == tab.id } }) {
+            if currentSpace.websiteProfileID != space.websiteProfileID || currentSpace.isPrivate != space.isPrivate {
+                isNewTabSheetPresented = false
+            }
             selectedSpaceID = space.id
             space.selectedTabID = tab.id
         }
@@ -208,6 +210,9 @@ public final class BrowserState {
     }
 
     public func selectSpace(_ space: Space) {
+        if currentSpace.websiteProfileID != space.websiteProfileID || currentSpace.isPrivate != space.isPrivate {
+            isNewTabSheetPresented = false
+        }
         if space.isPrivate, !currentSpace.isPrivate { spaceBeforePrivate = selectedSpaceID }
         if let from = spaces.firstIndex(where: { $0.id == selectedSpaceID }),
            let to = spaces.firstIndex(where: { $0.id == space.id }), from != to {
@@ -375,24 +380,26 @@ public final class BrowserState {
 
     // MARK: Suggest wiring
 
-    private func makeSuggestEngine() -> SuggestEngine {
+    private func makeSuggestEngine(for space: Space) -> SuggestEngine {
+        let profileID = space.websiteProfileID
+        let inPrivate = space.isPrivate
         // The engine runs off the main actor; give it snapshots, never live model objects.
-        SuggestEngine(
-            history: history,
+        return SuggestEngine(
+            history: profileHistory.store(for: profileID),
             favorites: { [weak self] in
                 await MainActor.run { self?.favorites ?? [] }
             },
             openTabs: { [weak self] in
                 await MainActor.run {
                     guard let self else { return [] }
-                    let inPrivate = self.currentSpace.isPrivate
-                    return self.spaces.flatMap(\.allTabs)
-                        // Private tabs only come up while you're in Private.
-                        .filter { $0.url != nil && $0.id != self.currentTab?.id && (inPrivate || !$0.isPrivate) }
+                    return self.spaces.filter { $0.websiteProfileID == profileID && (inPrivate || !$0.isPrivate) }
+                        .flatMap(\.allTabs)
+                        .filter { $0.url != nil && $0.id != self.currentTab?.id }
                         .sorted { $0.lastActive > $1.lastActive }
                         .map { OpenTabSnapshot(id: $0.id, url: $0.url!, title: $0.title) }
                 }
             },
+            seeds: suggestionSeeds,
             searchEngine: settings.searchEngine,
             remoteSuggestionsEnabled: settings.remoteSuggestions,
             extraProviders: [
@@ -401,7 +408,7 @@ public final class BrowserState {
                 }),
                 ArchivedTabsProvider(tabs: { [weak self] in
                     await MainActor.run {
-                        (self?.archive ?? []).compactMap { t in
+                        (self?.archive ?? []).filter { $0.websiteSessionProfileID == profileID }.compactMap { t in
                             t.url.map { OpenTabSnapshot(id: t.id, url: $0, title: t.title) }
                         }
                     }
@@ -433,7 +440,7 @@ public final class BrowserState {
         try? FileManager.default.createDirectory(at: snapshotURL.deletingLastPathComponent(),
                                                  withIntermediateDirectories: true)
         try? data.write(to: snapshotURL, options: .atomic)
-        Task { await history.saveNow() }
+        Task { await profileHistory.saveNow() }
     }
 }
 #endif

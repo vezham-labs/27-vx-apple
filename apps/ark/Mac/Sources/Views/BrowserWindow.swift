@@ -40,6 +40,12 @@ struct BrowserWindow: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
             if let window = note.object as? NSWindow, window === browser.nsWindow { browser.library.markActive(browser) }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+            browser.library.videoPictureInPicture.applicationActivityChanged(in: browser, active: false)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            browser.library.videoPictureInPicture.applicationActivityChanged(in: browser, active: true)
+        }
         // Full screen swaps the sidebar's traffic lights for the title bar's, and AppKit rebuilds the
         // title bar on the way in and out.
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willEnterFullScreenNotification)) { note in

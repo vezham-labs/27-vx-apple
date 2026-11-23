@@ -315,3 +315,9 @@ Search `Extensions.swift` at `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316` invalida
 A temporary Mac runtime fixture loaded a local MV3 background extension twice and inspected actual timers and weak web-view references after each unload. Before the fix, each unload retained one valid timer and one hidden view. After the fix, both cycles retained zero timers, the previous timers were invalid, and the views were released. A controlled suspension immediately after the async extension constructor tested unload during loading: the old code ended with one extension, timer, and view; the fixed code ended with zero of each. No fixture errors were reported. The artificial suspension makes the race repeatable; it is not an extension startup benchmark.
 
 Temporary instrumentation was removed. The final Mac build passed. These checks establish resource teardown and cancellation behavior, not a quantified RAM, CPU, or battery improvement. Extension compatibility ratings remain unchanged.
+
+### Mac Auto PiP when switching apps
+
+The opt-in Auto PiP setting now covers switching away from Ark as well as switching tabs. When Ark resigns active, the visible regular tab may enter system PiP; when Ark becomes active again with that tab visible, Ark returns playback inline. Pending app-switch requests cancel if Ark regains focus before PiP starts. Calls, private tabs, Agent spaces, muted video, and Mini Player-owned tabs remain excluded. The setting label now describes both triggers.
+
+A temporary Mac fixture played the local Ark video, activated Finder, and read WebKit presentation state from the live page: `picture-in-picture` while Ark was inactive, then `inline` after returning to Ark. `pnpm nx run ark:build-mac` passed, and temporary fixture code was removed. iPhone, iPad, Duo, and third-party streaming behavior remain open.

@@ -8,49 +8,81 @@ final class VideoPictureInPicture {
     private var request: Task<Void, Never>?
     private var requestID: UUID?
     private var tabID: UUID?
+    private var returnsOnActivation = false
+    private var pendingAppSwitch = false
     private weak var view: WKWebView?
     private var dismissal: (id: UUID, tabID: UUID, task: Task<Void, Never>)?
 
     func visibleTabsChanged(in browser: Browser, from previous: [UUID], to current: [UUID]) {
         if let tabID, current.contains(tabID) { stop() }
+        startAutomatically(in: browser, candidates: previous.filter { !current.contains($0) }, applicationInactive: false)
+    }
+
+    func applicationActivityChanged(in browser: Browser, active: Bool) {
+        guard browser.library.activeWindow === browser else { return }
+        if active {
+            if pendingAppSwitch {
+                request?.cancel()
+                request = nil
+                requestID = nil
+                pendingAppSwitch = false
+            }
+            guard returnsOnActivation else { return }
+            if tabID.map(browser.visibleTabIDs.contains) ?? true { stop() }
+            returnsOnActivation = false
+        } else {
+            startAutomatically(in: browser, candidates: browser.visibleTabIDs, applicationInactive: true)
+        }
+    }
+
+    private func isAway(from tab: BrowserTab, in browser: Browser, applicationInactive: Bool) -> Bool {
+        if applicationInactive {
+            return !NSApp.isActive && browser.library.activeWindow === browser && browser.visibleTabIDs.contains(tab.id)
+        }
+        return browser.library.window(showing: tab) == nil
+    }
+
+    private func startAutomatically(in browser: Browser, candidates: [UUID], applicationInactive: Bool) {
         guard Preferences.automaticVideoPiP, browser.library.activeWindow === browser,
-              browser.nsWindow?.isVisible == true, request == nil else { return }
-        let hidden = previous.filter { !current.contains($0) }
-        guard !hidden.isEmpty else { return }
+              browser.nsWindow?.isVisible == true, request == nil, !candidates.isEmpty else { return }
         let requestID = UUID()
         self.requestID = requestID
+        pendingAppSwitch = applicationInactive
         request = Task { [weak self, weak browser] in
             guard let self else { return }
             defer {
                 if self.requestID == requestID {
                     self.request = nil
                     self.requestID = nil
+                    self.pendingAppSwitch = false
                 }
             }
             guard !Task.isCancelled, self.requestID == requestID else { return }
-            guard let library = browser?.library else { return }
+            guard let browser else { return }
+            let library = browser.library
             if let view, await Self.run("return Array.from(document.querySelectorAll('video')).some(video => video.webkitPresentationMode === 'picture-in-picture');", in: view) {
                 return
             }
             tabID = nil
             view = nil
-            for id in hidden {
+            for id in candidates {
                 guard !Task.isCancelled, Preferences.automaticVideoPiP else { return }
                 guard library.videoMiniPlayer.tabID != id else { continue }
                 guard let tab = library.tab(id: id), !tab.isPrivate, tab.call == nil,
-                      !library.agents.isInAgentSpace(tab), library.window(showing: tab) == nil,
+                      !library.agents.isInAgentSpace(tab), isAway(from: tab, in: browser, applicationInactive: applicationInactive),
                       let page = library.existingController(for: tab)?.page,
                       !page.state.isCapturing, let candidate = page.view as? WKWebView else { continue }
                 Self.enableNativeMode(in: candidate)
                 guard await Self.run(Self.startScript, in: candidate) else { continue }
                 guard !Task.isCancelled, Preferences.automaticVideoPiP, library.tab(id: id) === tab,
                       library.existingController(for: tab)?.page.view === candidate,
-                      library.window(showing: tab) == nil else {
+                      isAway(from: tab, in: browser, applicationInactive: applicationInactive) else {
                     await candidate.closeAllMediaPresentations()
                     return
                 }
                 if dismissal?.tabID == id { dismissal = nil }
                 tabID = id
+                returnsOnActivation = applicationInactive
                 view = candidate
                 return
             }
@@ -100,6 +132,8 @@ final class VideoPictureInPicture {
     }
 
     func stop() {
+        returnsOnActivation = false
+        pendingAppSwitch = false
         request?.cancel()
         request = nil
         requestID = nil

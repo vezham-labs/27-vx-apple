@@ -76,7 +76,7 @@ private struct GeneralSettings: View {
                     }
                 }
                 Toggle("Open links from other apps in a preview window", isOn: $externalLinksInPreview)
-                Toggle("Float videos when switching tabs", isOn: $automaticVideoPiP)
+                Toggle("Float videos when switching tabs or apps", isOn: $automaticVideoPiP)
                 Toggle("Swipe to snap and dock Mini Player", isOn: $miniPlayerFlicks)
                 LabeledContent("Import") {
                     Button("Import from Another Browser…") { importing = true }

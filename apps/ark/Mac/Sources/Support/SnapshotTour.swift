@@ -152,6 +152,7 @@ struct SnapshotTour {
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
         await namedProfileCheck()
+        await spaceProfileCheck(browser)
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
         browser.newTab(url: first)
@@ -302,6 +303,63 @@ struct SnapshotTour {
     }
 
     private final class ProfileCheckDelegate: EnginePageDelegate {}
+
+    private func spaceProfileCheck(_ browser: Browser) async {
+        let library = browser.library
+        guard let profile = WebsiteProfile(name: "Research") else { return }
+        library.settings.websiteProfiles.append(profile)
+        await verifySpaceAssignments(browser, profile: profile)
+        library.settings.websiteProfiles.removeAll { $0.id == profile.id }
+        try? await WKWebsiteDataStore.remove(forIdentifier: profile.id)
+    }
+
+    private func verifySpaceAssignments(_ browser: Browser, profile: WebsiteProfile) async {
+        let library = browser.library
+        let source = library.addSpace()
+        let shared = library.addSpace()
+        let standard = library.addSpace()
+        source.name = "Projects"
+        shared.name = "Reference"
+        standard.name = "Reading"
+        defer {
+            library.deleteSpace(source)
+            library.deleteSpace(shared)
+            library.deleteSpace(standard)
+        }
+        let tab = library.insertTab(url: nil, in: source, for: browser)
+        let original = library.controller(for: tab)
+        library.assignWebsiteProfile(profile.id, to: source)
+        library.assignWebsiteProfile(profile.id, to: shared)
+        let named = library.controller(for: tab)
+        func uses(_ controller: TabController, profileID: UUID?) -> Bool {
+            guard let store = (controller.page.view as? WKWebView)?.configuration.websiteDataStore else { return false }
+            return store.isPersistent && store.identifier == profileID
+        }
+        let assigned = named !== original && uses(named, profileID: profile.id)
+        library.move(tab, to: shared)
+        let keptPage = library.controller(for: tab) === named
+        tab.interactionState = Data([1])
+        tab.websiteSessionProfileID = profile.id
+        library.move(tab, to: standard)
+        let reset = tab.interactionState == nil && tab.websiteSessionProfileID == nil
+        let rebuilt = library.controller(for: tab)
+        note("space profile assignment rebuilt the page for its named store: \(assigned)")
+        note("moving tabs kept the same-profile page and reset cross-profile state: \(keptPage && reset && rebuilt !== named && uses(rebuilt, profileID: nil))")
+        let defaults = UserDefaults.standard
+        let previousPane = defaults.object(forKey: "settingsTab")
+        defer { defaults.set(previousPane, forKey: "settingsTab") }
+        defaults.set("spaces", forKey: "settingsTab")
+        let settings = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 330),
+                                styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        settings.title = "Spaces"
+        settings.contentView = NSHostingView(rootView: SettingsView().environment(library).environment(delegate.updates))
+        settings.center()
+        settings.makeKeyAndOrderFront(nil)
+        await pause(0.8)
+        saveVisible("space-profiles", in: settings)
+        settings.close()
+        browser.nsWindow?.makeKeyAndOrderFront(nil)
+    }
 
     private func arcFolderImportCheck(_ browser: Browser, window: NSWindow, page: URL) async {
         let data = Data("""
@@ -683,7 +741,7 @@ struct SnapshotTour {
         browser.togglePinned(atlas)
         await pause(0.7)
         saveVisible("pinned-tab", in: window)
-        browser.openGlance(otherPage, isPrivate: false)
+        browser.openGlance(otherPage, profile: .standard)
         await pause(1)
         saveVisible("glance-link-preview", in: window)
         browser.closeGlance()

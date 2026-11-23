@@ -309,8 +309,8 @@ final class Library {
     }
 
     @discardableResult
-    func showLinkPreview(_ url: URL?, popup: (any EnginePage)? = nil) -> LinkPreviewWindow {
-        let preview = LinkPreviewWindow(url: url, library: self, popup: popup)
+    func showLinkPreview(_ url: URL?, popup: (any EnginePage)? = nil, from parent: LinkPreviewWindow? = nil) -> LinkPreviewWindow {
+        let preview = LinkPreviewWindow(url: url, library: self, popup: popup, parent: parent)
         if let last = linkWindows.values.first(where: { $0.window?.isKeyWindow == true }),
            let position = last.window?.frame.origin {
             preview.window?.setFrameOrigin(NSPoint(x: position.x + 20, y: position.y - 20))
@@ -321,7 +321,13 @@ final class Library {
         return preview
     }
 
-    func keepLinkPreview(_ controller: TabController, destination: UUID?) {
+    func linkPreviewDestination(for url: URL?) -> Space {
+        let routed = SpaceRouter.shared.space(for: url, in: self)
+            ?? regularSpaces.first { $0.id == settings.externalLinksSpaceID }
+        return routed ?? activeWindow.flatMap { $0.currentSpace.isPrivate ? nil : $0.currentSpace } ?? regularSpaces[0]
+    }
+
+    func keepLinkPreview(_ controller: TabController, destination: UUID, profile: BrowsingProfile) {
         let tab = controller.tab
         let window = activeWindow
         let target = regularSpaces.first { $0.id == destination }
@@ -329,7 +335,12 @@ final class Library {
             ?? regularSpaces[0]
         tab.windowKey = window?.windowKey
         target.today.insert(tab, at: 0)
-        adopt(controller)
+        if browsingProfile(in: target) == profile {
+            adopt(controller)
+        } else {
+            controller.page.close()
+            tab.interactionState = nil
+        }
         if let window {
             window.commandBar = nil
             window.select(tab)
@@ -360,6 +371,36 @@ final class Library {
 
     // MARK: Pages
 
+    func browsingProfile(in space: Space?) -> BrowsingProfile {
+        if space?.isPrivate == true { return .ephemeral }
+        return space?.websiteProfileID.map(BrowsingProfile.named) ?? .standard
+    }
+
+    func browsingProfile(for tab: BrowserTab) -> BrowsingProfile {
+        tab.isPrivate ? .ephemeral : browsingProfile(in: space(containing: tab))
+    }
+
+    func assignWebsiteProfile(_ id: UUID?, to space: Space) {
+        guard !space.isPrivate, space.id != Preferences.agentSpaceID, space.websiteProfileID != id,
+              id.map({ id in settings.websiteProfiles.contains { $0.id == id } }) ?? true else { return }
+        for tab in space.allTabs { resetBrowsingSession(of: tab) }
+        for window in windows where window.selectedSpaceID == space.id {
+            window.closeGlance()
+            window.reader = nil
+        }
+        space.websiteProfileID = id
+        pageSwaps += 1
+        scheduleSave()
+    }
+
+    private func resetBrowsingSession(of tab: BrowserTab) {
+        for window in windows { window.cancelPrompts(for: tab.id) }
+        unload(tab.id)
+        tab.interactionState = nil
+        tab.websiteSessionProfileID = nil
+        tab.loadError = nil
+    }
+
     /// The live page for a tab, made (and restored) on first use.
     func controller(for tab: BrowserTab) -> TabController {
         _ = pageSwaps
@@ -367,8 +408,11 @@ final class Library {
         if let c = controllers[tab.id] { return c }
         let native = Welcome.isWelcome(tab.url) || LibraryPage.isLibrary(tab.url)
         let pageEngine = native ? engine : engine(for: tab, url: tab.url)
+        if tab.websiteSessionProfileID != space(containing: tab)?.websiteProfileID {
+            tab.interactionState = nil
+        }
         let c = TabController(tab: tab, library: self, engineID: pageEngine.info.id) { delegate in
-            pageEngine.makePage(options: PageOptions(profile: tab.isPrivate ? .ephemeral : .standard,
+            pageEngine.makePage(options: PageOptions(profile: browsingProfile(for: tab),
                                                  // The welcome tab is native; its page starts blank.
                                                  url: Welcome.isWelcome(tab.url) || LibraryPage.isLibrary(tab.url) ? nil : tab.url,
                                                  sessionState: tab.interactionState),
@@ -381,7 +425,10 @@ final class Library {
 
     func existingController(for tab: BrowserTab) -> TabController? { controllers[tab.id] }
 
-    func engine(for tab: BrowserTab, url: URL?) -> any BrowserEngine { engineChooser?(tab, url) ?? engine }
+    func engine(for tab: BrowserTab, url: URL?) -> any BrowserEngine {
+        if case .named = browsingProfile(for: tab) { return engine }
+        return engineChooser?(tab, url) ?? engine
+    }
 
     /// Whether going to `url` means the tab's page has to move to another engine.
     func needsEngineSwap(_ controller: TabController, to url: URL) -> Bool {
@@ -398,7 +445,7 @@ final class Library {
         }
         tab.interactionState = nil
         let c = TabController(tab: tab, library: self, engineID: target.info.id) { delegate in
-            target.makePage(options: PageOptions(profile: tab.isPrivate ? .ephemeral : .standard), delegate: delegate)
+            target.makePage(options: PageOptions(profile: browsingProfile(for: tab)), delegate: delegate)
         }
         controllers[tab.id] = c
         touch(tab.id)
@@ -541,6 +588,10 @@ final class Library {
         if from.id == to.id, pinned {
             for window in windows { _ = window.detachSplit(containing: tab, in: from) }
         }
+        if browsingProfile(in: from) != browsingProfile(in: to) {
+            resetBrowsingSession(of: tab)
+            pageSwaps += 1
+        }
         from.pinned.removeAll { $0.id == tab.id }
         from.setPinFolder(nil, for: tab)
         from.today.removeAll { $0.id == tab.id }
@@ -562,6 +613,10 @@ final class Library {
     func move(_ tab: BrowserTab, to space: Space) {
         guard let from = self.space(containing: tab), from.id != space.id, !space.isPrivate, !tab.isPrivate else { return }
         for w in windows { w.moveOff(tab, in: from) }
+        if browsingProfile(in: from) != browsingProfile(in: space) {
+            resetBrowsingSession(of: tab)
+            pageSwaps += 1
+        }
         from.pinned.removeAll { $0.id == tab.id }
         from.setPinFolder(nil, for: tab)
         from.today.removeAll { $0.id == tab.id }
@@ -747,6 +802,9 @@ final class Library {
 
     func clearWebsiteData() async {
         await engine.clearWebsiteData(for: .standard)
+        for id in Set(settings.websiteProfiles.map(\.id) + regularSpaces.compactMap(\.websiteProfileID)) {
+            await engine.clearWebsiteData(for: .named(id))
+        }
         for w in windows where w.currentTab?.isPrivate == false { w.currentController?.page.reload() }
     }
 

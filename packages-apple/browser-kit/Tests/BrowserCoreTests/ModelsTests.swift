@@ -71,6 +71,7 @@ import Testing
         #expect(s.remoteSuggestions == false)
         #expect(s.desktopSitesWhenUnfolded)
         #expect(s.sitePermissions.isEmpty)
+        #expect(s.websiteProfiles.isEmpty)
     }
 
     @Test func roundTrips() throws {
@@ -79,6 +80,25 @@ import Testing
         s.sitePermissions["meet.google.com"] = ["camera": true]
         let back = try JSONDecoder().decode(BrowserSettings.self, from: JSONEncoder().encode(s))
         #expect(back == s)
+    }
+
+    @Test @MainActor func websiteProfileMetadataSurvivesSnapshot() throws {
+        let profile = try #require(WebsiteProfile(name: "  Research  "))
+        #expect(profile.name == "Research")
+        #expect(WebsiteProfile(name: "  ") == nil)
+        var settings = BrowserSettings()
+        settings.websiteProfiles = [profile]
+        let tab = BrowserTab(url: nil)
+        tab.websiteSessionProfileID = profile.id
+        let space = Space(name: "Work", today: [tab])
+        space.websiteProfileID = profile.id
+        let snapshot = BrowserSnapshot(spaces: [space.record], selectedSpaceID: space.id,
+                                       favorites: [], archive: [], settings: settings, saved: [])
+        let restored = try JSONDecoder().decode(BrowserSnapshot.self, from: JSONEncoder().encode(snapshot))
+        #expect(restored.settings?.websiteProfiles == [profile])
+        let record = try #require(restored.spaces.first)
+        #expect(Space(record).websiteProfileID == profile.id)
+        #expect(Space(record).today.first?.websiteSessionProfileID == profile.id)
     }
 }
 

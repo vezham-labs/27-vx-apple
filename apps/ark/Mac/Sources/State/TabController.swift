@@ -72,7 +72,10 @@ final class TabController: EnginePageDelegate {
     }
 
     func freeze() {
-        if let state = page?.sessionState() { tab.interactionState = state }
+        if let state = page?.sessionState() {
+            tab.interactionState = state
+            tab.websiteSessionProfileID = library?.space(containing: tab)?.websiteProfileID
+        }
     }
 
     func recoverIfNeeded() {
@@ -113,7 +116,7 @@ final class TabController: EnginePageDelegate {
         guard let library else { return .allow }
         if request.wantsGlance {
             guard let window = library.window(showing: tab) ?? library.activeWindow else { return .allow }
-            window.openGlance(request.url, isPrivate: tab.isPrivate)
+            window.openGlance(request.url, profile: linkPreview?.profile ?? library.browsingProfile(for: tab))
             return .cancel
         }
         if request.wantsNewTab {
@@ -221,7 +224,7 @@ final class TabController: EnginePageDelegate {
 
     func page(_ page: any EnginePage, openedPopup popup: any EnginePage, url: URL?) -> (any EnginePageDelegate)? {
         guard let library else { return nil }
-        if linkPreview != nil { return library.showLinkPreview(url, popup: popup).controller }
+        if let linkPreview { return library.showLinkPreview(url, popup: popup, from: linkPreview).controller }
         return library.openPopup(from: tab, page: popup, url: url)
     }
 

@@ -12,6 +12,7 @@ public final class BrowserTab: Identifiable {
     public var lastActive: Date
     /// WKWebView.interactionState (back/forward list + scroll), saved when the web view is evicted.
     public var interactionState: Data?
+    public var websiteSessionProfileID: UUID?
     public var isPrivate: Bool
     /// Set when the tab was opened from a favourite: it belongs to that favourite's tile and stays
     /// out of the Today list.
@@ -99,6 +100,7 @@ public final class Space: Identifiable {
     @ObservationIgnored var refreshingLiveFolderIDs: Set<UUID> = []
     public var today: [BrowserTab]
     public var selectedTabID: UUID?
+    public var websiteProfileID: UUID?
     public internal(set) var splitPair: TabSplitPair?
     public var isSidebarOpen: Bool
     /// The Private space: shows in the spaces list only while it has tabs, and is never saved.
@@ -184,6 +186,18 @@ public struct TabSplitPair: Codable, Equatable, Sendable {
 
 // MARK: - Settings
 
+public struct WebsiteProfile: Codable, Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public let name: String
+
+    public init?(name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        id = UUID()
+        self.name = String(trimmed.prefix(80))
+    }
+}
+
 public struct BrowserSettings: Codable, Equatable, Sendable {
     public var searchEngine: SearchEngine = .google
     /// Send typed text to the search engine for suggestions. Off = local suggestions only.
@@ -196,6 +210,7 @@ public struct BrowserSettings: Codable, Equatable, Sendable {
     public var externalLinksSpaceID: UUID?
     public var linkRoutingEnabled = false
     public var linkRoutingRules: [RouteRule] = []
+    public var websiteProfiles: [WebsiteProfile] = []
     /// Ask for desktop sites on the inner display (like iPad Safari) and mobile sites when folded.
     public var desktopSitesWhenUnfolded = true
     /// Per-site "Request Desktop/Mobile Site" choices, keyed by host. true = desktop.
@@ -229,6 +244,7 @@ public struct BrowserSettings: Codable, Equatable, Sendable {
         externalLinksSpaceID = try c.decodeIfPresent(UUID.self, forKey: .externalLinksSpaceID)
         linkRoutingEnabled = try c.decodeIfPresent(Bool.self, forKey: .linkRoutingEnabled) ?? false
         linkRoutingRules = try c.decodeIfPresent([RouteRule].self, forKey: .linkRoutingRules) ?? []
+        websiteProfiles = try c.decodeIfPresent([WebsiteProfile].self, forKey: .websiteProfiles) ?? []
         desktopSitesWhenUnfolded = try c.decodeIfPresent(Bool.self, forKey: .desktopSitesWhenUnfolded) ?? true
         siteDesktopOverrides = try c.decodeIfPresent([String: Bool].self, forKey: .siteDesktopOverrides) ?? [:]
         sitePermissions = try c.decodeIfPresent([String: [String: Bool]].self, forKey: .sitePermissions) ?? [:]
@@ -351,6 +367,7 @@ public struct TabRecord: Codable, Sendable {
     /// Missing in state saved before tabs could be renamed.
     public var customTitle: String? = nil
     public var pinFolderID: UUID? = nil
+    public var websiteSessionProfileID: UUID? = nil
 }
 
 public struct SpaceRecord: Codable, Sendable {
@@ -362,6 +379,7 @@ public struct SpaceRecord: Codable, Sendable {
     public var appearance: String? = nil
     public var pinFolders: [PinFolder]? = nil
     public var splitPair: TabSplitPair? = nil
+    public var websiteProfileID: UUID? = nil
 }
 
 public struct BrowserSnapshot: Codable, Sendable {
@@ -389,7 +407,8 @@ extension BrowserTab {
         TabRecord(id: id, url: url, title: title, isPinned: isPinned, lastActive: lastActive,
                   interactionState: interactionState, favoriteID: favoriteID,
                   windowKey: isPinned || favoriteID != nil ? nil : windowKey, customTitle: customTitle,
-                  pinFolderID: isPinned ? pinFolderID : nil)
+                  pinFolderID: isPinned ? pinFolderID : nil,
+                  websiteSessionProfileID: websiteSessionProfileID)
     }
     public convenience init(_ r: TabRecord) {
         self.init(id: r.id, url: r.url, title: r.title, isPinned: r.isPinned,
@@ -398,6 +417,7 @@ extension BrowserTab {
         windowKey = r.windowKey
         customTitle = r.customTitle
         pinFolderID = r.isPinned ? r.pinFolderID : nil
+        websiteSessionProfileID = r.websiteSessionProfileID
     }
 }
 
@@ -410,7 +430,7 @@ extension Space {
                     themeHue: themeHue, themeShade: themeShade,
                     appearance: appearance,
                     pinFolders: pinFolders.isEmpty ? nil : pinFolders,
-                    splitPair: splitPair)
+                    splitPair: splitPair, websiteProfileID: isPrivate ? nil : websiteProfileID)
     }
     public convenience init(_ r: SpaceRecord) {
         self.init(id: r.id, name: r.name, symbol: r.symbol, colorIndex: r.colorIndex,
@@ -419,6 +439,7 @@ extension Space {
         themeHue = r.themeHue
         themeShade = r.themeShade
         appearance = r.appearance
+        websiteProfileID = r.websiteProfileID
         restorePinFolders(r.pinFolders ?? [])
         if let pair = r.splitPair, splitTabs(for: pair) != nil {
             splitPair = TabSplitPair(first: pair.first, second: pair.second,

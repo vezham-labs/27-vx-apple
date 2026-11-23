@@ -11,10 +11,10 @@ final class GlanceSession: Identifiable, EnginePageDelegate {
     let isPrivate: Bool
     @ObservationIgnored weak var browser: Browser?
 
-    init(url: URL, isPrivate: Bool, browser: Browser) {
-        self.isPrivate = isPrivate
+    init(url: URL, profile: BrowsingProfile, browser: Browser) {
+        self.isPrivate = profile == .ephemeral
         self.browser = browser
-        page = browser.engine.makePage(options: PageOptions(profile: isPrivate ? .ephemeral : .standard, url: url),
+        page = browser.engine.makePage(options: PageOptions(profile: profile, url: url),
                                        delegate: GlanceSession.placeholder)
         page.delegate = self
     }
@@ -48,9 +48,9 @@ final class GlanceSession: Identifiable, EnginePageDelegate {
 }
 
 extension Browser {
-    func openGlance(_ url: URL, isPrivate: Bool) {
+    func openGlance(_ url: URL, profile: BrowsingProfile) {
         glance?.page.close()
-        glance = GlanceSession(url: url, isPrivate: isPrivate, browser: self)
+        glance = GlanceSession(url: url, profile: profile, browser: self)
     }
 
     func closeGlance() {

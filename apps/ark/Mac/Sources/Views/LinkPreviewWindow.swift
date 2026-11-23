@@ -8,7 +8,8 @@ final class LinkPreviewWindow: NSWindowController, NSWindowDelegate {
     let controller: TabController
     var tab: BrowserTab { controller.tab }
     private weak var library: Library?
-    private let destination: UUID?
+    private let destination: UUID
+    let profile: BrowsingProfile
     private var kept = false
     private var keyMonitor: Any?
 
@@ -16,12 +17,15 @@ final class LinkPreviewWindow: NSWindowController, NSWindowDelegate {
         ["http", "https"].contains(url.scheme?.lowercased() ?? "") && url.host() != nil
     }
 
-    init(url: URL?, library: Library, popup: (any EnginePage)? = nil) {
+    init(url: URL?, library: Library, popup: (any EnginePage)? = nil, parent: LinkPreviewWindow? = nil) {
         self.library = library
-        destination = SpaceRouter.shared.space(for: url, in: library)?.id ?? library.settings.externalLinksSpaceID
+        let target = library.linkPreviewDestination(for: url)
+        destination = parent?.destination ?? target.id
+        let profile = parent?.profile ?? library.browsingProfile(in: target)
+        self.profile = profile
         let tab = BrowserTab(url: popup == nil ? nil : url)
         controller = TabController(tab: tab, library: library) { delegate in
-            popup ?? library.engine.makePage(options: PageOptions(profile: .standard), delegate: delegate)
+            popup ?? library.engine.makePage(options: PageOptions(profile: profile), delegate: delegate)
         }
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 540),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -51,7 +55,7 @@ final class LinkPreviewWindow: NSWindowController, NSWindowDelegate {
         kept = true
         controller.linkPreview = nil
         close()
-        library.keepLinkPreview(controller, destination: destination)
+        library.keepLinkPreview(controller, destination: destination, profile: profile)
     }
 
     func windowWillClose(_ notification: Notification) {

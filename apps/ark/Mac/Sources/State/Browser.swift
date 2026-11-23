@@ -225,6 +225,7 @@ final class Browser {
 
     private func selectSpace(_ space: Space, resolving: Bool) {
         guard space.id != selectedSpaceID else { return }
+        if library.browsingProfile(in: currentSpace) != library.browsingProfile(in: space) { closeGlance() }
         if space.isPrivate, !currentSpace.isPrivate { spaceBeforePrivate = selectedSpaceID }
         if let from = spaces.firstIndex(where: { $0.id == selectedSpaceID }),
            let to = spaces.firstIndex(where: { $0.id == space.id }) {

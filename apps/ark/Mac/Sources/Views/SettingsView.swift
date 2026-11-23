@@ -222,6 +222,8 @@ private struct SpacesSettings: View {
 private struct SpaceEditor: View {
     @Environment(Library.self) private var browser
     @Bindable var space: Space
+    @State private var profileName = ""
+    @State private var creatingProfile = false
     /// The handle's drag: how far it has moved down (negative is up), then the drop.
     let onDrag: (CGFloat) -> Void
     let onDrop: () -> Void
@@ -245,6 +247,7 @@ private struct SpaceEditor: View {
                 .onSubmit { browser.scheduleSave() }
             SpaceThemeButton(space: space) { browser.scheduleSave() }
                 .padding(.horizontal, 4)
+            if space.id != Preferences.agentSpaceID { profileMenu }
             if space.id != Preferences.agentSpaceID, let archive = SpaceLinkArchive(space: space) {
                 ShareLink(item: archive, preview: SharePreview(space.name)) {
                     Label("Share", systemImage: "square.and.arrow.up")
@@ -257,6 +260,44 @@ private struct SpaceEditor: View {
                 .help("Delete space and its tabs")
         }
         .onChange(of: space.name) { browser.scheduleSave() }
+        .alert("New Website Profile", isPresented: $creatingProfile) {
+            TextField("Profile Name", text: $profileName)
+            Button("Cancel", role: .cancel) {}
+            Button("Create") {
+                guard let profile = WebsiteProfile(name: profileName) else { return }
+                browser.settings.websiteProfiles.append(profile)
+                browser.assignWebsiteProfile(profile.id, to: space)
+            }
+            .disabled(profileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        } message: {
+            Text("A profile keeps website sign-ins and storage separate. Changing profiles reloads the Space’s tabs.")
+        }
+    }
+
+    private var profileMenu: some View {
+        let selected = browser.settings.websiteProfiles.first { $0.id == space.websiteProfileID }
+        return Menu {
+            Picker("Website Profile", selection: Binding(
+                get: { space.websiteProfileID },
+                set: { browser.assignWebsiteProfile($0, to: space) }
+            )) {
+                Text("Default Profile").tag(UUID?.none)
+                ForEach(browser.settings.websiteProfiles) { profile in
+                    Text(profile.name).tag(Optional(profile.id))
+                }
+            }
+            Divider()
+            Button("New Website Profile…") {
+                profileName = ""
+                creatingProfile = true
+            }
+        } label: {
+            Label(selected?.name ?? "Default", systemImage: "person.crop.circle")
+                .lineLimit(1)
+        }
+        .frame(maxWidth: 110)
+        .controlSize(.small)
+        .help("Website Profile for \(space.name)")
     }
 }
 

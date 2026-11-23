@@ -204,4 +204,14 @@ public final class ProfileHistoryStores {
             await store.saveNow()
         }
     }
+
+    /// Deletes a named profile's history file and releases its in-memory index.
+    public func deleteProfile(_ id: UUID) async {
+        let store = named.removeValue(forKey: id) ?? self.store(for: id)
+        await store.clearAll()
+        await store.saveNow()
+        if let file = store.fileURL {
+            try? FileManager.default.removeItem(at: file.deletingLastPathComponent())
+        }
+    }
 }

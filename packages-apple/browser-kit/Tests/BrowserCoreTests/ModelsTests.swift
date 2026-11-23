@@ -104,6 +104,35 @@ import Suggest
         #expect(Space(record).websiteProfileID == profile.id)
         #expect(Space(record).today.first?.websiteSessionProfileID == profile.id)
     }
+
+    @Test func websiteProfileNamesCanBeChangedWithoutChangingIdentity() throws {
+        var profile = try #require(WebsiteProfile(name: "Research"))
+        let id = profile.id
+        let renamed = profile.rename(to: "  Personal  ")
+        #expect(renamed)
+        #expect(profile.id == id)
+        #expect(profile.name == "Personal")
+        let rejected = profile.rename(to: "   ")
+        #expect(!rejected)
+        #expect(profile.name == "Personal")
+    }
+
+    @Test @MainActor func deletingAWebsiteProfileRemovesItsHistoryDirectory() async throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let profileID = UUID()
+        let history = HistoryStore(fileURL: directory.appending(path: "history.json"))
+        let profiles = ProfileHistoryStores(defaultStore: history)
+        let profileHistory = profiles.store(for: profileID)
+        let url = try #require(URL(string: "https://example.com/profile"))
+        await profileHistory.recordVisit(url: url, title: "Profile", source: .typed)
+        await profileHistory.saveNow()
+        let profileDirectory = directory.appending(path: "Profiles").appending(path: profileID.uuidString)
+        #expect(FileManager.default.fileExists(atPath: profileDirectory.path))
+
+        await profiles.deleteProfile(profileID)
+        #expect(!FileManager.default.fileExists(atPath: profileDirectory.path))
+    }
 }
 
 @Suite struct ThumbnailStoreTests {

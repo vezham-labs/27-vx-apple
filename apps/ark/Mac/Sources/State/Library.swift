@@ -101,6 +101,7 @@ final class Library {
     @ObservationIgnored private var blockingTask: Task<Void, Never>?
     @ObservationIgnored private var idlePageTask: Task<Void, Never>?
     @ObservationIgnored private var memoryPressureSource: DispatchSourceMemoryPressure?
+    @ObservationIgnored private var unloadCompletions: [UUID: [@MainActor () -> Void]] = [:]
     /// Kept so state written by the iPhone format round-trips; the Mac doesn't show Saved yet.
     @ObservationIgnored private var savedSites: [SavedSite] = []
     /// The space the first window opens on.
@@ -464,6 +465,35 @@ final class Library {
         scheduleSave()
     }
 
+    func renameWebsiteProfile(_ id: UUID, to name: String) {
+        guard let index = settings.websiteProfiles.firstIndex(where: { $0.id == id }) else { return }
+        var profile = settings.websiteProfiles[index]
+        guard profile.rename(to: name) else { return }
+        settings.websiteProfiles[index] = profile
+        scheduleSave()
+    }
+
+    func deleteWebsiteProfile(_ id: UUID) async {
+        guard settings.websiteProfiles.contains(where: { $0.id == id }) else { return }
+        let affectedSpaces = regularSpaces.filter { $0.websiteProfileID == id }
+        let affectedTabs = affectedSpaces.flatMap(\.allTabs)
+        for space in affectedSpaces {
+            assignWebsiteProfile(nil, to: space)
+        }
+        for tab in affectedTabs { await unloadAndWait(tab.id) }
+        for tab in affectedTabs {
+            tab.interactionState = nil
+            tab.websiteSessionProfileID = nil
+        }
+        archive.removeAll { $0.websiteSessionProfileID == id }
+        recentlyClosed.removeAll { $0.websiteSessionProfileID == id }
+        favoritesByProfile.removeValue(forKey: FavoriteProfileKey.key(for: id))
+        settings.websiteProfiles.removeAll { $0.id == id }
+        await engine.clearWebsiteData(for: .named(id))
+        await profileHistory.deleteProfile(id)
+        scheduleSave()
+    }
+
     private func resetBrowsingSession(of tab: BrowserTab) {
         for window in windows { window.cancelPrompts(for: tab.id) }
         unload(tab.id)
@@ -570,9 +600,28 @@ final class Library {
 
     /// Saves a page's back/forward list onto its tab and lets the page go.
     private func unload(_ id: UUID) {
+        unload(id, then: {})
+    }
+
+    private func unloadAndWait(_ id: UUID) async {
+        await withCheckedContinuation { continuation in
+            unload(id) { continuation.resume() }
+        }
+    }
+
+    private func unload(_ id: UUID, then completion: @escaping @MainActor () -> Void) {
+        if unloadCompletions[id] != nil {
+            unloadCompletions[id, default: []].append(completion)
+            return
+        }
+        unloadCompletions[id] = [completion]
         videoPictureInPicture.beforeTabUnload(id) { [weak self] in
-            guard let self else { return }
-            self.videoMiniPlayer.beforeTabUnload(id) { self.finishUnload(id) }
+            guard let self else { completion(); return }
+            self.videoMiniPlayer.beforeTabUnload(id) {
+                self.finishUnload(id)
+                let completions = self.unloadCompletions.removeValue(forKey: id) ?? []
+                completions.forEach { $0() }
+            }
         }
     }
 

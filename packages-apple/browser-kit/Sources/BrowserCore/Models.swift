@@ -287,13 +287,21 @@ public struct TabSplitPair: Codable, Equatable, Sendable {
 
 public struct WebsiteProfile: Codable, Equatable, Identifiable, Sendable {
     public let id: UUID
-    public let name: String
+    public private(set) var name: String
 
     public init?(name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         id = UUID()
         self.name = String(trimmed.prefix(80))
+    }
+
+    @discardableResult
+    public mutating func rename(to name: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        self.name = String(trimmed.prefix(80))
+        return true
     }
 }
 

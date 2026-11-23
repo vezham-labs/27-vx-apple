@@ -26,6 +26,11 @@ struct SnapshotTour {
             return
         }
         note("tour started after \(waited)s")
+        if ProcessInfo.processInfo.environment["ARK_SETTINGS_PREVIEW_ONLY"] == "1" {
+            await settingsPreviews(browser, window: browser.nsWindow!)
+            NSApp.terminate(nil)
+            return
+        }
         if let fixture = ProcessInfo.processInfo.environment["ARK_SNAPSHOT_FEATURE_URL"], let url = URL(string: fixture) {
             await featurePreviews(browser, base: url)
             NSApp.terminate(nil)
@@ -751,7 +756,7 @@ struct SnapshotTour {
         defer { defaults.set(previousPane, forKey: "settingsTab") }
         browser.settings.blockContent = true
         SpaceRouter.shared.isEnabled = true
-        for (pane, file) in [("spaces", "shared-collections"), ("routing", "space-routing"), ("shortcuts", "custom-shortcuts"), ("privacy", "ad-blocker")] {
+        for (pane, file) in [("spaces", "shared-collections"), ("routing", "space-routing"), ("shortcuts", "custom-shortcuts"), ("privacy", "ad-blocker"), ("general", "idle-page-unloading")] {
             browser.library.openSettings(pane: pane)
             await pause(0.8)
             guard let settings = NSApp.keyWindow, settings !== window else {

@@ -74,12 +74,14 @@ import Suggest
         #expect(s.desktopSitesWhenUnfolded)
         #expect(s.sitePermissions.isEmpty)
         #expect(s.websiteProfiles.isEmpty)
+        #expect(s.unloadIdlePagesAfterMinutes == 30)
     }
 
     @Test func roundTrips() throws {
         var s = BrowserSettings()
         s.siteDesktopOverrides["example.com"] = false
         s.sitePermissions["meet.google.com"] = ["camera": true]
+        s.unloadIdlePagesAfterMinutes = 10
         let back = try JSONDecoder().decode(BrowserSettings.self, from: JSONEncoder().encode(s))
         #expect(back == s)
     }

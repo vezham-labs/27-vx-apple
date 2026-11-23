@@ -99,6 +99,8 @@ final class Library {
     @ObservationIgnored private let snapshotURL: URL?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var blockingTask: Task<Void, Never>?
+    @ObservationIgnored private var idlePageTask: Task<Void, Never>?
+    @ObservationIgnored private var memoryPressureSource: DispatchSourceMemoryPressure?
     /// Kept so state written by the iPhone format round-trips; the Mac doesn't show Saved yet.
     @ObservationIgnored private var savedSites: [SavedSite] = []
     /// The space the first window opens on.
@@ -198,6 +200,7 @@ final class Library {
         windows.removeAll { $0 === window }
         windows.insert(window, at: 0)
         if !windowsByAge.contains(where: { $0 === window }) { windowsByAge.append(window) }
+        startIdlePageEviction()
     }
 
     func unregister(_ window: Browser) {
@@ -212,8 +215,68 @@ final class Library {
         if !windows.isEmpty, !isTerminating {
             let count = archiveTabs(of: window)
             windowLog.debug("Closed a window: \(count) tabs to the archive")
+        } else if windows.isEmpty, !isTerminating {
+            Task { [weak self] in await self?.unloadIdlePages(after: 0) }
         }
         scheduleSave()
+    }
+
+    private func startIdlePageEviction() {
+        guard idlePageTask == nil else { return }
+        idlePageTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                guard let self else { return }
+                await self.unloadIdlePages()
+            }
+        }
+        let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
+        source.setEventHandler { [weak self] in
+            guard let self else { return }
+            let pressure = self.memoryPressureSource?.data ?? []
+            let idle = pressure.contains(.critical) ? 0.0 : 5.0 * 60
+            Task { @MainActor [weak self] in await self?.unloadIdlePages(after: idle) }
+        }
+        memoryPressureSource = source
+        source.resume()
+    }
+
+    /// Release inactive WebViews without interrupting work the user expects to continue.
+    /// Re-selecting a tab rebuilds its page from the saved WebKit session state.
+    func unloadIdlePages(after override: TimeInterval? = nil, now: Date = .now) async {
+        let configured = min(12.0 * 60 * 60, max(0.0, settings.unloadIdlePagesAfterMinutes * 60))
+        guard override != nil || configured > 0 else { return }
+        let wait = max(0, override ?? configured)
+        let visible = Set(windows.flatMap(\.visibleTabIDs))
+        let activeDownload = downloads.contains { $0.status == .running }
+        let candidates = lru.sorted { id1, id2 in
+            (tab(id: id1)?.lastActive ?? .distantFuture) < (tab(id: id2)?.lastActive ?? .distantFuture)
+        }
+        for id in candidates {
+            guard let tab = tab(id: id), !tab.isPrivate, tab.call == nil,
+                  now.timeIntervalSince(tab.lastActive) >= wait,
+                  !visible.contains(id), videoMiniPlayer.tabID != id,
+                  !videoPictureInPicture.isFloating(id), !agents.isInAgentSpace(tab),
+                  !activeDownload,
+                  !windows.contains(where: { $0.activePrompt?.tabID == id }),
+                  let controller = controllers[id], controller.engineID == engine.info.id,
+                  !controller.page.state.isLoading, !controller.page.state.isBusy else { continue }
+
+            // Sound, form state, calls, and loads are represented in PageState. This also
+            // protects muted video, WebKit PiP, and audio elements WebKit doesn't report as audible.
+            guard let mediaActive = try? await controller.page.evaluate("""
+                return Boolean(document.pictureInPictureElement)
+                    || [...document.querySelectorAll('video, audio')].some(media =>
+                        (!media.paused && !media.ended)
+                        || media.webkitPresentationMode === 'picture-in-picture');
+                """, inWorld: "ark.idle-page-check") as? Bool, !mediaActive else { continue }
+
+            guard controllers[id] === controller,
+                  now.timeIntervalSince(tab.lastActive) >= wait,
+                  !windows.flatMap(\.visibleTabIDs).contains(id),
+                  !controller.page.state.isLoading, !controller.page.state.isBusy else { continue }
+            unload(id)
+        }
     }
 
     /// The window that lists a Today tab: the one it belongs to, or the oldest window when that

@@ -13,6 +13,8 @@ final class VideoPictureInPicture {
     private weak var view: WKWebView?
     private var dismissal: (id: UUID, tabID: UUID, task: Task<Void, Never>)?
 
+    func isFloating(_ id: UUID) -> Bool { tabID == id }
+
     func visibleTabsChanged(in browser: Browser, from previous: [UUID], to current: [UUID]) {
         if let tabID, current.contains(tabID) { stop() }
         startAutomatically(in: browser, candidates: previous.filter { !current.contains($0) }, applicationInactive: false)

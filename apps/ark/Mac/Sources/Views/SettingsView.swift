@@ -112,6 +112,14 @@ private struct GeneralSettings: View {
                     Text("7 days").tag(168.0)
                     Text("30 days").tag(720.0)
                 }
+                Picker("Unload idle pages after", selection: $browser.settings.unloadIdlePagesAfterMinutes) {
+                    Text("Never").tag(0.0)
+                    Text("10 minutes").tag(10.0)
+                    Text("30 minutes").tag(30.0)
+                    Text("2 hours").tag(120.0)
+                }
+                Text("Releases inactive page memory and restores the tab when you return. Pages loading, playing media, on calls, or holding unsaved text stay open.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Picker("Open links from other apps in", selection: $browser.settings.externalLinksSpaceID) {
                     Text("Current space").tag(UUID?.none)
                     ForEach(browser.regularSpaces) { s in Text(s.name).tag(UUID?.some(s.id)) }

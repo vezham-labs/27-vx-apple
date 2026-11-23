@@ -303,6 +303,8 @@ public struct BrowserSettings: Codable, Equatable, Sendable {
     public var remoteSuggestions = true
     /// Today tabs untouched for this many hours move to the archive.
     public var archiveAfterHours: Double = 12
+    /// Mac releases ready, inactive WebViews after this many minutes. Zero disables idle unloading.
+    public var unloadIdlePagesAfterMinutes: Double = 30
     /// Block ads and trackers with the built-in content rule list.
     public var blockContent = true
     /// Where links from other apps open.
@@ -339,6 +341,7 @@ public struct BrowserSettings: Codable, Equatable, Sendable {
         searchEngine = try c.decodeIfPresent(SearchEngine.self, forKey: .searchEngine) ?? .google
         remoteSuggestions = try c.decodeIfPresent(Bool.self, forKey: .remoteSuggestions) ?? true
         archiveAfterHours = try c.decodeIfPresent(Double.self, forKey: .archiveAfterHours) ?? 12
+        unloadIdlePagesAfterMinutes = try c.decodeIfPresent(Double.self, forKey: .unloadIdlePagesAfterMinutes) ?? 30
         blockContent = try c.decodeIfPresent(Bool.self, forKey: .blockContent) ?? true
         externalLinksSpaceID = try c.decodeIfPresent(UUID.self, forKey: .externalLinksSpaceID)
         linkRoutingEnabled = try c.decodeIfPresent(Bool.self, forKey: .linkRoutingEnabled) ?? false

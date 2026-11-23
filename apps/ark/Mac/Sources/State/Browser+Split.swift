@@ -17,7 +17,8 @@ struct TabSplit: Codable, Equatable {
 extension Browser {
     var splitCandidates: [BrowserTab] {
         guard let active = currentTab, canSplit(active) else { return [] }
-        return currentSpace.today.filter { $0.id != active.id && canSplit($0) }
+        let elsewhere = Set(library.windows.filter { $0 !== self }.flatMap(\.visibleTabIDs))
+        return currentSpace.allTabs.filter { $0.id != active.id && canSplit($0) && !elsewhere.contains($0.id) }
     }
 
     var activeSplit: TabSplit? {
@@ -40,16 +41,25 @@ extension Browser {
 
     func splitMembers(of pair: TabSplit, in space: Space) -> (BrowserTab, BrowserTab)? {
         guard pair.first != pair.second, !space.isPrivate,
-              let first = space.today.first(where: { $0.id == pair.first }), canSplit(first),
-              let second = space.today.first(where: { $0.id == pair.second }), canSplit(second) else { return nil }
+              let first = splitMember(pair.first, in: space),
+              let second = splitMember(pair.second, in: space) else { return nil }
         return (first, second)
+    }
+
+    func canShowSplit(_ pair: TabSplit, in space: Space) -> Bool {
+        guard let (first, second) = splitMembers(of: pair, in: space) else { return false }
+        return !library.windows.contains {
+            $0 !== self && ((first.isPinned && $0.isShowing(first.id)) || (second.isPinned && $0.isShowing(second.id)))
+        }
     }
 
     func splitWith(_ tab: BrowserTab) {
         guard let active = currentTab, active.id != tab.id,
               let space = space(containing: tab), space.id == currentSpace.id,
               canSplit(active), canSplit(tab) else { return }
-        splitBySpace[space.id] = TabSplit(first: active.id, second: tab.id, focused: active.id)
+        let pair = TabSplit(first: active.id, second: tab.id, focused: active.id)
+        guard canShowSplit(pair, in: space) else { return }
+        splitBySpace[space.id] = pair
         reader = nil
         isSplitPickerPresented = false
     }
@@ -82,11 +92,19 @@ extension Browser {
         guard let split = splitBySpace[space.id], split.contains(tab.id) else { return nil }
         splitBySpace[space.id] = nil
         let other = split.first == tab.id ? split.second : split.first
-        return space.today.first { $0.id == other && canSplit($0) }
+        guard let partner = splitMember(other, in: space),
+              !library.windows.contains(where: { $0 !== self && partner.isPinned && $0.isShowing(other) }) else { return nil }
+        return partner
+    }
+
+    private func splitMember(_ id: UUID, in space: Space) -> BrowserTab? {
+        let tab = space.pinned.first { $0.id == id } ?? space.today.first { $0.id == id }
+        guard let tab, canSplit(tab) else { return nil }
+        return tab
     }
 
     private func canSplit(_ tab: BrowserTab) -> Bool {
-        guard !tab.isPrivate, !tab.isPinned, tab.favoriteID == nil, tab.windowKey == windowKey,
+        guard !tab.isPrivate, tab.favoriteID == nil, tab.isPinned || tab.windowKey == windowKey,
               let scheme = tab.url?.scheme?.lowercased() else { return false }
         return scheme == "http" || scheme == "https"
     }

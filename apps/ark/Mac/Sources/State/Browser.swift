@@ -244,10 +244,18 @@ final class Browser {
 
     /// First visit to a space in this window: show the tab the space last had, unless another window has it.
     private func resolveSelection(in space: Space) {
-        guard tabSelection[space.id] == nil else { return }
+        if let remembered = tabSelection[space.id] {
+            let busy = library.windows.contains { $0 !== self && $0.isShowing(remembered) }
+            if var pair = splitBySpace[space.id], pair.isOpen, !canShowSplit(pair, in: space) {
+                pair.isOpen = false
+                splitBySpace[space.id] = pair
+            }
+            if !busy { return }
+            tabSelection[space.id] = nil
+        }
         if let pair = splitBySpace[space.id], let (first, second) = splitMembers(of: pair, in: space) {
             // Scene storage keeps this window's presentation even if another window changed the Space's selection.
-            if pair.isOpen {
+            if pair.isOpen, canShowSplit(pair, in: space) {
                 tabSelection[space.id] = pair.focused == second.id ? second.id : first.id
                 return
             }
@@ -269,7 +277,7 @@ final class Browser {
         }
         tabSelection[space.id] = tab?.id
         if var split = splitBySpace[space.id] {
-            split.isOpen = tab.map { split.contains($0.id) } ?? false
+            split.isOpen = tab.map { split.contains($0.id) && canShowSplit(split, in: space) } ?? false
             if let tab, split.isOpen { split.focused = tab.id }
             if splitBySpace[space.id] != split { splitBySpace[space.id] = split }
         }

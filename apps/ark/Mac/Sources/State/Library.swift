@@ -563,7 +563,6 @@ final class Library {
 
     func togglePinned(_ tab: BrowserTab) {
         guard !tab.isPrivate, let space = space(containing: tab) else { return }
-        for window in windows { _ = window.detachSplit(containing: tab, in: space) }
         if tab.isPinned {
             space.pinned.removeAll { $0.id == tab.id }
             space.setPinFolder(nil, for: tab)
@@ -585,9 +584,7 @@ final class Library {
         if let folderID {
             guard pinned, !to.isPrivate, to.pinFolders.contains(where: { $0.id == folderID }) else { return }
         }
-        if from.id == to.id, pinned {
-            for window in windows { _ = window.detachSplit(containing: tab, in: from) }
-        }
+        let showingPinnedWindow = tab.isPinned && from.id == to.id ? window(showing: tab) : nil
         if browsingProfile(in: from) != browsingProfile(in: to) {
             resetBrowsingSession(of: tab)
             pageSwaps += 1
@@ -604,7 +601,7 @@ final class Library {
             let i = target.flatMap { t in to.today.firstIndex { $0.id == t.id } } ?? to.today.endIndex
             to.today.insert(tab, at: i)
             // Dropped in Today: it joins the window it was dropped in.
-            tab.windowKey = activeWindow?.windowKey ?? target?.windowKey
+            tab.windowKey = showingPinnedWindow?.windowKey ?? activeWindow?.windowKey ?? target?.windowKey
         }
         if from.id != to.id { for w in windows { w.tabLeft(tab, space: from) } }
         scheduleSave()

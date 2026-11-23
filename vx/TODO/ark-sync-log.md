@@ -180,3 +180,7 @@ Mobile Settings → Spaces now supports the same named website profile assignmen
 Search’s `Profiles.swift` also keeps a history file per profile. Ark now records visits against the page’s WebKit profile and reads that profile in address suggestions. Suggestion results for open and archived tabs follow the same scope. The existing Default history file stays in place, and Clear History clears all profile history stores. Favourites remain shared, and named Mac profiles still lack extensions.
 
 Both builds passed. A local storage check verified isolation after reopening files and clearing cold stores. A local Mac check verified that a named WebKit page’s visit appeared in another Space assigned the same profile and stayed out of Default suggestions. Mobile suggestion runtime checks remain open. The test-only changes used for these checks are omitted from this milestone.
+
+### Pinned tabs in Mac Split View
+
+Mac can pair a pinned web tab with a Today tab or another pin in the same Space. The chooser omits pins visible in another window, and reopening a saved split keeps it closed while a pane is busy elsewhere. Pinning or unpinning a pane in the same Space preserves its pair and divider. The production build passed. A temporary local Mac fixture verified the two live panes, window ownership, pinning and unpinning, and keeping the remaining pane on close. The [Mac preview](../../preview/ark/mac/features/pinned-split-view.png) shows a pin next to a Today tab. Mobile pinned tabs and splits with more than two panes remain open.

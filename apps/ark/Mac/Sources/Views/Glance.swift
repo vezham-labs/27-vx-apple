@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import BrowserCore
 import BrowserEngine
 
 /// Glance: Option-click a link to look at it in a card over the page, like Zen's Glance and Arc's
@@ -55,6 +56,20 @@ final class GlanceSession: Identifiable, EnginePageDelegate {
 }
 
 extension Browser {
+    static func canPreviewLink(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(), url.host() != nil else { return false }
+        return scheme == "http" || scheme == "https"
+    }
+
+    @discardableResult
+    func previewLink(_ url: URL, from tab: BrowserTab?) -> Bool {
+        guard Self.canPreviewLink(url) else { return false }
+        let profile = tab.map(library.browsingProfile(for:)) ?? library.browsingProfile(in: currentSpace)
+        commandBar = nil
+        openGlance(url, profile: profile)
+        return true
+    }
+
     func openGlance(_ url: URL, profile: BrowsingProfile) {
         glance?.page.close()
         glance = GlanceSession(url: url, profile: profile, browser: self)
@@ -71,6 +86,18 @@ extension Browser {
         guard let url = glance.url else { return closeGlance() }
         self.glance = nil
         newTab(url: url, isPrivate: glance.isPrivate, source: .link, promoting: glance)
+    }
+}
+
+struct PreviewLinkButton: View {
+    @Environment(Browser.self) private var browser
+    let url: URL
+    var tab: BrowserTab? = nil
+
+    var body: some View {
+        if Browser.canPreviewLink(url) {
+            Button("Preview Link", systemImage: "rectangle.inset.filled") { browser.previewLink(url, from: tab) }
+        }
     }
 }
 

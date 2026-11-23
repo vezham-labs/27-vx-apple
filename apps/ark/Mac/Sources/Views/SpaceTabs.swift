@@ -465,6 +465,7 @@ struct TabMenu: View {
             }
         }
         if let url = tab.url {
+            PreviewLinkButton(url: url, tab: tab)
             Button(browser.isFavorite(url) ? "Already a Favourite" : "Add to Favourites", systemImage: "star") {
                 withAnimation(Motion.snappy) { browser.addFavorite(url: url, title: tab.displayTitle) }
             }

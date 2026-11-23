@@ -243,6 +243,7 @@ struct CommandBar: View {
                     onMove: { model?.moveHighlight($0) },
                     onHorizontal: { model?.moveToolHighlight($0) ?? false },
                     onSubmit: { text in submit(text) },
+                    onPreview: { text in preview(text) },
                     onCancel: { close() })
                     .frame(height: 24)
                 if browser.currentSpace.isPrivate {
@@ -286,6 +287,9 @@ struct CommandBar: View {
                                 .id(i)
                                 .onTapGesture { perform(row.action) }
                                 .onHover { if $0 { model.highlight(i) } }
+                                .contextMenu {
+                                    if let url = row.url { PreviewLinkButton(url: url, tab: sourceTab(for: row.action)) }
+                                }
                         }
                     }
                     .padding(6)
@@ -309,6 +313,11 @@ struct CommandBar: View {
     private func commandSymbol(_ row: Suggestion) -> String? {
         if case .command(let id) = row.action { return browser.symbol(forCommand: id) }
         return nil
+    }
+
+    private func sourceTab(for action: SuggestionAction) -> BrowserTab? {
+        guard case .switchToTab(let id, _) = action else { return nil }
+        return browser.library.tab(id: id)
     }
 
     /// The command's keys, so ⌘K teaches them.
@@ -346,6 +355,21 @@ struct CommandBar: View {
             // Return on an empty field opens a blank tab, like Arc.
             browser.commandBar = nil
             browser.newTab(url: nil)
+        }
+    }
+
+    private func preview(_ text: String) -> Bool {
+        if let i = model?.toolHighlighted {
+            let favorites = browser.library.sortedFavorites
+            guard mode == .newTab, favorites.indices.contains(i) else { return false }
+            return browser.previewLink(favorites[i].url, from: nil)
+        }
+        guard let action = model?.submitAction(fieldText: text) else { return false }
+        switch action {
+        case .open(let url), .switchToTab(_, let url):
+            return browser.previewLink(url, from: sourceTab(for: action))
+        case .command, .search:
+            return false
         }
     }
 
@@ -535,6 +559,7 @@ struct CommandField: NSViewRepresentable {
     /// ← and →: true when handled (⌘K's tool row), false to leave them to the field.
     var onHorizontal: (Int) -> Bool = { _ in false }
     let onSubmit: (String) -> Void
+    let onPreview: (String) -> Bool
     let onCancel: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -603,6 +628,7 @@ struct CommandField: NSViewRepresentable {
             case #selector(NSResponder.moveLeft(_:)): return parent?.onHorizontal(-1) ?? false
             case #selector(NSResponder.moveRight(_:)): return parent?.onHorizontal(1) ?? false
             case #selector(NSResponder.insertNewline(_:)): parent?.onSubmit(textView.string); return true
+            case #selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)): return parent?.onPreview(textView.string) ?? false
             case #selector(NSResponder.cancelOperation(_:)): parent?.onCancel(); return true
             case #selector(NSResponder.insertTab(_:)):
                 // Tab accepts the inline completion.

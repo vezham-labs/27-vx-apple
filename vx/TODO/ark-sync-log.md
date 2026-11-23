@@ -216,3 +216,7 @@ In a local release-optimized Swift benchmark, the median of seven paired runs ov
 Search’s `Peek.swift` moves the live preview into the tab. Ark now does the same for a finished Glance page when the destination uses the same website profile and engine and the URL needs no cleanup. The normal tab-opening path remains in use for other destinations and incomplete pages.
 
 A loopback fixture served a page with caching disabled. Expanding Glance went from two main-document requests to one and retained the same WebKit view and a DOM change. The fixture also verified that the promoted page mounted in the browser window and entered history. Promotion from Default to Private created a separate view with a nonpersistent data store.
+
+### Mac Glance from the sidebar and command bar
+
+Sidebar tabs and favourites and command-bar URL results now offer **Preview Link**. The command bar also previews a selected link or typed URL with ⌥Return. The Mac fixture sent that keystroke to the native field, loaded the preview, and verified that the current tab stayed selected. It also checked that a preview requested from a private tab used a nonpersistent website store and that a non-web URL was rejected. The sidebar context menus use the same action. The [Mac screenshot](../../preview/ark/mac/features/command-bar-link-preview.png) shows the preview over the original tab. Hover and a configurable click modifier remain open.

@@ -140,7 +140,7 @@ public final class Space: Identifiable {
 
     public var splitCandidates: [BrowserTab] {
         guard let current = selectedTab, isSplittable(current) else { return [] }
-        return today.filter { $0.id != current.id && isSplittable($0) }
+        return allTabs.filter { $0.id != current.id && isSplittable($0) }
     }
 
     public var activeSplitTabs: (BrowserTab, BrowserTab)? {
@@ -163,16 +163,22 @@ public final class Space: Identifiable {
     }
 
     private func isSplittable(_ tab: BrowserTab) -> Bool {
-        guard !isPrivate, !tab.isPrivate, !tab.isPinned, tab.favoriteID == nil,
+        guard !isPrivate, !tab.isPrivate, tab.favoriteID == nil,
               let scheme = tab.url?.scheme?.lowercased() else { return false }
         return scheme == "http" || scheme == "https"
     }
 
     private func splitTabs(for pair: TabSplitPair) -> (BrowserTab, BrowserTab)? {
         guard pair.first != pair.second,
-              let first = today.first(where: { $0.id == pair.first }), isSplittable(first),
-              let second = today.first(where: { $0.id == pair.second }), isSplittable(second) else { return nil }
+              let first = splitMember(pair.first),
+              let second = splitMember(pair.second) else { return nil }
         return (first, second)
+    }
+
+    private func splitMember(_ id: UUID) -> BrowserTab? {
+        let tab = pinned.first { $0.id == id } ?? today.first { $0.id == id }
+        guard let tab, isSplittable(tab) else { return nil }
+        return tab
     }
 }
 

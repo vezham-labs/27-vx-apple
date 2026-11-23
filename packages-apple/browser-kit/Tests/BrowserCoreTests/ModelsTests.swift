@@ -15,12 +15,13 @@ import Testing
 
 @Test @MainActor func splitPairFollowsSelectionAndSurvivesASnapshot() throws {
     let first = BrowserTab(url: URL(string: "https://example.com/first"))
-    let second = BrowserTab(url: URL(string: "https://example.com/second"))
-    let pinned = BrowserTab(url: URL(string: "https://example.com/pinned"), isPinned: true)
+    let second = BrowserTab(url: URL(string: "https://example.com/second"), isPinned: true)
+    let favorite = BrowserTab(url: URL(string: "https://example.com/favorite"))
+    favorite.favoriteID = UUID()
     let other = BrowserTab(url: URL(string: "https://example.com/other"))
-    let space = Space(name: "Work", pinned: [pinned], today: [first, second, other], selectedTabID: first.id)
+    let space = Space(name: "Work", pinned: [second], today: [first, favorite, other], selectedTabID: first.id)
 
-    #expect(!space.splitWith(pinned))
+    #expect(!space.splitWith(favorite))
     #expect(space.splitWith(second))
     space.resizeSplit(to: 2)
     #expect(space.splitPair?.fraction == 0.75)
@@ -37,7 +38,7 @@ import Testing
     #expect(restored.activeSplitTabs?.1.id == second.id)
     #expect(restored.selectedTabID == second.id)
     var incomplete = restored.record
-    incomplete.today.removeAll { $0.id == second.id }
+    incomplete.pinned.removeAll { $0.id == second.id }
     #expect(Space(incomplete).splitPair == nil)
     restored.separateTabs()
     #expect(restored.activeSplitTabs == nil)

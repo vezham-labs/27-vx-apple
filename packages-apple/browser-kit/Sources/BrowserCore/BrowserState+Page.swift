@@ -80,7 +80,6 @@ extension BrowserState {
             space.setPinFolder(nil, for: tab)
             space.today.insert(tab, at: 0)
         } else {
-            if space.splitPair?.contains(tab.id) == true { space.separateTabs() }
             space.today.removeAll { $0.id == tab.id }
             space.pinned.append(tab)
         }

@@ -277,22 +277,24 @@ public final class BrowserState {
             if recentlyClosed.count > 25 { recentlyClosed.removeFirst() }
         }
         for space in spaces {
-            if let i = space.today.firstIndex(where: { $0.id == tab.id }) {
-                let splitPartner: BrowserTab?
-                if let (first, second) = space.activeSplitTabs, space.splitPair?.contains(tab.id) == true {
+            let index = space.today.firstIndex { $0.id == tab.id }
+            guard index != nil || (tab.isPinned && space.pinned.contains { $0.id == tab.id }) else { continue }
+            var splitPartner: BrowserTab?
+            if space.splitPair?.contains(tab.id) == true {
+                if let (first, second) = space.activeSplitTabs {
                     splitPartner = first.id == tab.id ? second : first
-                } else {
-                    splitPartner = nil
                 }
-                if space.splitPair?.contains(tab.id) == true { space.separateTabs() }
+                space.separateTabs()
+            }
+            if let i = index {
                 space.today.remove(at: i)
                 if space.selectedTabID == tab.id {
                     let next: BrowserTab? = space.today.indices.contains(i) ? space.today[i] : (space.today.last ?? space.pinned.last)
                     space.selectedTabID = (splitPartner ?? next)?.id
                 }
-            } else if tab.isPinned, space.selectedTabID == tab.id {
+            } else if space.selectedTabID == tab.id {
                 // Closing a pinned tab just unloads it, like Arc.
-                space.selectedTabID = nil
+                space.selectedTabID = splitPartner?.id
             }
         }
         pool.remove(tab.id)

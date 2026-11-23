@@ -87,6 +87,28 @@ extension Browser {
         self.glance = nil
         newTab(url: url, isPrivate: glance.isPrivate, source: .link, promoting: glance)
     }
+
+    var canExpandGlanceInSplit: Bool {
+        guard let glance, let url = glance.url, Self.canPreviewLink(url), canAddSplitPane else { return false }
+        return glance.profile == library.browsingProfile(in: currentSpace)
+    }
+
+    func expandGlanceInSplit() {
+        guard canExpandGlanceInSplit, let glance, let url = glance.url else { return }
+        let addingPane = activeSplit != nil
+        // Release the overlay's host as the pane takes over the same view.
+        var transition = Transaction(animation: nil)
+        transition.disablesAnimations = true
+        withTransaction(transition) {
+            self.glance = nil
+            glance.page.view.removeFromSuperview()
+            let tab = newTab(url: url, in: currentSpace, source: .link, select: false, promoting: glance)
+            // The URL of a still-loading preview may not have reached the new tab yet.
+            if tab.url == nil { tab.url = url }
+            if addingPane { addToSplit(tab) } else { splitWith(tab) }
+            focusSplitPane(tab)
+        }
+    }
 }
 
 struct PreviewLinkButton: View {
@@ -113,7 +135,7 @@ struct GlanceOverlay: View {
                 .onTapGesture { browser.closeGlance() }
             VStack(spacing: 0) {
                 header
-                PageHost(view: glance.page.view, focusesPage: true)
+                PageHost(view: glance.page.view, focusesPage: true, shouldHost: { browser.glance === glance })
                     .overlay(alignment: .top) {
                         // The same hairline as a tab's, under the header.
                         ProgressLine(isLoading: glance.page.state.isLoading, progress: glance.page.state.progress)
@@ -149,6 +171,13 @@ struct GlanceOverlay: View {
                 }
             }
             Spacer()
+            if browser.canExpandGlanceInSplit {
+                Button { browser.expandGlanceInSplit() } label: {
+                    Image(systemName: "rectangle.split.2x1")
+                }
+                .accessibilityLabel("Open in Split View")
+                .help("Open in Split View (⌥⌘Return)")
+            }
             Button { browser.expandGlance() } label: {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
             }
@@ -173,6 +202,14 @@ struct GlanceOverlay: View {
                 return nil
             }
             if event.keyCode == 36, event.modifierFlags.contains(.command) {
+                if event.modifierFlags.contains(.option) {
+                    let handled = MainActor.assumeIsolated {
+                        guard browser.canExpandGlanceInSplit else { return false }
+                        browser.expandGlanceInSplit()
+                        return true
+                    }
+                    return handled ? nil : event
+                }
                 MainActor.assumeIsolated { browser.expandGlance() }
                 return nil
             }

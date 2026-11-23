@@ -141,10 +141,13 @@ struct PageHost: NSViewRepresentable {
     let focusesPage: Bool
     var holdsWidth = false
     var onClick: (() -> Void)? = nil
+    var shouldHost: () -> Bool = { true }
 
     func makeNSView(context: Context) -> Container { Container() }
 
     func updateNSView(_ container: Container, context: Context) {
+        // A disappearing preview can still update after its page has moved into a tab.
+        guard shouldHost() else { return }
         container.show(view, focus: focusesPage)
         container.holdsWidth = holdsWidth
         container.onClick = onClick

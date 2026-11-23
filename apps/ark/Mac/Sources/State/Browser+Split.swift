@@ -57,6 +57,11 @@ struct TabSplit: Codable, Equatable {
 }
 
 extension Browser {
+    var canAddSplitPane: Bool {
+        guard let tab = currentTab, canSplit(tab) else { return false }
+        return (activeSplit?.tabs.count ?? 1) < TabSplit.maxPanes
+    }
+
     var splitCandidates: [BrowserTab] {
         guard let active = currentTab, canSplit(active) else { return [] }
         let elsewhere = Set(library.windows.filter { $0 !== self }.flatMap(\.visibleTabIDs))

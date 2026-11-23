@@ -220,3 +220,9 @@ A loopback fixture served a page with caching disabled. Expanding Glance went fr
 ### Mac Glance from the sidebar and command bar
 
 Sidebar tabs and favourites and command-bar URL results now offer **Preview Link**. The command bar also previews a selected link or typed URL with ⌥Return. The Mac fixture sent that keystroke to the native field, loaded the preview, and verified that the current tab stayed selected. It also checked that a preview requested from a private tab used a nonpersistent website store and that a non-web URL was rejected. The sidebar context menus use the same action. The [Mac screenshot](../../preview/ark/mac/features/command-bar-link-preview.png) shows the preview over the original tab. Hover and a configurable click modifier remain open.
+
+### Mac Glance into Split View
+
+Search’s `Peek.swift` offers keeping the preview beside its source. Ark’s **Open in Split View** button and ⌥⌘Return put Glance beside the current page or add it to that Space’s open split. The action is available when the website profile matches, the current tab can split, and the group has room.
+
+The Mac fixture sent the keyboard shortcut, verified separate visible frames for both pages, and confirmed the transferred WebKit view used one main-document request from preview through handoff. It added a third and fourth pane without dropping the original tabs, rejected a fifth pane, and checked that a private preview could not enter a regular split. The [Mac screenshot](../../preview/ark/mac/features/glance-split-view.png) shows the loaded pages side by side.

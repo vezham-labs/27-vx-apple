@@ -113,10 +113,10 @@ final class CommandBarModel {
     }
 
     /// The row Return would open with nothing picked: shown selected, and where ↓ and ↑ start from.
-    var implicitTarget: Int? {
+    func implicitTarget(in rows: [Suggestion]) -> Int? {
         // The field shows the inline completion too, so Return's target includes it.
         let shown = inline.map { $0.typed == fieldText ? $0.fullText : fieldText } ?? fieldText
-        guard isTyping, let a = submitAction(fieldText: shown) else { return nil }
+        guard isTyping, let a = submitAction(fieldText: shown, in: rows) else { return nil }
         return rows.firstIndex { $0.action == a }
     }
 
@@ -126,13 +126,14 @@ final class CommandBarModel {
     /// ↓ and ↑. Order: field, then ⌘K's tool row (if showing), then the list. With nothing picked,
     /// they start from the row shown as selected, so the first ↓ moves off it rather than onto it.
     func moveHighlight(_ delta: Int) {
+        let rows = self.rows
         let count = rows.count
         if toolHighlighted != nil {
             if delta > 0, count > 0 { toolHighlighted = nil; highlighted = 0 }
             else if delta < 0 { toolHighlighted = nil; highlighted = nil }
             return
         }
-        switch highlighted ?? implicitTarget {
+        switch highlighted ?? implicitTarget(in: rows) {
         case nil:
             if hasToolRow {
                 if delta > 0 { toolHighlighted = 0 } else if count > 0 { highlighted = count - 1 }
@@ -162,6 +163,11 @@ final class CommandBarModel {
 
     /// What Return does with the field's contents.
     func submitAction(fieldText: String) -> SuggestionAction? {
+        let rows = highlighted != nil || (commandSource != nil && isTyping) ? self.rows : []
+        return submitAction(fieldText: fieldText, in: rows)
+    }
+
+    private func submitAction(fieldText: String, in rows: [Suggestion]) -> SuggestionAction? {
         if let highlighted, rows.indices.contains(highlighted) { return rows[highlighted].action }
         // ⌘K: Return runs the best match.
         if commandSource != nil { return isTyping ? rows.first?.action : nil }
@@ -270,18 +276,29 @@ struct CommandBar: View {
                     }
             }
 
-            if let model, !model.rows.isEmpty {
-                // With nothing picked, the row Return would open shows as selected, like Arc.
-                // The field shows the inline completion too, so Return's target includes it.
-                let target = model.toolHighlighted != nil ? nil : (model.highlighted ?? model.implicitTarget)
-                Divider().opacity(0.6)
-                ScrollViewReader { proxy in
+            if let model { suggestionList(for: model) }
+        }
+        .frame(maxWidth: 640)
+        // Solid rather than glass: glass picks dark or light text from the page behind it, which made
+        // the rows unreadable in dark mode over a white page.
+        .background(PanelFill(), in: .rect(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(.primary.opacity(0.1)))
+        .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
+    }
+
+    @ViewBuilder private func suggestionList(for model: CommandBarModel) -> some View {
+        let rows = model.rows
+        if let first = rows.first {
+            // Use the same rows to choose Return's default and show it as selected.
+            let target = model.toolHighlighted != nil ? nil : (model.highlighted ?? model.implicitTarget(in: rows))
+            Divider().opacity(0.6)
+            ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 2) {
                         if !model.isTyping {
-                            sectionLabel(mode == .commands ? "Commands" : model.rows.first?.kind == .favorite ? "Favourites" : "Jump back in")
+                            sectionLabel(mode == .commands ? "Commands" : first.kind == .favorite ? "Favourites" : "Jump back in")
                         }
-                        ForEach(Array(model.rows.enumerated()), id: \.element.id) { i, row in
+                        ForEach(Array(rows.enumerated()), id: \.element.id) { i, row in
                             SuggestionRow(suggestion: row, highlighted: target == i,
                                           inSearch: model.isTyping, symbol: commandSymbol(row), hint: commandHint(row))
                                 .id(i)
@@ -294,20 +311,12 @@ struct CommandBar: View {
                     }
                     .padding(6)
                 }
-                // The arrow keys keep the picked row in view.
                 .onChange(of: model.highlighted) { _, i in if let i { proxy.scrollTo(i) } }
-                }
-                .scrollIndicators(.never)
-                .frame(maxHeight: 420)
-                .fixedSize(horizontal: false, vertical: true)
             }
+            .scrollIndicators(.never)
+            .frame(maxHeight: 420)
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: 640)
-        // Solid rather than glass: glass picks dark or light text from the page behind it, which made
-        // the rows unreadable in dark mode over a white page.
-        .background(PanelFill(), in: .rect(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(.primary.opacity(0.1)))
-        .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
     }
 
     private func commandSymbol(_ row: Suggestion) -> String? {

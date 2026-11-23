@@ -230,3 +230,9 @@ The Mac fixture sent the keyboard shortcut, verified separate visible frames for
 ### Mac sidebar Clean Links
 
 Copy Link from a sidebar tab or favourite now takes the same path as the Mac command-bar action, and the command-bar subtitle shows the URL the action will copy. The fixture used a separate pasteboard and verified that the setting controls the copied URL and subtitle, that encoded values and fragments survive, and that signed URLs and the already open tab URL stay intact. The [Mac preview](../../preview/ark/mac/features/clean-link-copy.png) shows the cleaned URL. WebKit’s separate Mac Copy Link action for links inside a page still needs coverage. Search’s `Tab.swift` implements its clean command by invoking the native copy action and polling the general pasteboard.
+
+### Mac command bar ranking
+
+The command bar now ranks once per render or arrow-key action and uses those same rows for the highlight and Return target. Search’s `AddressCommands.swift` and `Fuzzy.swift` use a different matcher. Ark retained its ranking rules and removed repeated evaluation of the current command provider.
+
+With 403 commands and 320 updates per paired run, the local Swift benchmark fell from 3,114.3 ms to 779.3 ms at the median of seven pairs. The comparison checked displayed results, selection, and keyboard actions. The Mac runtime fixture typed **last used tab** into the native field and confirmed Return switched back to the previous tab. The measurement covers local row generation and selection logic. SwiftUI rendering and remote suggestions were outside the workload.

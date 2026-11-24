@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists 149 Browsa and 123 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Browsa's clean worktree matches `origin/main` at `e981df56`. Search's clean worktree is at `33ec7aea`, with nine additional commits available on `origin/main` at `659f74dc`; those diffs were assessed without changing the upstream checkout. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 96/272 incoming commits assessed (35.3%); 176 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 101/272 incoming commits assessed (37.1%); 171 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -704,7 +704,9 @@ Search [`c502d18b67bd557c2a5267f723577e0acf93f427`](https://github.com/dricerola
 
 Search [`488b61c77de604b4c866d48e3ff2f3aa737ad028`](https://github.com/driceroland/Search/commit/488b61c77de604b4c866d48e3ff2f3aa737ad028) fixes ⌘W cycling between a blank tab and a just-parked pin. Ark's close path unloads the active pin and clears the window's selection; it does not create a blank tab that automatically wakes the pin. No equivalent loop was found, so no code change was made. The existing behavior of ⌘W with no selected tab was not runtime-checked.
 
-These reviews do not change comparison ratings. Search-origin updates reviewed so far: 100/272 (36.8%); Mac matrix remains 21/42 Yes (50%).
+These reviews do not change comparison ratings. Combined Browsa/Search incoming commits reviewed so far: 101/272 (37.1%); Mac matrix remains 21/42 Yes (50%).
+
+Search [`fad583956b551f38366193d86ec5407cb71a839a`](https://github.com/driceroland/Search/commit/fad583956b551f38366193d86ec5407cb71a839a) reserves a 40-point window-drag strip after the plus at the end of a full horizontal tab row. Ark uses the Arc-style vertical sidebar and has no horizontal tab row, so this geometry does not map to the Ark layout. No code or comparison-rating change.
 
 ### Search stuck WebKit process reaper — Bloat / performance
 

@@ -18,7 +18,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 25, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 100 of 272 commits assessed (36.8%); 172 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 101 of 272 commits assessed (37.1%); 171 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -202,7 +202,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `659f74dc35
 | `86a67e118405aa09931c3d84d834c6dc6810817b` | Passwords and codes fill only the origin they're for, port included | Not applicable to Ark-owned code: Ark has no saved-password or verification-code fill implementation; those flows belong to WebKit/system autofill. Do not add a parallel vault in this port. |
 | `c17c0fa9345c4ce9f27d7e50eb6b78156cc4bc49` | ⌘-click a bookmarks bar folder: open all of it, as Chrome does (idea 959) | Adapted to Ark's folder UI: Mac folder context menus now open the folder's pinned pages, including nested folders, in sidebar order behind the selected tab. Live-feed articles are excluded. Mac build passed; runtime ordering and selection check remains open. |
 | `8b5ca1bdfcf021cc6158255dcb6cb0bc37d0d9e3` | Keep tab icons tied to the document that declared them (#1453) | Reviewed, no direct port: Search probes document-declared icons and guards against navigation races. Ark uses its host favicon provider and has no per-document icon probe; this would require a separate favicon-source design, not a transplant of this race fix. |
-| `fad583956b551f38366193d86ec5407cb71a839a` | A full row of tabs still leaves somewhere to take the window by (#1454) | Pending |
+| `fad583956b551f38366193d86ec5407cb71a839a` | A full row of tabs still leaves somewhere to take the window by (#1454) | Reviewed, not directly applicable: Search reserves 40 points after its horizontal tab row's plus button for window dragging. Ark has Arc's vertical sidebar and no top tab row; the specific tab-row geometry has no Ark target. No code change. |
 | `a3ad9c1bac338688e435475811dea4b6f70447de` | Rename left as it was gives a tab no name of its own (#1450) | Pending |
 | `cc1cae9a316f2b3fe6322ca682285b4c34bbf49f` | Return macOS picture in picture to its tab across spaces (#1424) | Adapted: WebKit's PiP return callback now selects the owning Ark tab/Space and brings its window forward. Mac build passed; system PiP runtime check across Spaces remains open. |
 | `5896709f69b2e7e63c790ffd38f42a021bb4e6c3` | Optional unread counts on pinned tabs (#1434) | Pending |

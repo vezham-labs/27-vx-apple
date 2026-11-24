@@ -465,6 +465,7 @@ private struct SpaceIconPicker: View {
 private struct PrivacySettings: View {
     @Environment(Library.self) private var browser
     @State private var clearing = false
+    @State private var permissionSearch = ""
 
     var body: some View {
         @Bindable var browser = browser
@@ -529,12 +530,32 @@ private struct PrivacySettings: View {
             }
             if !browser.settings.sitePermissions.isEmpty {
                 Section("Site permissions") {
-                    ForEach(browser.settings.sitePermissions.keys.sorted(), id: \.self) { host in
+                    TextField("Find a site", text: $permissionSearch)
+                        .textFieldStyle(.roundedBorder)
+                    ForEach(browser.settings.sitePermissions.keys.sorted().filter {
+                        permissionSearch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || $0.localizedCaseInsensitiveContains(permissionSearch.trimmingCharacters(in: .whitespacesAndNewlines))
+                    }, id: \.self) { host in
                         HStack {
-                            VStack(alignment: .leading) {
-                                Text(host)
-                                Text(summary(browser.settings.sitePermissions[host] ?? [:]))
-                                    .font(.caption).foregroundStyle(.secondary)
+                            DisclosureGroup {
+                                ForEach((browser.settings.sitePermissions[host] ?? [:]).keys.sorted(), id: \.self) { key in
+                                    HStack {
+                                        Text(permissionTitle(key))
+                                        Spacer()
+                                        Text((browser.settings.sitePermissions[host]?[key] ?? false) ? "Allowed" : "Denied")
+                                            .foregroundStyle(.secondary)
+                                        Button("Reset") {
+                                            browser.setSitePermission(key, nil, for: host, isPrivate: false)
+                                        }
+                                        .buttonStyle(.borderless)
+                                    }
+                                }
+                            } label: {
+                                VStack(alignment: .leading) {
+                                    Text(host)
+                                    Text(summary(browser.settings.sitePermissions[host] ?? [:]))
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
                             }
                             Spacer()
                             Button("Forget") { browser.forgetPermissions(for: host) }
@@ -589,6 +610,11 @@ private struct PrivacySettings: View {
         case .notifications: "Notifications"
         case .screen: "Screen sharing"
         }
+    }
+
+    private func permissionTitle(_ key: String) -> String {
+        if let permission = EnginePermission(rawValue: key) { return Self.title(permission) }
+        return key.hasPrefix("app:") ? "Open in \(key.dropFirst(4))" : key
     }
 
     private func summary(_ perms: [String: Bool]) -> String {

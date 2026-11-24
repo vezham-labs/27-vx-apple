@@ -486,6 +486,10 @@ Reviewed Browsa `9703e82288d9cb41ee6b072b0700ec1cea54a468`. Ark already uses an 
 
 Adapted Browsa `63bd758f3b73e22e8ac3a149e0b6b6c80b5f98c6`: extensions now have private-data access disabled by default. The Library extension detail offers an explicit per-extension switch; changing it updates the loaded WebKit context, and removing the extension forgets the grant. Other BrowserEngine implementations default to deny. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. Live checks for the switch, content-script isolation, and grant removal remain pending; the Chrome extensions row stays Partial.
 
+### Search site-permission management — Mac
+
+Adapted Search `4746a7772c5b3edd612dd5c76c80ce5d174f12a3` in Settings → Privacy. Ark already listed saved site permissions and could forget all answers for a host; it now filters that list by host and resets one saved answer at a time, preserving other answers and the existing Forget-all action. Ark's permission store is host-keyed, not origin/port-keyed, so the UI does not invent finer boundaries. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. Runtime UI, filtering, and reset behavior remain unverified.
+
 ### Browsa extension host-permission scope — Mac
 
 Adapted the permission-scope portion of Browsa `1642b72ff49a17421b29ba3d56c70b5717a09b8c`: `WebKitExtensions` no longer grants `<all_urls>` to every extension. Broad host access is granted only when an extension's requested match patterns include `<all_urls>` or a wildcard host; otherwise Ark grants its declared patterns. This closes an overbroad WebKit permission grant without changing the extension UI. Browsa's redirect-checked, profile-aware `browsa.fetch` path was not copied because Ark does not expose that API. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. A runtime check with narrow-host and all-host extensions remains open. The comparison's Chrome extensions rating stays Partial pending compatibility and permission-flow verification.

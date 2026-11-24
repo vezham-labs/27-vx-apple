@@ -205,7 +205,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `a3ad9c1bac338688e435475811dea4b6f70447de` | Rename left as it was gives a tab no name of its own (#1450) | Pending |
 | `cc1cae9a316f2b3fe6322ca682285b4c34bbf49f` | Return macOS picture in picture to its tab across spaces (#1424) | Pending |
 | `5896709f69b2e7e63c790ffd38f42a021bb4e6c3` | Optional unread counts on pinned tabs (#1434) | Pending |
-| `4746a7772c5b3edd612dd5c76c80ce5d174f12a3` | List and reset site permissions in Privacy settings (#1429) | Pending |
+| `4746a7772c5b3edd612dd5c76c80ce5d174f12a3` | List and reset site permissions in Privacy settings (#1429) | Partially adapted: Ark already lists permissions by host and can forget all answers for one host. Privacy settings now search hosts and reset one saved answer at a time while retaining Forget-all. Ark stores these answers by hostname rather than full origin/port. Mac build passed; runtime UI and reset behavior remain open. |
 | `61cc8e136b409227967c3749f0e250187836e66a` | chrome.management.getAll() lists installed extensions for one with "management" (#1431) | Pending |
 | `71992504d6e5ce9ab72032ce53c8b559b4aeb202` | Keys for profiles: Next Profile, Previous Profile, Profile 1–9 (#1437) | Pending |
 | `fe22040c014e4a0ebd7bf642434919a93b292c7b` | Native fields no longer run macOS's password-field guess over every view in the window (#1458) | Adapted: Ark disables AppKit's native-field heuristic through a volatile UserDefaults registration; browser-page password handling remains in WebKit. Mac build passed. Ark focus-latency and CPU measurements remain open; Search reported up to 100% CPU for tens of seconds in a full window. |

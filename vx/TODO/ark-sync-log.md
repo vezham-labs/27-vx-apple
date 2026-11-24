@@ -512,6 +512,8 @@ Reviewed Search `2b44d44be86cf0181d8e7368216aba1d49a2a7de`: Ark already opens a 
 
 Adapted Search `cc1cae9a316f2b3fe6322ca682285b4c34bbf49f`: WebKit's system PiP return callback now selects the PiP page's Ark tab (switching to its owning Space when needed), brings that window forward, and activates Ark. This uses a private WebKit delegate selector, following the upstream behavior. Mac build passed; runtime verification needs an actual system PiP session returned from another Space.
 
+Adapted Search `1c84b99d7127c7c26065c66653cac309f914ebe9`: automatic PiP no longer starts merely because Ark loses focus while its window remains visible. Ark watches the active window's occlusion state on the same screen and starts PiP only after it goes out of sight; a window visible on another display stays inline. Returning to Ark removes the watcher. Mac build passed; display, occlusion, and activation runtime checks remain open.
+
 ### Browsa extension host-permission scope — Mac
 
 Adapted the permission-scope portion of Browsa `1642b72ff49a17421b29ba3d56c70b5717a09b8c`: `WebKitExtensions` no longer grants `<all_urls>` to every extension. Broad host access is granted only when an extension's requested match patterns include `<all_urls>` or a wildcard host; otherwise Ark grants its declared patterns. This closes an overbroad WebKit permission grant without changing the extension UI. Browsa's redirect-checked, profile-aware `browsa.fetch` path was not copied because Ark does not expose that API. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. A runtime check with narrow-host and all-host extensions remains open. The comparison's Chrome extensions rating stays Partial pending compatibility and permission-flow verification.

@@ -58,6 +58,7 @@ Current order: complete the Mac audit first. Mobile implementation and device ve
 | Feature | Search implementation | Ark implementation and finding |
 | --- | --- | --- |
 | Return system PiP to its tab | `Browser.webViewFullscreenMayReturnToInline` finds the tab across parked Spaces, switches back, selects it, and activates Search. | Ark's WebKit page now forwards the same private delegate callback to its tab controller, which selects the tab in its owning Space and activates the owning window. Mac build passed; actual system PiP return remains unverified. |
+| Wait until the window leaves sight | `Browser.appLeft` watches window occlusion and floats video only when the window is out of sight; it stops that watch when Search is reactivated. | Ark now waits for its visible window to become occluded before automatic PiP. A window visible on another display stays inline, and returning to Ark cancels the observer. Mac build passed; runtime behavior remains open. |
 
 ## Compatibility and migration
 

@@ -12,15 +12,21 @@ final class VideoPictureInPicture {
     private var pendingAppSwitch = false
     private weak var view: WKWebView?
     private var dismissal: (id: UUID, tabID: UUID, task: Task<Void, Never>)?
+    private var awayWatch: NSObjectProtocol?
+    private weak var awayWindow: NSWindow?
+    private weak var awayBrowser: Browser?
+    private var awayCandidates: [UUID] = []
 
     func isFloating(_ id: UUID) -> Bool { tabID == id }
 
     func visibleTabsChanged(in browser: Browser, from previous: [UUID], to current: [UUID]) {
+        stopAwayWatch()
         if let tabID, current.contains(tabID) { stop() }
         startAutomatically(in: browser, candidates: previous.filter { !current.contains($0) }, applicationInactive: false)
     }
 
     func applicationActivityChanged(in browser: Browser, active: Bool) {
+        if active { stopAwayWatch() }
         guard browser.library.activeWindow === browser else { return }
         if active {
             if pendingAppSwitch {
@@ -33,15 +39,56 @@ final class VideoPictureInPicture {
             if tabID.map(browser.visibleTabIDs.contains) ?? true { stop() }
             returnsOnActivation = false
         } else {
-            startAutomatically(in: browser, candidates: browser.visibleTabIDs, applicationInactive: true)
+            watchForWindowLeavingSight(in: browser, candidates: browser.visibleTabIDs)
         }
     }
 
     private func isAway(from tab: BrowserTab, in browser: Browser, applicationInactive: Bool) -> Bool {
         if applicationInactive {
-            return !NSApp.isActive && browser.library.activeWindow === browser && browser.visibleTabIDs.contains(tab.id)
+            return !NSApp.isActive && browser.library.activeWindow === browser
+                && browser.visibleTabIDs.contains(tab.id)
+                && browser.nsWindow?.occlusionState.contains(.visible) != true
         }
         return browser.library.window(showing: tab) == nil
+    }
+
+    /// Keep a playing page inline while Ark is merely unfocused but still visible. Lift it only
+    /// after its window becomes occluded; a window on another display stays where the person left it.
+    private func watchForWindowLeavingSight(in browser: Browser, candidates: [UUID]) {
+        stopAwayWatch()
+        guard !NSApp.isActive, Preferences.automaticVideoPiP, browser.library.activeWindow === browser,
+              browser.nsWindow?.isVisible == true, !candidates.isEmpty,
+              let window = browser.nsWindow else { return }
+        if !window.occlusionState.contains(.visible) {
+            startAutomatically(in: browser, candidates: candidates, applicationInactive: true)
+            return
+        }
+        if let shown = window.screen,
+           let pointerScreen = NSScreen.screens.first(where: { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }),
+           shown != pointerScreen { return }
+
+        awayWindow = window
+        awayBrowser = browser
+        awayCandidates = candidates
+        awayWatch = NotificationCenter.default.addObserver(
+            forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, !NSApp.isActive, let browser = self.awayBrowser,
+                      let window = self.awayWindow, !window.occlusionState.contains(.visible) else { return }
+                let candidates = self.awayCandidates
+                self.stopAwayWatch()
+                self.startAutomatically(in: browser, candidates: candidates, applicationInactive: true)
+            }
+        }
+    }
+
+    private func stopAwayWatch() {
+        if let awayWatch { NotificationCenter.default.removeObserver(awayWatch) }
+        awayWatch = nil
+        awayWindow = nil
+        awayBrowser = nil
+        awayCandidates = []
     }
 
     private func startAutomatically(in browser: Browser, candidates: [UUID], applicationInactive: Bool) {
@@ -134,6 +181,7 @@ final class VideoPictureInPicture {
     }
 
     func stop() {
+        stopAwayWatch()
         returnsOnActivation = false
         pendingAppSwitch = false
         request?.cancel()

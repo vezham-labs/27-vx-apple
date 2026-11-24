@@ -195,7 +195,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `cc3ee712f8e6b6e2ed5131fbfd904e0097d0b824` | Extensions: the store update check asks as Chrome's Update button does, so Bitwarden 2026.11.0 arrives (idea 992) | Pending |
 | `987da47510c80df6c7d3d648caae375aee4dc909` | Extensions: a failed store update check is retried in an hour, backing off to a day, instead of waiting 20 h (idea 992) | Pending |
 | `2f99ea479579582ff6eaf63f6596aef7ca78b26b` | Bench seam: a hidden probe's window told it is in full screen or out of sight, and a probe for Escape there (idea 582) | Pending |
-| `1c84b99d7127c7c26065c66653cac309f914ebe9` | The floating video's window watch goes when Search is left again (idea 470) | Pending |
+| `1c84b99d7127c7c26065c66653cac309f914ebe9` | The floating video's window watch goes when Search is left again (idea 470) | Adapted: Ark now waits for a visible window to become occluded before starting automatic PiP; windows on another display stay inline, and returning to Ark cancels the watch. Mac build passed; visibility-change runtime checks remain open. |
 | `75eb6728a20e4f91a8465ce8bb2a91812058b4dc` | Settings › Show icons only on the bookmarks bar: every bookmark its icon alone, its name on hover; folders keep names (idea 980) | Pending |
 | `efed04f1e0539e0a7440c56a598b0600af3d99e0` | Settings › Passwords › Ask for Touch ID before filling: a saved password goes into a page only after Touch ID or the Mac's password, one yes for a minute (idea 993) | Pending |
 | `6376d84a4d259e1db1862caca0dd2264cce7f440` | Touch ID before filling: the Mac saying it can't ask is a yes only when it has no password set (idea 993) | Pending |

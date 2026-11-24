@@ -18,7 +18,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 25, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 99 of 272 commits assessed (36.4%); 173 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 100 of 272 commits assessed (36.8%); 172 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -230,7 +230,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `659f74dc35
 | `f2873fd0b51b8cf19c28e99dd848c81d20c18c46` | Typed vnc:// and other apps' addresses open in their app (#1473) | Adapted in Ark `9f2c7587`: explicitly typed custom schemes hand off only when Launch Services resolves a different installed app; unsafe and WebKit schemes are excluded. Mac build passed; live handoff remains unverified due to Debug Launch Services failure. |
 | `488b61c77de604b4c866d48e3ff2f3aa737ad028` | ⌘W no longer loops between a pin and a new tab (#1480) | Reviewed; Ark closing an active pin unloads it and clears selection instead of creating a blank tab that can reactivate the parked pin. No matching pin/new-tab loop to port; runtime close-window behavior remains unverified. |
 | `0d1d80a2b7cb0772c40b9a6e162b21c1ebbab604` | Search's own pages have scroll bars (#1478) | Pending |
-| `b601de0e5ffd229d00c6bf857ba1f81fbdbf49dd` | End a closed tab's page process that keeps spinning (#1468) | Pending |
+| `b601de0e5ffd229d00c6bf857ba1f81fbdbf49dd` | End a closed tab's page process that keeps spinning (#1468) | Reviewed, not ported: Search addresses a reported Accessibility-induced WebKit CPU loop with a private process-ID lookup, CPU threshold, shared-view check, executable-path check, and SIGKILL. Ark has no matching reproduction; relying on private identity and force termination risks disrupting another live WebContent user. Revisit only with an Ark-specific reproduction and ownership-safe mitigation. |
 | `283cd2d4069302e034f5eb4dba73624546a7dfcf` | Fade scroll bars when scrolling stops (#1490) | Pending |
 | `ed129504cdde3ee09da0967e12e48fb16d85ead8` | Go to a tab that has the page works without small windows too (#1485) | Pending |
 | `c502d18b67bd557c2a5267f723577e0acf93f427` | Send links to a space: a default space for links that match no site (#1484) | Already covered on Mac by `BrowserSettings.externalLinksSpaceID`; `Library.externalLinkDestination` applies it after source-app and site rules. No code change; the existing path remains runtime-unverified. |

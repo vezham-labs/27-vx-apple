@@ -704,4 +704,10 @@ Search [`c502d18b67bd557c2a5267f723577e0acf93f427`](https://github.com/dricerola
 
 Search [`488b61c77de604b4c866d48e3ff2f3aa737ad028`](https://github.com/driceroland/Search/commit/488b61c77de604b4c866d48e3ff2f3aa737ad028) fixes ⌘W cycling between a blank tab and a just-parked pin. Ark's close path unloads the active pin and clears the window's selection; it does not create a blank tab that automatically wakes the pin. No equivalent loop was found, so no code change was made. The existing behavior of ⌘W with no selected tab was not runtime-checked.
 
-These reviews do not change comparison ratings. Search-origin updates reviewed so far: 99/272 (36.4%); Mac matrix remains 21/42 Yes (50%).
+These reviews do not change comparison ratings. Search-origin updates reviewed so far: 100/272 (36.8%); Mac matrix remains 21/42 Yes (50%).
+
+### Search stuck WebKit process reaper — Bloat / performance
+
+Reviewed Search [`b601de0e5ffd229d00c6bf857ba1f81fbdbf49dd`](https://github.com/driceroland/Search/commit/b601de0e5ffd229d00c6bf857ba1f81fbdbf49dd). Its reaper waits ten seconds after a view unloads, measures process CPU, confirms a WebKit WebContent executable, and checks that no other Search view shares the PID before sending SIGKILL. The report attributes the stuck loop to Accessibility tree updates and notes Safari is affected too.
+
+Ark has no equivalent incident or reproduction. Do not port the private `_webProcessIdentifier` lookup and force-kill path without an Ark-specific reproduction and a way to prove the process has no other WebKit clients. No runtime performance claim or matrix rating changes; Ark's CPU/RAM baseline remains unmeasured.

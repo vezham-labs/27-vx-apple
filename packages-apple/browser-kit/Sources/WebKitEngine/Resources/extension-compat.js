@@ -13,6 +13,32 @@
   const keep = (o) => { kept.push(o); return o; };
   globalThis.__arkCompatKept = kept;
 
+  // Chrome exposes these well-known symbols to extension bundles (Bitwarden uses them as
+  // disposal keys); WebKit may not. Keep the fallbacks stable across extension contexts.
+  for (const name of ['dispose', 'asyncDispose']) {
+    if (Symbol[name] === undefined) {
+      try { Object.defineProperty(Symbol, name, { value: Symbol.for(`Symbol.${name}`) }); } catch (e) {}
+    }
+  }
+  // WebKit removed requestIdleCallback; some password-manager extensions require it at startup.
+  if (typeof globalThis.requestIdleCallback !== 'function') {
+    const idle = new Map();
+    let idleId = 0;
+    globalThis.requestIdleCallback = (callback) => {
+      const id = ++idleId;
+      idle.set(id, setTimeout(() => {
+        if (!idle.delete(id)) return;
+        const start = Date.now();
+        callback({ didTimeout: false, timeRemaining: () => Math.max(0, 50 - (Date.now() - start)) });
+      }, 1));
+      return id;
+    };
+    globalThis.cancelIdleCallback = (id) => {
+      const timer = idle.get(id);
+      if (timer !== undefined) { idle.delete(id); clearTimeout(timer); }
+    };
+  }
+
   const event = () => {
     const listeners = new Set();
     return {
@@ -95,6 +121,20 @@
       setPanelBehavior: (b = {}) => bridge('ark.sidepanel', { action: 'behavior', openPanelOnActionClick: !!b.openPanelOnActionClick }).then(() => undefined),
       getPanelBehavior: () => bridge('ark.sidepanel', { action: 'getBehavior' }),
       open: () => bridge('ark.sidepanel', { action: 'open' }).then(() => undefined),
+    }),
+    // Ark pin folders are not extension tab groups. Report no groups and reject mutating APIs.
+    tabGroups: () => ({
+      TAB_GROUP_ID_NONE: -1,
+      Color: Object.fromEntries(['GREY', 'BLUE', 'RED', 'YELLOW', 'GREEN', 'PINK', 'PURPLE', 'CYAN', 'ORANGE'].map(c => [c, c.toLowerCase()])),
+      query: resolves([]), get: unsupported('tabGroups.get'), update: unsupported('tabGroups.update'), move: unsupported('tabGroups.move'),
+      onCreated: event(), onUpdated: event(), onMoved: event(), onRemoved: event(),
+    }),
+    // Ark does not expose Chrome's DevTools protocol to extensions. Explicit rejections let
+    // extensions disable debugger-dependent features instead of failing on a missing namespace.
+    debugger: () => ({
+      attach: unsupported('debugger.attach'), detach: unsupported('debugger.detach'),
+      sendCommand: unsupported('debugger.sendCommand'), getTargets: resolves([]),
+      onEvent: event(), onDetach: event(),
     }),
     identity: () => ({ launchWebAuthFlow: (details = {}, cb) => {
       const p = bridge('ark.identity', { url: String(details.url || ''), interactive: !!details.interactive,
@@ -186,6 +226,27 @@
         keep(root.storage).managed = { get: answer({}), getBytesInUse: answer(0), onChanged: event() };
         missing.push('storage.managed');
       } catch (e) {}
+    }
+    // Chrome exposes change events on each storage area as well as on storage itself.
+    if (root.storage?.onChanged && typeof root.storage.onChanged.addListener === 'function') {
+      for (const area of ['local', 'sync', 'session']) {
+        const target = root.storage[area];
+        if (!target || target.onChanged !== undefined) continue;
+        const listeners = new Set();
+        try {
+          keep(target).onChanged = {
+            addListener(fn) { if (typeof fn === 'function') listeners.add(fn); },
+            removeListener(fn) { listeners.delete(fn); },
+            hasListener(fn) { return listeners.has(fn); },
+            hasListeners() { return listeners.size > 0; },
+          };
+          root.storage.onChanged.addListener((changes, areaName) => {
+            if (areaName !== area) return;
+            for (const fn of [...listeners]) { try { fn(changes); } catch (e) { setTimeout(() => { throw e; }); } }
+          });
+          missing.push(`storage.${area}.onChanged`);
+        } catch (e) {}
+      }
     }
   }
   // Permissions Ark provides itself (above) aren't ones WebKit knows: asking about them throws

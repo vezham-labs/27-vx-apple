@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 import WebKit
 
 extension BrowserState {
-    public enum PageSelectionMode { case area, element }
+    public enum PageSelectionMode { case area, element, hideElement }
 
     private enum Capture {
         case page
@@ -31,7 +31,8 @@ extension BrowserState {
     }
 
     public func selectPageCapture(_ mode: PageSelectionMode, of tab: BrowserTab) {
-        guard !isCapturingPage, currentTab === tab, let url = tab.url else { return }
+        guard !isCapturingPage, currentTab === tab, let url = tab.url,
+              mode != .hideElement || !tab.isPrivate else { return }
         pageCaptureTarget = (tab.id, url, mode)
     }
 

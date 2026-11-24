@@ -41,7 +41,7 @@ struct PageCapturePicker: View {
                                        width: abs(start.x - end.x), height: abs(start.y - end.y))
                 })
                 .simultaneousGesture(SpatialTapGesture().onEnded { value in
-                    if mode == .element, available.contains(value.location) { copyElement(value.location) }
+                    if mode != .area, available.contains(value.location) { copyElement(value.location) }
                 })
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(mode == .area ? "Page area selection" : "Page element selection")
@@ -63,7 +63,7 @@ struct PageCapturePicker: View {
                                 .fontWeight(.semibold)
                         }
                     }
-                    Text(mode == .area ? "Drag to select an area" : "Tap an element to copy it")
+                        Text(mode == .area ? "Drag to select an area" : mode == .hideElement ? "Tap an element to hide it on this site" : "Tap an element to copy it")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

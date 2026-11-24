@@ -219,6 +219,11 @@ struct PageMenu: View {
                     Button("Copy Page Element…", systemImage: "scope") {
                         presenting { browser.selectPageCapture(.element, of: tab) }
                     }
+                    if browser.editableSiteStyleHost(of: tab) != nil {
+                        Button("Hide Page Element…", systemImage: "eye.slash") {
+                            presenting { browser.selectPageCapture(.hideElement, of: tab) }
+                        }
+                    }
                     ShareLink(item: url)
                 }
                 Section {

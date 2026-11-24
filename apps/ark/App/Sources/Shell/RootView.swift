@@ -54,7 +54,8 @@ struct RootView: View {
         .sheet(isPresented: Binding(get: { browser.siteStyleHost != nil },
                                     set: { if !$0 { browser.siteStyleHost = nil } })) {
             if let host = browser.siteStyleHost {
-                SiteStyleEditor(host: host, css: browser.siteStyle(for: host))
+                SiteStyleEditor(host: host, css: browser.siteStyle(for: host),
+                                hiddenSelectors: browser.hiddenSiteElements(for: host))
             }
         }
         // A light tap when a download lands, like Safari's downloads button bounce.
@@ -154,7 +155,10 @@ struct WebContentView: View {
                     PageCapturePicker(mode: mode, topInset: topInset, bottomInset: bottomInset,
                                       cancel: { browser.cancelPageCapture(of: tab) },
                                       copy: { browser.copyPageArea($0, of: tab) },
-                                      copyElement: { browser.copyPageElement(at: $0, of: tab) })
+                                      copyElement: {
+                                          if mode == .hideElement { browser.hideSiteElement(at: $0, of: tab) }
+                                          else { browser.copyPageElement(at: $0, of: tab) }
+                                      })
                         .onDisappear { browser.cancelPageCapture(of: tab) }
                 }
             }

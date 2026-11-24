@@ -35,6 +35,7 @@ public struct PinFolderList<TabRow: View>: View {
     @State private var feedAddress = ""
     @State private var feedError: String?
     @State private var folderDropTarget: UUID?
+    @State private var pinDropTarget: UUID?
     @State private var folderRowHeights: [UUID: CGFloat] = [:]
     @State private var pinRowHeights: [UUID: CGFloat] = [:]
 
@@ -204,7 +205,14 @@ public struct PinFolderList<TabRow: View>: View {
     }
 
     @ViewBuilder private func pinnedTabRow(_ tab: BrowserTab, depth: Int) -> some View {
-        let row = tabRow(tab).padding(.leading, CGFloat(depth) * 12)
+        let isDropTarget = pinDropTarget == tab.id
+        let row = tabRow(tab)
+            .padding(.leading, CGFloat(depth) * 12)
+            .background {
+                if isDropTarget {
+                    RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.18))
+                }
+            }
         row
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pinRowHeights[tab.id] = $0 }
             .draggable(PinFolderDragItem.pin(tab.id)) { tabRow(tab) }
@@ -224,6 +232,9 @@ public struct PinFolderList<TabRow: View>: View {
                 }
                 save()
                 return true
+            } isTargeted: { targeted in
+                if targeted { pinDropTarget = tab.id }
+                else if pinDropTarget == tab.id { pinDropTarget = nil }
             }
     }
 

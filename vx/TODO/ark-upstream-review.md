@@ -163,7 +163,7 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 | `5c22e24c06d244db8ee12c2d5a08993cddea548b` | Profiles: say that site permissions and Boosts are shared too | Pending |
 | `5ebc8c1bf1df0169d9f7b828a51794fe0a0c0136` | Engine: Boost, call audio and notification changes swap scripts only, not every rule list | Adapted for Ark call-audio setting; Mac build passed; runtime verification pending |
 | `4765482b73d11fc283eada2c6c5ad04f30ec8901` | Merge YouTube ad skipping (79dimq 166fa00) into Arc Features [skip ci] | Pending |
-| `03d0f82dc0393537e5a9f0cca96005bb6f06df2a` | Live Folders: a check that changes nothing isn't saved | Pending |
+| `03d0f82dc0393537e5a9f0cca96005bb6f06df2a` | Live Folders: a check that changes nothing isn't saved | Already equivalent: `Space.refreshLiveFolder` keeps refresh times in an observation-ignored cache and returns false for unchanged feeds; caller saves only on change. No sync needed. |
 | `85f6092a072347c472cc7e841ecbced7707e5ba5` | Video watcher: one report per burst of media events | Adapted; mock-DOM check and Mac build passed; live WebKit timing pending |
 | `307bd9950e3878a7050563dd8b611b7bef1f7fa7` | Performance panel: the status glow holds still while its window is in the background | Pending |
 | `66107dac87433c4dff937fc7335831a55b3b79d9` | Library: Performance Monitor with the main plugins and its own loop, Space Routing uses the What's New clip, loops start staggered, clips on detail pages | Pending |

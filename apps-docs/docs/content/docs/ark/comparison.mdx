@@ -13,7 +13,7 @@ Ark uses [WebKit](/docs/ark/engines) across platforms. The migration counts use 
 
 The incoming implementation review targets Browsa `e981df56` and Search `33ec7aea` (November 24, 2026). These heads are not yet fully synced. The [commit inventory and remaining work](../../../../../vx/TODO/ark-upstream-review.md) tracks each incoming change. Arc remains the UI/UX reference for the entire Mac sidebar; upstream interface designs are not automatically adopted. Existing ratings below remain tied to their recorded verification.
 
-Upstream review progress is 26/263 commits (9.9%). The Mac matrix has 21/42 rows rated Yes (50%); build-only and unverified behavior do not count as runtime parity.
+Upstream review progress is 28/263 commits (10.6%). The Mac matrix has 21/42 rows rated Yes (50%); build-only and unverified behavior do not count as runtime parity.
 
 | Incoming batch | Affected rows | Current evidence |
 | --- | --- | --- |
@@ -40,6 +40,8 @@ Upstream review progress is 26/263 commits (9.9%). The Mac matrix has 21/42 rows
 | Return system PiP to its tab (Search `cc1cae9`) | Auto PiP | Ark now selects the originating tab and Space and activates its window when system PiP returns inline. Mac build passed; system PiP runtime check remains open. Uses a private WebKit delegate selector. |
 | Float only after the window leaves sight (Search `1c84b99`) | Auto PiP | Ark waits for window occlusion on the same display; a visible window on another display stays inline. Reactivation cancels the watcher. Mac build passed; runtime check remains open. |
 | Empty extension i18n key (Search `f9d7a74`) | Chrome extensions | Ark's compatibility prelude returns an empty string for `i18n.getMessage("")` and delegates other keys to WebKit. JavaScript syntax and Mac build passed; uBlock runtime check remains open. |
+| Chrome Web Store update request (Search `cc3ee712`) | Chrome extensions | Ark sends the installed version and foreground update headers on update checks; first-time extension discovery stays unchanged. BrowserKit tests and Mac build passed; live staged-rollout behavior remains unverified. |
+| Failed extension update retry (Search `987da475`) | Chrome extensions | Ark persists per-extension retry backoff from 1 to 20 hours and manual checks bypass it. BrowserKit tests and Mac build passed; outage/recovery timing remains unverified. |
 
 | Feature                                 | Arc (Chromium)                                                                                                                     | Ark Mac        | Ark iPhone     | Ark iPad       | Ark iPhone Duo        | Ark evidence                                                                                                                                                                                                                                                          |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------- | -------------- | -------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

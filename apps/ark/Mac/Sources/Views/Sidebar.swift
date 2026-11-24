@@ -12,6 +12,9 @@ struct Sidebar: View {
     var isFloating = false
     @State private var dragging = SidebarDragging()
 
+    /// Minimum width that keeps the window controls and four sidebar actions inside the top row.
+    static let minimumWidth: CGFloat = 12 + WindowButtons.width + 4 * 28 + 4 * 2 + 12
+
     var body: some View {
         VStack(spacing: 10) {
             topRow
@@ -67,6 +70,7 @@ struct Sidebar: View {
                 SidebarIconButton(symbol: "arrow.clockwise", help: Shortcuts.shared.help("Reload", .reload), enabled: browser.currentTab?.url != nil) { browser.reload() }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         // A little more room from the window's top and side edges than a title bar gives, like
         // other Mac apps with a sidebar. Floating, the card's 6 pt inset makes up part of it, so the
         // buttons sit in the same place docked or floating.
@@ -251,6 +255,12 @@ private struct SiteMenu: View {
             reader.keyEquivalent = "r"
             reader.keyEquivalentModifierMask = [.command, .shift]
             menu.addItem(reader)
+            if browser.settings.blockContent {
+                let item = actions.item("Block Ads and Trackers") { browser.toggleBlockingForCurrentSite() }
+                item.state = browser.blockingDisabledForCurrentSite ? .off : .on
+                item.toolTip = "Turn off content blocking for this site if it doesn't work properly."
+                menu.addItem(item)
+            }
             let media = NSMenuItem(title: "Camera and Microphone", action: nil, keyEquivalent: "")
             let current = mediaPermission(host)
             media.badge = NSMenuItemBadge(string: current == nil ? "Ask" : current! ? "Allow" : "Block")

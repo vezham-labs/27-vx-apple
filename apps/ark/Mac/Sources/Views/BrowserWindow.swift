@@ -3,49 +3,28 @@ import AppKit
 import BrowserCore
 
 /// The window: sidebar and page on the space's tinted material, the command bar on top.
+@MainActor
 struct BrowserWindow: View {
     @Environment(Browser.self) private var browser
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage(Preferences.automaticVideoPiPKey) private var automaticVideoPiP = false
-    /// Hides the peeking sidebar a moment after the pointer leaves it. Cancelled if the pointer comes
-    /// back first, so a brief exit (a tooltip, a menu, the full-screen menu bar dropping over it)
-    /// doesn't snap the sidebar away and back.
-    @State private var peekHide: Task<Void, Never>?
 
     var body: some View {
         @Bindable var browser = browser
         let docked = browser.isSidebarDocked
-        // Capture actor-bound state before the background builder is evaluated by SwiftUI.
+        // Resolve actor-bound state before passing concrete views to SwiftUI modifiers.
         let backgroundSurface = SpacePalette.surface(for: browser.currentSpace, dark: colorScheme == .dark)
         let backgroundSpaceID = browser.selectedSpaceID
         let isIntroHoldingSidebar = browser.isIntroHoldingSidebar
+        let windowBackground = BrowserWindowBackground(
+            color: Color(nsColor: backgroundSurface.color), opacity: backgroundSurface.opacity,
+            spaceID: backgroundSpaceID, isIntroHoldingSidebar: isIntroHoldingSidebar
+        )
         WindowColumns(browser: browser, sidebarDocked: docked, panelOpen: browser.panel != nil)
-        .background {
-            ZStack {
-                WindowMaterial(material: .sidebar)
-                Color(nsColor: backgroundSurface.color)
-                    .opacity(isIntroHoldingSidebar ? 0 : backgroundSurface.opacity)
-                    .animation(Motion.spring, value: backgroundSpaceID)
-                    .animation(.easeInOut(duration: 0.5), value: isIntroHoldingSidebar)
-            }
-            .ignoresSafeArea()
-        }
-        .overlay(alignment: .leading) {
-            if !docked { peekingSidebar }
-        }
-        .overlay {
-            if let mode = browser.commandBar {
-                CommandBar(mode: mode)
-                    .id(mode)
-                    .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
-            }
-        }
-        .overlay {
-            if let phase = browser.intro {
-                IntroOverlay(phase: phase)
-                    .transition(.identity)
-            }
-        }
+        .background(windowBackground)
+        .overlay(SidebarPeekOverlay(docked: docked), alignment: .leading)
+        .overlay(BrowserCommandBarOverlay(browser: browser))
+        .overlay(BrowserIntroOverlay(browser: browser))
         .animation(Motion.snappy, value: browser.commandBar)
         .animation(Motion.dock, value: browser.isSidebarDocked)
         .ignoresSafeArea()
@@ -73,10 +52,7 @@ struct BrowserWindow: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { note in
             fullScreenChanged(note, to: false)
         }
-        .sheet(item: Binding(
-            get: { browser.activePrompt },
-            // Dismissed without a button (Esc): answer it, so the page isn't left waiting.
-            set: { if $0 == nil, browser.activePrompt != nil { browser.answer(.cancel) } })) { prompt in
+        .sheet(item: $browser.activePrompt) { prompt in
             PromptSheet(prompt: prompt)
                 .environment(browser)
         }
@@ -116,74 +92,6 @@ struct BrowserWindow: View {
         .onChange(of: SpacePalette.appearance(for: browser.currentSpace)?.name) {
             if let window = browser.nsWindow { configure(window) }
         }
-    }
-
-    /// The space's colour and shade for the floating sidebar.
-    private var surface: (color: NSColor, opacity: Double, isDark: Bool) {
-        SpacePalette.surface(for: browser.currentSpace, dark: colorScheme == .dark)
-    }
-
-    /// With the sidebar hidden, pointing at the window's left edge slides it over the page, like Arc.
-    @ViewBuilder private var peekingSidebar: some View {
-        ZStack(alignment: .leading) {
-            Color.clear
-                .frame(width: 10)
-                .contentShape(.rect)
-                .onHover { inside in
-                    guard inside else { return }
-                    peekHide?.cancel()
-                    if !browser.isSidebarPeeking { withAnimation(Motion.peek) { browser.isSidebarPeeking = true } }
-                }
-            if browser.isSidebarPeeking {
-                Sidebar(isFloating: true)
-                    .spaceContrast()
-                    .frame(width: browser.sidebarWidth)
-                    .background {
-                        ZStack {
-                            WindowMaterial(material: .popover)
-                            Color(nsColor: surface.color).opacity(surface.opacity)
-                        }
-                    }
-                    .clipShape(.rect(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.primary.opacity(0.08)))
-                    .shadow(color: .black.opacity(0.2), radius: 16, x: 4)
-                    .padding(6)
-                    .contentShape(.rect)
-                    .onHover { inside in
-                        peekHide?.cancel()
-                        guard !inside else { return }
-                        peekHide = Task { @MainActor in
-                            try? await Task.sleep(for: .milliseconds(250))
-                            // Still over it (the event was stale), or one of its popovers is open: wait
-                            // until it really leaves, since no second "left" event will come.
-                            while !Task.isCancelled, pointerOverPeekingSidebar || sidebarPopoverOpen {
-                                try? await Task.sleep(for: .milliseconds(100))
-                            }
-                            guard !Task.isCancelled else { return }
-                            withAnimation(Motion.peek) { browser.isSidebarPeeking = false }
-                        }
-                    }
-                    .transition(.move(edge: .leading))
-            }
-        }
-        .frame(maxHeight: .infinity)
-    }
-
-    /// Where the pointer really is, rather than what the last hover event said. In full screen the
-    /// pointer rests against the screen's edge, in the gap beside the floating sidebar, and a stale
-    /// "left" event there used to hide the sidebar, which the edge then opened again: a flicker.
-    private var pointerOverPeekingSidebar: Bool {
-        guard let window = browser.nsWindow, let content = window.contentView else { return false }
-        let p = window.mouseLocationOutsideOfEventStream
-        // The sidebar plus its margin, from the window's left edge, full height.
-        return p.x >= -1 && p.x <= browser.sidebarWidth + 12 && p.y >= 0 && p.y <= content.bounds.height
-    }
-
-    /// A popover from the sidebar (extensions, say) is open. It reaches past the sidebar, and hiding
-    /// the sidebar under it would pull away its anchor.
-    private var sidebarPopoverOpen: Bool {
-        // Only popovers: in full screen the window also has AppKit's drop-down title bar as a child.
-        browser.nsWindow?.childWindows?.contains { $0.isVisible && String(describing: type(of: $0)).contains("Popover") } == true
     }
 
     private func configure(_ window: NSWindow) {
@@ -250,6 +158,133 @@ struct BrowserWindow: View {
         configure(window)
         // AppKit finishes moving the title bar after the notification; check the buttons once more.
         DispatchQueue.main.async { configure(window) }
+    }
+}
+
+@MainActor
+private struct SidebarPeekOverlay: View {
+    @Environment(Browser.self) private var browser
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var peekHide: Task<Void, Never>?
+    let docked: Bool
+
+    var body: some View {
+        if !docked { peekingSidebar }
+    }
+
+    /// With the sidebar hidden, pointing at the window's left edge slides it over the page, like Arc.
+    private var peekingSidebar: some View {
+        ZStack(alignment: .leading) {
+            Color.clear
+                .frame(width: 10)
+                .contentShape(.rect)
+                .onHover { inside in
+                    guard inside else { return }
+                    peekHide?.cancel()
+                    if !browser.isSidebarPeeking { withAnimation(Motion.peek) { browser.isSidebarPeeking = true } }
+                }
+            if browser.isSidebarPeeking {
+                let surface = SpacePalette.surface(for: browser.currentSpace, dark: colorScheme == .dark)
+                Sidebar(isFloating: true)
+                    .spaceContrast()
+                    .frame(width: browser.sidebarWidth)
+                    .background(SidebarPeekBackground(color: Color(nsColor: surface.color), opacity: surface.opacity))
+                    .clipShape(.rect(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.primary.opacity(0.08)))
+                    .shadow(color: .black.opacity(0.2), radius: 16, x: 4)
+                    .padding(6)
+                    .contentShape(.rect)
+                    .onHover { inside in
+                        peekHide?.cancel()
+                        guard !inside else { return }
+                        peekHide = Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(250))
+                            // A stale leave event or an open popover should not hide the sidebar.
+                            while !Task.isCancelled, pointerOverPeekingSidebar || sidebarPopoverOpen {
+                                try? await Task.sleep(for: .milliseconds(100))
+                            }
+                            guard !Task.isCancelled else { return }
+                            withAnimation(Motion.peek) { browser.isSidebarPeeking = false }
+                        }
+                    }
+                    .transition(.move(edge: .leading))
+            }
+        }
+        .frame(maxHeight: .infinity)
+    }
+
+    /// Where the pointer really is, rather than what the last hover event said.
+    private var pointerOverPeekingSidebar: Bool {
+        guard let window = browser.nsWindow, let content = window.contentView else { return false }
+        let p = window.mouseLocationOutsideOfEventStream
+        return p.x >= -1 && p.x <= browser.sidebarWidth + 12 && p.y >= 0 && p.y <= content.bounds.height
+    }
+
+    private var sidebarPopoverOpen: Bool {
+        browser.nsWindow?.childWindows?.contains {
+            $0.isVisible && String(describing: type(of: $0)).contains("Popover")
+        } == true
+    }
+}
+
+@MainActor
+private struct SidebarPeekBackground: View {
+    let color: Color
+    let opacity: Double
+
+    var body: some View {
+        ZStack {
+            WindowMaterial(material: .popover)
+            color.opacity(opacity)
+        }
+    }
+}
+
+@MainActor
+private struct BrowserCommandBarOverlay: View {
+    let browser: Browser
+
+    var body: some View {
+        if let mode = browser.commandBar {
+            CommandBar(mode: mode)
+                .environment(browser)
+                .id(mode)
+                .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+        }
+    }
+}
+
+@MainActor
+private struct BrowserIntroOverlay: View {
+    let browser: Browser
+
+    var body: some View {
+        if let phase = browser.intro {
+            IntroOverlay(phase: phase)
+                .environment(browser)
+                .transition(.identity)
+        }
+    }
+}
+
+/// A concrete background view avoids a builder closure that captures actor-bound AppKit values
+/// while SwiftUI updates the window graph.
+@MainActor
+private struct BrowserWindowBackground: View {
+    let color: Color
+    let opacity: Double
+    let spaceID: UUID
+    let isIntroHoldingSidebar: Bool
+
+    var body: some View {
+        ZStack {
+            WindowMaterial(material: .sidebar)
+            color
+                .opacity(isIntroHoldingSidebar ? 0 : opacity)
+                .animation(Motion.spring, value: spaceID)
+                .animation(.easeInOut(duration: 0.5), value: isIntroHoldingSidebar)
+        }
+        .ignoresSafeArea()
     }
 }
 

@@ -56,6 +56,18 @@ extension Browser {
         let (_, cont) = promptQueue.remove(at: i)
         activePrompt = nil
         cont.resume(returning: response)
+        advancePromptQueue()
+    }
+
+    /// A nil written by the sheet binding means Escape, so finish its continuation as Cancel.
+    func cancelPrompt(id: UUID) {
+        guard let i = promptQueue.firstIndex(where: { $0.0.id == id }) else { return }
+        let (_, cont) = promptQueue.remove(at: i)
+        cont.resume(returning: .cancel)
+        advancePromptQueue()
+    }
+
+    private func advancePromptQueue() {
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(200))
             if activePrompt == nil { activePrompt = promptQueue.first?.0 }

@@ -71,7 +71,13 @@ final class Browser {
     @ObservationIgnored var isCapturingPage = false
     /// A link opened for a quick look over the page using the configured click modifier, not yet a tab.
     var glance: GlanceSession?
-    var activePrompt: Prompt?
+    /// Set to nil by SwiftUI when a person dismisses a prompt with Escape. The observer below
+    /// completes that request so its WebKit or agent continuation never waits forever.
+    var activePrompt: Prompt? {
+        didSet {
+            if activePrompt == nil, let dismissed = oldValue { cancelPrompt(id: dismissed.id) }
+        }
+    }
     var siteStyleHost: String?
     /// Reader, when it's showing over the current tab.
     var reader: ReaderSession?
@@ -331,7 +337,13 @@ final class Browser {
         return result
     }
 
-    var currentSpace: Space { spaces.first { $0.id == selectedSpaceID } ?? regularSpaces[0] }
+    var currentSpace: Space {
+        // Avoid an actor-isolated predicate passed through Sequence.first(where:). In the SwiftUI
+        // window builder that closure can cross the dynamic executor check before BrowserWindow's
+        // body has finished evaluating. This lookup is small and synchronous; iterate in place.
+        for space in spaces where space.id == selectedSpaceID { return space }
+        return regularSpaces[0]
+    }
 
     var currentTab: BrowserTab? {
         let space = currentSpace

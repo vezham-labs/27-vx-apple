@@ -336,7 +336,8 @@ private struct SpaceEditor: View {
             SpaceThemeButton(space: space) { browser.scheduleSave() }
                 .padding(.horizontal, 4)
             if space.id != Preferences.agentSpaceID { profileMenu }
-            if space.id != Preferences.agentSpaceID, let archive = SpaceLinkArchive(space: space) {
+            if space.id != Preferences.agentSpaceID,
+               let archive = SpaceLinkArchive(space: space, websiteProfileName: browser.websiteProfileName(for: space)) {
                 ShareLink(item: archive, preview: SharePreview(space.name)) {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }

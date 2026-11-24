@@ -138,7 +138,8 @@ struct SettingsView: View {
                     Button("Import Space Links…", systemImage: "square.and.arrow.down") { isImportingSpace = true }
                     Menu("Share Space Links…", systemImage: "square.and.arrow.up") {
                         ForEach(browser.regularSpaces) { space in
-                            if let archive = SpaceLinkArchive(space: space) {
+                            if let archive = SpaceLinkArchive(space: space,
+                                                              websiteProfileName: browser.websiteProfileName(for: space)) {
                                 ShareLink(item: archive, preview: SharePreview(space.name)) { Text("Share \(space.name)") }
                             }
                         }
@@ -242,7 +243,8 @@ struct SettingsView: View {
     }
 
     private func exportSpaceLinks(_ space: Space) {
-        guard let archive = SpaceLinkArchive(space: space) else { return }
+        guard let archive = SpaceLinkArchive(space: space,
+                                             websiteProfileName: browser.websiteProfileName(for: space)) else { return }
         do {
             exportDocument = ArkSpaceLinkDocument(data: try archive.encoded())
             isExportingSpace = true

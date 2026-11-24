@@ -94,10 +94,16 @@ extension BrowserState {
 
     @discardableResult
     public func importSpaceLinks(_ archive: SpaceLinkArchive) -> Space {
-        let space = archive.makeSpace(colorIndex: regularSpaces.count)
+        let profileID = archive.makeImportedWebsiteProfile(in: &settings.websiteProfiles)
+        let space = archive.makeSpace(colorIndex: regularSpaces.count, websiteProfileID: profileID)
         spaces.insert(space, at: regularSpaces.count)
         scheduleSave()
         return space
+    }
+
+    public func websiteProfileName(for space: Space) -> String? {
+        guard let profileID = space.websiteProfileID else { return nil }
+        return settings.websiteProfiles.first { $0.id == profileID }?.name
     }
 
     public func deleteSpace(_ space: Space) {

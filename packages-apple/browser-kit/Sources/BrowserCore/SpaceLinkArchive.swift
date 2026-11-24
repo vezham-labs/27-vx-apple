@@ -12,6 +12,8 @@ public struct SpaceLinkArchive: Codable, Sendable, Transferable {
     public let pinned: [Link]
     public let today: [Link]
     public let pinFolders: [PinFolder]?
+    /// The profile label is portable metadata only. Cookies, history, and website data stay local.
+    public let websiteProfileName: String?
 
     public struct Link: Codable, Sendable {
         public let title: String
@@ -47,7 +49,7 @@ public struct SpaceLinkArchive: Codable, Sendable, Transferable {
     }
 
     @MainActor
-    public init?(space: Space, folderID: UUID? = nil) {
+    public init?(space: Space, folderID: UUID? = nil, websiteProfileName: String? = nil) {
         guard !space.isPrivate else { return nil }
         version = 1
         if let folderID {
@@ -66,11 +68,13 @@ public struct SpaceLinkArchive: Codable, Sendable, Transferable {
                 if record.id == folderID { record.parentID = nil }
                 return record
             }
+            self.websiteProfileName = nil
         } else {
             name = space.name
             pinned = space.pinned.compactMap(Link.init)
             today = space.today.compactMap(Link.init)
             pinFolders = space.pinFolders.isEmpty ? nil : space.pinFolders.map(Self.portableFolder)
+            self.websiteProfileName = Self.portableProfileName(websiteProfileName)
         }
     }
 
@@ -93,7 +97,7 @@ public struct SpaceLinkArchive: Codable, Sendable, Transferable {
         self = try JSONDecoder().decode(Self.self, from: data)
     }
 
-    private enum CodingKeys: String, CodingKey { case version, name, pinned, today, pinFolders }
+    private enum CodingKeys: String, CodingKey { case version, name, pinned, today, pinFolders, websiteProfileName }
 
     public init(from decoder: any Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -102,6 +106,7 @@ public struct SpaceLinkArchive: Codable, Sendable, Transferable {
         pinned = try values.decode([Link].self, forKey: .pinned)
         today = try values.decode([Link].self, forKey: .today)
         pinFolders = try values.decodeIfPresent([PinFolder].self, forKey: .pinFolders)?.map(Self.portableFolder)
+        websiteProfileName = Self.portableProfileName(try values.decodeIfPresent(String.self, forKey: .websiteProfileName))
         try validate()
     }
 
@@ -137,7 +142,7 @@ public struct SpaceLinkArchive: Codable, Sendable, Transferable {
     }
 
     @MainActor
-    public func makeSpace(colorIndex: Int, windowKey: UUID? = nil) -> Space {
+    public func makeSpace(colorIndex: Int, websiteProfileID: UUID? = nil, windowKey: UUID? = nil) -> Space {
         let name = self.name.trimmingCharacters(in: .whitespacesAndNewlines)
         let records = pinFolders ?? []
         var folderIDs: [UUID: UUID] = [:]
@@ -159,7 +164,32 @@ public struct SpaceLinkArchive: Codable, Sendable, Transferable {
         let space = Space(name: name.isEmpty ? "Imported Space" : name, colorIndex: colorIndex,
                           pinned: pinned.map { tab(from: $0, pinned: true) },
                           today: today.map { tab(from: $0, pinned: false) })
+        space.websiteProfileID = websiteProfileID
         space.restorePinFolders(folders)
         return space
+    }
+
+    /// Creates an isolated local profile when importing a portable Space that carries a label.
+    /// This preserves the profile assignment without transferring or reusing website data.
+    @MainActor
+    public func makeImportedWebsiteProfile(in profiles: inout [WebsiteProfile]) -> UUID? {
+        guard let websiteProfileName else { return nil }
+        let base = String("Imported \(websiteProfileName)".prefix(70))
+        let existing = Set(profiles.map { $0.name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current) })
+        var candidate = base
+        var suffix = 2
+        while existing.contains(candidate.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)) {
+            let ending = " \(suffix)"
+            candidate = String(base.prefix(80 - ending.count)) + ending
+            suffix += 1
+        }
+        guard let profile = WebsiteProfile(name: candidate) else { return nil }
+        profiles.append(profile)
+        return profile.id
+    }
+
+    private static func portableProfileName(_ name: String?) -> String? {
+        guard let name, let profile = WebsiteProfile(name: name) else { return nil }
+        return profile.name
     }
 }

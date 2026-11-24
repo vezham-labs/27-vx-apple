@@ -452,6 +452,11 @@ final class Library {
         return space?.websiteProfileID.map(BrowsingProfile.named) ?? .standard
     }
 
+    func websiteProfileName(for space: Space) -> String? {
+        guard let profileID = space.websiteProfileID else { return nil }
+        return settings.websiteProfiles.first { $0.id == profileID }?.name
+    }
+
     func browsingProfile(for tab: BrowserTab) -> BrowsingProfile {
         tab.isPrivate ? .ephemeral : browsingProfile(in: space(containing: tab))
     }

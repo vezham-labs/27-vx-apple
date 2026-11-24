@@ -10,7 +10,8 @@ extension Browser {
 
     func exportSpaceLinks() {
         guard canExportSpaceLinks, let window = nsWindow, window.attachedSheet == nil else { return }
-        guard let export = SpaceLinkArchive(space: currentSpace) else { return }
+        guard let export = SpaceLinkArchive(space: currentSpace,
+                                            websiteProfileName: library.websiteProfileName(for: currentSpace)) else { return }
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
@@ -36,7 +37,9 @@ extension Browser {
             guard response == .OK, let url = panel.url, let self else { return }
             do {
                 let archive = try SpaceLinkArchive(contentsOf: url)
-                let space = archive.makeSpace(colorIndex: library.regularSpaces.count, windowKey: windowKey)
+                let profileID = archive.makeImportedWebsiteProfile(in: &library.settings.websiteProfiles)
+                let space = archive.makeSpace(colorIndex: library.regularSpaces.count,
+                                              websiteProfileID: profileID, windowKey: windowKey)
                 library.spaces.insert(space, at: library.regularSpaces.count)
                 library.scheduleSave()
                 showToast("Imported \(space.name)")

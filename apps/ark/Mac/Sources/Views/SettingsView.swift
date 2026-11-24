@@ -126,7 +126,7 @@ private struct GeneralSettings: View {
     @AppStorage(Preferences.externalLinksFindExistingTabKey) private var externalLinksFindExistingTab = false
     @AppStorage(Preferences.automaticVideoPiPKey) private var automaticVideoPiP = false
     @AppStorage(Preferences.videoKeyControlsKey) private var videoKeyControls = false
-    @AppStorage(Preferences.pinnedLinksOpenInNewTabKey) private var pinnedLinksOpenInNewTab = false
+    @AppStorage(Preferences.pinnedLinkActionKey) private var pinnedLinkAction = Preferences.pinnedLinkAction.rawValue
     @AppStorage(Preferences.closeTabGoesBackKey) private var closeTabGoesBack = false
     @AppStorage("linkPreviewModifier") private var linkPreviewModifier = LinkPreviewModifier.option.rawValue
     @AppStorage(ArkVideoFloat.flicksKey) private var miniPlayerFlicks = false
@@ -147,8 +147,12 @@ private struct GeneralSettings: View {
                 Toggle("Go to a tab that's already open", isOn: $externalLinksFindExistingTab)
                 Text("When a link from another app is already open in Ark, switch to that tab instead of opening another copy. Space routes take precedence.")
                     .font(.caption).foregroundStyle(.secondary)
-                Toggle("Open links from pinned tabs in new tabs", isOn: $pinnedLinksOpenInNewTab)
-                Text("A link from a pin opens as a Today tab, keeping the pin on its page. Same-page links and sign-in pages stay in the pin.")
+                Picker("Links from pinned tabs", selection: $pinnedLinkAction) {
+                    ForEach(PinnedLinkAction.allCases) { action in
+                        Text(action.title).tag(action.rawValue)
+                    }
+                }
+                Text("Plain links can stay in the pin, open in a Today tab, or preview in Glance. Same-page and sign-in links stay in the pin.")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Closing a tab goes back to the one before", isOn: $closeTabGoesBack)
                 Text("When off, Ark selects the tab beside the one you closed.")

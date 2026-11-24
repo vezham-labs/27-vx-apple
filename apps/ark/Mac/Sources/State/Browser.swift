@@ -813,9 +813,13 @@ enum Preferences {
     static let videoKeyControlsKey = "videoKeyControls"
     static var videoKeyControls: Bool { d.bool(forKey: videoKeyControlsKey) }
     static let pinnedLinksOpenInNewTabKey = "pinnedLinksOpenInNewTab"
-    static var pinnedLinksOpenInNewTab: Bool {
-        get { d.bool(forKey: pinnedLinksOpenInNewTabKey) }
-        set { d.set(newValue, forKey: pinnedLinksOpenInNewTabKey) }
+    static let pinnedLinkActionKey = "pinnedLinkAction"
+    static var pinnedLinkAction: PinnedLinkAction {
+        if let raw = d.string(forKey: pinnedLinkActionKey), let action = PinnedLinkAction(rawValue: raw) {
+            return action
+        }
+        // Keep the prior off-by-default toggle's value when upgrading.
+        return d.bool(forKey: pinnedLinksOpenInNewTabKey) ? .today : .stayInPin
     }
     static let closeTabGoesBackKey = "closeTabGoesBack"
     static var closeTabGoesBack: Bool {
@@ -929,6 +933,21 @@ enum Preferences {
         var all = d.dictionary(forKey: "siteZoom") ?? [:]
         all[host] = abs(zoom - 1) < 0.01 ? nil : zoom
         d.set(all, forKey: "siteZoom")
+    }
+}
+
+enum PinnedLinkAction: String, CaseIterable, Identifiable, Sendable {
+    case stayInPin
+    case today
+    case glance
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .stayInPin: "Stay in pinned tab"
+        case .today: "Open in Today tab"
+        case .glance: "Preview in Glance"
+        }
     }
 }
 

@@ -141,9 +141,18 @@ final class TabController: EnginePageDelegate {
             Task { await openInApp(request) }
             return .cancel
         }
-        if linkPreview == nil, window != nil, shouldOpenPinnedLinkInNewTab(request, currentURL: page.state.url ?? tab.url) {
-            window?.newTab(url: request.url, source: .link)
-            return .cancel
+        if linkPreview == nil, let window,
+           let action = pinnedLinkAction(for: request, currentURL: page.state.url ?? tab.url) {
+            switch action {
+            case .stayInPin:
+                break
+            case .today:
+                window.newTab(url: request.url, source: .link)
+                return .cancel
+            case .glance:
+                window.openGlance(request.url, profile: library.browsingProfile(for: tab))
+                return .cancel
+            }
         }
         // A call site (or leaving one) moves the tab to the engine it runs on.
         if linkPreview == nil, request.isMainFrame, request.method == "GET", library.needsEngineSwap(self, to: request.url) {
@@ -156,28 +165,33 @@ final class TabController: EnginePageDelegate {
         return .allow
     }
 
-    /// Search's optional pin-link behavior, scoped to plain main-frame HTTP(S) clicks. Redirects,
+    /// Search-inspired pin-link behavior. Only plain main-frame HTTP(S) clicks qualify; redirects,
     /// forms, modified clicks, same-document fragments, and common authentication routes stay put.
-    private func shouldOpenPinnedLinkInNewTab(_ request: NavigationRequest, currentURL: URL?) -> Bool {
-        guard Preferences.pinnedLinksOpenInNewTab, tab.isPinned, request.kind == .link,
+    private func pinnedLinkAction(for request: NavigationRequest, currentURL: URL?) -> PinnedLinkAction? {
+        let action = Preferences.pinnedLinkAction
+        guard action != .stayInPin, tab.isPinned, request.kind == .link,
               request.isMainFrame, request.method == "GET", !request.wantsNewTab, !request.hasModifiers,
               let scheme = request.url.scheme?.lowercased(), ["http", "https"].contains(scheme),
-              let host = request.url.host()?.lowercased() else { return false }
+              let host = request.url.host()?.lowercased() else { return nil }
+        if action == .glance {
+            guard let currentHost = currentURL?.host()?.lowercased(), currentHost != host else { return nil }
+        }
         if let currentURL,
            var current = URLComponents(url: currentURL, resolvingAgainstBaseURL: false),
            var target = URLComponents(url: request.url, resolvingAgainstBaseURL: false) {
             current.fragment = nil
             target.fragment = nil
-            if current.url == target.url { return false }
+            if current.url == target.url { return nil }
         }
         let authentication = ["login", "log-in", "log_in", "logon", "signin", "sign-in", "sign_in", "signon",
                              "logout", "log-out", "signout", "sign-out", "auth", "oauth", "oauth2", "sso", "saml", "authorize"]
         let firstHostPart = host.split(separator: ".").first.map(String.init) ?? ""
-        if authentication.contains(firstHostPart) || ["accounts", "account", "id", "idp"].contains(firstHostPart) { return false }
+        if authentication.contains(firstHostPart) || ["accounts", "account", "id", "idp"].contains(firstHostPart) { return nil }
         let pathParts = request.url.path.lowercased().split(separator: "/").map(String.init)
-        return !pathParts.contains { part in
+        let isAuthenticationPath = pathParts.contains { part in
             authentication.contains(part) || authentication.contains { part.hasPrefix($0 + ".") }
         }
+        return isAuthenticationPath ? nil : action
     }
 
     /// Hands a link to the app that opens it, asking first, as Safari and Chrome do: a page could

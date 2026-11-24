@@ -292,11 +292,17 @@ struct SnapshotTour {
             note("pinned-link check: fixture tab unavailable")
             return
         }
-        let originalSetting = UserDefaults.standard.object(forKey: Preferences.pinnedLinksOpenInNewTabKey)
+        let originalAction = UserDefaults.standard.object(forKey: Preferences.pinnedLinkActionKey)
+        let originalLegacySetting = UserDefaults.standard.object(forKey: Preferences.pinnedLinksOpenInNewTabKey)
         let wasPinned = source.isPinned
         defer {
-            if let originalSetting {
-                UserDefaults.standard.set(originalSetting, forKey: Preferences.pinnedLinksOpenInNewTabKey)
+            if let originalAction {
+                UserDefaults.standard.set(originalAction, forKey: Preferences.pinnedLinkActionKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Preferences.pinnedLinkActionKey)
+            }
+            if let originalLegacySetting {
+                UserDefaults.standard.set(originalLegacySetting, forKey: Preferences.pinnedLinksOpenInNewTabKey)
             } else {
                 UserDefaults.standard.removeObject(forKey: Preferences.pinnedLinksOpenInNewTabKey)
             }
@@ -305,7 +311,7 @@ struct SnapshotTour {
             if !wasPinned, source.isPinned { browser.togglePinned(source) }
         }
         if !wasPinned { browser.togglePinned(source) }
-        Preferences.pinnedLinksOpenInNewTab = true
+        UserDefaults.standard.set(PinnedLinkAction.today.rawValue, forKey: Preferences.pinnedLinkActionKey)
         guard let targetData = try? JSONSerialization.data(withJSONObject: targetURL.absoluteString),
               let target = String(data: targetData, encoding: .utf8) else {
             note("pinned-link check: could not encode target URL")
@@ -319,6 +325,29 @@ struct SnapshotTour {
         let opened = browser.currentTab
         let passed = opened?.id != source.id && opened?.url == targetURL && source.isPinned && source.url == sourceURL
         note("pinned-link check: \(passed ? "opened Today tab and kept pin at source" : "did not meet expected tab/pin state")")
+
+        if let opened, opened.id != source.id { browser.close(opened) }
+        browser.select(source)
+        guard var glanceTarget = URLComponents(url: targetURL, resolvingAgainstBaseURL: false) else {
+            note("pinned-link Glance check: could not create a cross-host fixture URL")
+            return
+        }
+        glanceTarget.host = glanceTarget.host == "localhost" ? "127.0.0.1" : "localhost"
+        guard let glanceURL = glanceTarget.url,
+              let glanceData = try? JSONSerialization.data(withJSONObject: glanceURL.absoluteString),
+              let encodedGlanceURL = String(data: glanceData, encoding: .utf8) else {
+            note("pinned-link Glance check: could not encode fixture URL")
+            return
+        }
+        UserDefaults.standard.set(PinnedLinkAction.glance.rawValue, forKey: Preferences.pinnedLinkActionKey)
+        _ = try? await page.evaluate("""
+        const link = document.createElement('a'); link.href = \(encodedGlanceURL); link.textContent = 'Ark pinned-link Glance fixture';
+        document.body.append(link); link.click(); return true;
+        """, inWorld: "page")
+        await pause(1.5)
+        let previewed = browser.glance?.url == glanceURL && browser.currentTab?.id == source.id && source.isPinned && source.url == sourceURL
+        note("pinned-link Glance check: \(previewed ? "opened cross-host link in Glance and kept pin at source" : "did not meet expected Glance/pin state")")
+        browser.closeGlance()
     }
 
     /// Checks the opt-in close behavior using the previously selected Today tab.

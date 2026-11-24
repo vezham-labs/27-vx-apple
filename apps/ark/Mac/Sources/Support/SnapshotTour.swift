@@ -3,6 +3,7 @@ import AppKit
 import SwiftUI
 import BrowserCore
 import BrowserEngine
+import Extensibility
 import Suggest
 import WebKit
 import WebKitEngine
@@ -761,7 +762,29 @@ struct SnapshotTour {
         defer { defaults.set(previousPane, forKey: "settingsTab") }
         browser.settings.blockContent = true
         SpaceRouter.shared.isEnabled = true
-        for (pane, file) in [("spaces", "shared-collections"), ("routing", "space-routing"), ("shortcuts", "custom-shortcuts"), ("privacy", "ad-blocker"), ("general", "idle-page-unloading")] {
+        let pageURL = URL(string: "https://reference.ark.local/design")!
+        let noteHTML = "<!doctype html><meta charset='utf-8'><title>Design reference</title><body style='margin:0;background:#202126;color:#e9e9eb'><main style='font: 24px -apple-system; max-width: 720px; margin: 12vh auto'><h1 style='color:#202126'>Collect design references</h1><p>A page-bound note stays attached to its source.</p></main></body>"
+        let noteTab = browser.newTab(url: pageURL)
+        browser.select(noteTab)
+        browser.library.existingController(for: noteTab)?.page.loadHTML(noteHTML, baseURL: pageURL)
+        await pause(0.5)
+        browser.library.margin.add(MarginNote(url: pageURL, pageTitle: "Design reference",
+                                              anchor: .init(quote: "Collect design references"),
+                                              body: "Keep this reference with the source page."))
+        browser.showPanel("notes")
+        await pause(0.6)
+        saveVisible("notes-panel", in: window)
+        browser.panel = nil
+        let syncFolder = directory.appending(path: "sync-fixture", directoryHint: .isDirectory)
+        do {
+            try FileManager.default.createDirectory(at: syncFolder, withIntermediateDirectories: true)
+            try browser.library.syncCoordinator.selectFolder(syncFolder)
+            await browser.library.syncNow()
+            note("sync settings fixture: folder selected, state \(browser.library.syncCoordinator.state)")
+        } catch {
+            note("sync settings fixture failed: \(error.localizedDescription)")
+        }
+        for (pane, file) in [("spaces", "shared-collections"), ("routing", "space-routing"), ("shortcuts", "custom-shortcuts"), ("privacy", "ad-blocker"), ("general", "idle-page-unloading"), ("sync", "sync-settings")] {
             browser.library.openSettings(pane: pane)
             await pause(0.8)
             guard let settings = NSApp.keyWindow, settings !== window else {

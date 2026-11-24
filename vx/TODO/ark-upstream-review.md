@@ -17,9 +17,9 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 ## Commit inventory
 
-This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
+This inventory records the pulled heads on November 25, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 87 of 263 commits assessed (33.1%); 176 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 96 of 272 commits assessed (35.3%); 176 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -179,7 +179,7 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 
 ### Search
 
-Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea1823c81c77a2be196e442dd54e36efa7`.
+Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `659f74dc35c38c9a4b6bfa8c09fd3f9523d5d245` (`origin/main`). The clean worktree remains checked out at `33ec7aea`; nine commits after it were available from the local remote-tracking ref and assessed below.
 
 | Commit | Change | Disposition |
 | --- | --- | --- |
@@ -297,4 +297,20 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `d8aaba27086332b477b71553cb9e725959c2d1e3` | ⌘S: the window's buttons ride the column's frames; the peeking column floats as a card | Pending |
 | `c48dd6aacbde1cee34b80943db425b522a96d540` | ⌘S: the side panel goes edge to edge with the folded page | Pending |
 | `33ec7aea1823c81c77a2be196e442dd54e36efa7` | ⌘S: the floating peek column's corners are round | Pending |
+
+### Search commits after the previous review target
+
+These nine commits are present on the clean local `origin/main` ref at `659f74dc`; the Search worktree itself remains at `33ec7aea`. All nine diffs were assessed on November 25, 2026.
+
+| Commit | Change | Disposition |
+| --- | --- | --- |
+| `f4ae4053887992ef7115423c97c707e5cb63e6ba` | Search 1.0.20 | Reviewed: release notes and version metadata; no Ark runtime behavior. |
+| `5dbbd0cb1192fda1b246aa96fbb1adfcec1f84c0` | docs: ROADMAP and README after 1.0.20 | Reviewed: documentation cleanup only; no Ark behavior. |
+| `801998e1678e09a503ea153af21260464b79d090` | Arc's spaces brought over show at once, no Spaces off and on (idea 1109) | Reviewed: Ark's Arc importer populates each `BrowserCore.Space` synchronously and inserts it into observable `Library.spaces`; it has no separate per-window deferred space-row cache for Search's `preloadSpaces()` fix to target. The existing Arc import fixture covers parsing and folder placement; fresh-import UI behavior remains a runtime check. No code change. |
+| `e89a8bb1860adda0283d0f037aa4f599da82a9b4` | Passwords and passkeys show in a site's sized pop-up window (idea 1107) | Reviewed: Ark routes WebKit-created popup pages into tabs and has no sized sign-in popup window or Search-style account-card overlay. No matching UI path to adapt; passkey row unchanged. |
+| `f2bfbcf721acd0023e2bf49baf2974766f145a9a` | Apple Passwords: log why the last pairing ended when a code is asked again (idea 1108) | Reviewed: Ark has no Search Apple Passwords pairing helper or six-digit-code pairing state. No code or matrix change. |
+| `c08ffb5a9d69f31bb45cd03a7111d7d4d14afbe2` | Extensions: `chrome.identity.AccountStatus`, as Chrome has it | Adapted in Ark commit `19ca7bb7`: supplies Chrome's frozen `SYNC`/`ANY` enum while preserving WebKit's existing `getProfileUserInfo` implementation. Mac build and inline shim harness passed; a real Fathom extension check remains open. |
+| `4a813a85d921822140fc0d8ff5c9f6bc4d955236` | Probe: tab groups from one Mac to another over Sync with iCloud (idea 1112) | Reviewed: automation-only probe, not a product change. Ark syncs user-folder state and does not implement iCloud sync or Chrome tab groups. No test file or code copied. |
+| `5cf636611c06793cd0974f20ead4f62317c29583` | Zen import: each open tab into its own space, and read from Zen's own file (idea 1116) | Reviewed and deferred: Zen/Firefox session import and mapping workspace names to Ark Spaces are outside the 42 Arc rows and the current Mac parity pass. Ark currently imports Arc, Chromium, and Safari data; no Zen-specific parser was copied. |
+| `659f74dc35c38c9a4b6bfa8c09fd3f9523d5d245` | Profiles in one window: no space name popping up on a profile switch (idea 1114) | Reviewed: Search quiets its profile-window join notification. Ark selects a Space directly in the existing window and uses that Space's name as the switch feedback; it has no matching cross-profile window-join path. No code or matrix change. |
 

@@ -4,9 +4,9 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 ## Current Mac sync pass — November 24–25, 2026
 
-The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
+The [incoming review inventory](ark-upstream-review.md) lists 149 Browsa and 123 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Browsa's clean worktree matches `origin/main` at `e981df56`. Search's clean worktree is at `33ec7aea`, with nine additional commits available on `origin/main` at `659f74dc`; those diffs were assessed without changing the upstream checkout. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 87/263 incoming commits assessed (33.1%); 176 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 96/272 incoming commits assessed (35.3%); 176 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -677,3 +677,9 @@ Verification: `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` 
 Adapted Search [`fa555191c98e47e44855dfe43e75aa0adcc6a804`](https://github.com/driceroland/Search/commit/fa555191c98e47e44855dfe43e75aa0adcc6a804) in Ark commit [`355adfdf`](../../commit/355adfdf). Ark adds a native **Site Information…** submenu to regular pinned-tab context menus, showing the host and exposing the existing per-site ad/tracker blocker plus combined camera/microphone permission choices. Search's card anchored below the pin was not adopted; this keeps Ark's existing sidebar structure while removing the selection step.
 
 Verification: `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. No simulator was started and no new test file was created. Context-menu presentation, blocker toggling, and saved permission behavior still need a live UI check. The comparison rating remains unchanged pending that check.
+
+### Search `origin/main` update — November 25, 2026
+
+Reviewed the nine Search commits from `33ec7aea` through `659f74dc`. Adapted `c08ffb5a9d69f31bb45cd03a7111d7d4d14afbe2` in Ark commit [`19ca7bb7`](../../commit/19ca7bb7): the extension compatibility shim now exposes Chrome's frozen `identity.AccountStatus.SYNC` and `.ANY` constants without replacing WebKit's existing `getProfileUserInfo` method. `node --check`, an inline VM harness that verifies both constants and preservation of the existing API, and `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. No test file or simulator was added; a real Fathom extension call remains open and Chrome extensions stays Partial.
+
+The remaining eight commits were reviewed and documented in the [upstream inventory](ark-upstream-review.md): release/docs changes only; no equivalent deferred Arc-import cache in Ark; no Ark sized sign-in popup or Apple Passwords pairing; a test-only iCloud-group probe; Zen import deferred outside the 42-row matrix; and no matching profile-window join behavior. No other code or comparison rating changed.

@@ -550,6 +550,10 @@ Adapted Search `f9d7a747a9802f21e174a4221a8e5c287169530f` in Ark's extension com
 
 The isolated SpikeArk app was relaunched and its control API responded with mock state. Its window still reported `isKey: false`; synthetic drags across the two pinned rows did not change their order. This is inconclusive input evidence and does not change the Mac comparison rating. The actual reorder interaction still needs a pointer-driven check in the visible app. No simulator was started; installed Ark data was not accessed.
 
+### Search Peek screen sharing — Mac
+
+Adapted Search `39ab8c5db4af5d2c37838ae22ec121c9ccc352bd`: WebKit display-capture requests now use Ark's existing per-request `.screen` consent sheet. A visible Glance can answer without pretending to be the selected tab; navigating, closing, replacing, or promoting it cancels any outstanding request. The Mac build passed. A live `getDisplayMedia` request and the system's screen/window selection behavior remain unverified, so Peek remains Partial.
+
 ### Browsa extension host-permission scope — Mac
 
 Adapted the permission-scope portion of Browsa `1642b72ff49a17421b29ba3d56c70b5717a09b8c`: `WebKitExtensions` no longer grants `<all_urls>` to every extension. Broad host access is granted only when an extension's requested match patterns include `<all_urls>` or a wildcard host; otherwise Ark grants its declared patterns. This closes an overbroad WebKit permission grant without changing the extension UI. Browsa's redirect-checked, profile-aware `browsa.fetch` path was not copied because Ark does not expose that API. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. A runtime check with narrow-host and all-host extensions remains open. The comparison's Chrome extensions rating stays Partial pending compatibility and permission-flow verification.

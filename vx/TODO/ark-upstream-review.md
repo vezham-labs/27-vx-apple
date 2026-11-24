@@ -19,7 +19,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 36 of 263 commits assessed (13.7%); 227 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 37 of 263 commits assessed (14.1%); 226 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -227,7 +227,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `d123cdc909f7a423e26cc89c6b664a26324c323b` | An extension's popup sends its window's sign-ins (idea 1045) | Pending |
 | `80f8f1364c6471131e88544a7cb7ea773af6cdfb` | Drag a finished download out of the Downloads list as its file (idea 566) | Pending |
 | `8755ef84d74f8e2f95a86aea4e66fd05d6198b49` | docs: ROADMAP: dragging a download out is done (idea 566) | Pending |
-| `39ab8c5db4af5d2c37838ae22ec121c9ccc352bd` | A peek can share the screen: asked over it, as a tab is | Pending |
+| `39ab8c5db4af5d2c37838ae22ec121c9ccc352bd` | A peek can share the screen: asked over it, as a tab is | Adapted: Ark's visible Glance now asks through its explicit screen-sharing permission sheet; close, navigation, and promotion cancel pending requests. Mac build passed; live WebKit screen-share request remains unverified. |
 | `f2873fd0b51b8cf19c28e99dd848c81d20c18c46` | Typed vnc:// and other apps' addresses open in their app (#1473) | Pending |
 | `488b61c77de604b4c866d48e3ff2f3aa737ad028` | ⌘W no longer loops between a pin and a new tab (#1480) | Pending |
 | `0d1d80a2b7cb0772c40b9a6e162b21c1ebbab604` | Search's own pages have scroll bars (#1478) | Pending |

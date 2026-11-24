@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists 149 Browsa and 123 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Browsa's clean worktree matches `origin/main` at `e981df56`. Search's clean worktree is at `33ec7aea`, with nine additional commits available on `origin/main` at `659f74dc`; those diffs were assessed without changing the upstream checkout. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 104/272 incoming commits assessed (38.2%); 168 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 105/272 incoming commits assessed (38.6%); 167 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -704,7 +704,7 @@ Search [`c502d18b67bd557c2a5267f723577e0acf93f427`](https://github.com/dricerola
 
 Search [`488b61c77de604b4c866d48e3ff2f3aa737ad028`](https://github.com/driceroland/Search/commit/488b61c77de604b4c866d48e3ff2f3aa737ad028) fixes ⌘W cycling between a blank tab and a just-parked pin. Ark's close path unloads the active pin and clears the window's selection; it does not create a blank tab that automatically wakes the pin. No equivalent loop was found, so no code change was made. The existing behavior of ⌘W with no selected tab was not runtime-checked.
 
-These reviews do not change comparison ratings. Combined Browsa/Search incoming commits reviewed so far: 104/272 (38.2%); Mac matrix remains 21/42 Yes (50%).
+These reviews do not change comparison ratings. Combined Browsa/Search incoming commits reviewed so far: 105/272 (38.6%); Mac matrix remains 21/42 Yes (50%).
 
 ### Chrome extension management API — Mac
 
@@ -717,6 +717,10 @@ Search [`fad583956b551f38366193d86ec5407cb71a839a`](https://github.com/dricerola
 ### Search scrollbars — Mac
 
 Reviewed Search [`0d1d80a2b7cb0772c40b9a6e162b21c1ebbab604`](https://github.com/driceroland/Search/commit/0d1d80a2b7cb0772c40b9a6e162b21c1ebbab604) and [`283cd2d4069302e034f5eb4dba73624546a7dfcf`](https://github.com/driceroland/Search/commit/283cd2d4069302e034f5eb4dba73624546a7dfcf). Ark's native Library and Settings scroll views use SwiftUI's default system indicators; the Arc-style vertical sidebar and command results hide them. The separate Search fade preference replaces `NSScroller.preferredScrollerStyle` for the whole process and has no direct Arc comparison row. Defer that override until the actual Arc scrollbar behavior is visually checked. No code or matrix rating changed.
+
+### Existing tabs for incoming links — Mac
+
+Adapted Search [`ed129504cdde3ee09da0967e12e48fb16d85ead8`](https://github.com/driceroland/Search/commit/ed129504cdde3ee09da0967e12e48fb16d85ead8) in Ark commit [`25e4dc3e`](../../commit/25e4dc3e). The new off-by-default General preference switches an incoming HTTP(S) link to an exact matching page in a regular window's current Space, or fronts its matching Link Preview, instead of making another copy. Explicit Space routes remain first. Private tabs are excluded. Search's behavior and fixture were reviewed; no test file was copied or added. The Mac build and strict signature check passed. Live external-app interaction remains unverified because the running Debug process predates this build and Launch Services still returns `kLSNoExecutableErr` when reopening the bundle.
 
 ### Search stuck WebKit process reaper — Bloat / performance
 

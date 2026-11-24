@@ -226,7 +226,20 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
         for p in ext.requestedPermissions.union(ext.optionalPermissions) {
             context.setPermissionStatus(.grantedExplicitly, for: p)
         }
-        for m in ext.allRequestedMatchPatterns { context.setPermissionStatus(.grantedExplicitly, for: m) }
+        let patterns = ext.allRequestedMatchPatterns
+        for pattern in patterns {
+            // WebKit injects content scripts once for every granted match pattern. A broad
+            // pattern already covers narrower paths on the same scheme (for example, a site's
+            // /* covers /embed/*), so granting both can run the same script several times.
+            let covered = patterns.contains { other in
+                other.string != pattern.string
+                    && other.scheme == pattern.scheme
+                    && other.matches(pattern)
+                    && (!pattern.matches(other) || other.string < pattern.string)
+            }
+            guard !covered else { continue }
+            context.setPermissionStatus(.grantedExplicitly, for: pattern)
+        }
         // Keep broad host access opt-in at the manifest level; otherwise an extension that lists a
         // few sites would still receive access to every page through WebKit's all-URLs grant.
         if ext.allRequestedMatchPatterns.contains(where: { $0.matchesAllURLs || $0.matchesAllHosts }) {

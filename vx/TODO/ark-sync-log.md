@@ -490,6 +490,12 @@ Adapted Browsa `63bd758f3b73e22e8ac3a149e0b6b6c80b5f98c6`: extensions now have p
 
 Adapted Search `4746a7772c5b3edd612dd5c76c80ce5d174f12a3` in Settings → Privacy. Ark already listed saved site permissions and could forget all answers for a host; it now filters that list by host and resets one saved answer at a time, preserving other answers and the existing Forget-all action. Ark's permission store is host-keyed, not origin/port-keyed, so the UI does not invent finer boundaries. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. Runtime UI, filtering, and reset behavior remain unverified.
 
+### Search extension path grants — Mac
+
+Adapted Search `505780179d400715192c1e26b507c2d22fa21789`: when a requested host pattern covers another pattern's narrower paths on the same scheme, Ark grants the broader pattern once. This avoids WebKit registering duplicate content-script injections for overlapping grants such as `https://example.com/*` and `https://example.com/embed/*`. Exact scheme boundaries are retained. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. A real extension with overlapping path patterns still needs a runtime injection-count check; no test file was added.
+
+Reviewed Search `86a67e118405aa09931c3d84d834c6dc6810817b`: Ark does not own saved-password or verification-code filling, so the origin-and-port security change has no Ark implementation to port. Those interactions remain with WebKit and the system password manager; Ark will not introduce a second vault.
+
 ### Browsa extension host-permission scope — Mac
 
 Adapted the permission-scope portion of Browsa `1642b72ff49a17421b29ba3d56c70b5717a09b8c`: `WebKitExtensions` no longer grants `<all_urls>` to every extension. Broad host access is granted only when an extension's requested match patterns include `<all_urls>` or a wildcard host; otherwise Ark grants its declared patterns. This closes an overbroad WebKit permission grant without changing the extension UI. Browsa's redirect-checked, profile-aware `browsa.fetch` path was not copied because Ark does not expose that API. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. A runtime check with narrow-host and all-host extensions remains open. The comparison's Chrome extensions rating stays Partial pending compatibility and permission-flow verification.

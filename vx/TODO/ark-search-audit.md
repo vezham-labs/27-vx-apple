@@ -40,6 +40,13 @@ Current order: complete the Mac audit first. Mobile implementation and device ve
 | --- | --- | --- |
 | Site permissions | `CaptureChoices.saved(in:)` lists saved allow and refuse answers by permission and origin; Privacy settings can search, filter by permission, and reset one answer. | Ark already lists answers by host and can forget all permissions for a host. Settings → Privacy now searches hosts and resets a single saved answer while preserving the others. Ark's stored boundary is hostname rather than origin and port. Mac build passed; runtime interaction remains open. |
 
+## Extension behavior
+
+| Feature | Search implementation | Ark implementation and finding |
+| --- | --- | --- |
+| Overlapping host paths | `Extensions.swift` grants only the broadest matching paths when one site's `/*` covers narrower paths, preventing repeated content-script execution. | Ark now coalesces subsumed WebKit match patterns on the same scheme before granting them. The Mac build passed. Verify an actual extension with overlapping paths and count injections at runtime. |
+| Password/code fill origin | `Tab.swift` compares the page's full origin, including port, before filling credentials or verification codes. | Ark has no saved-credential or verification-code fill implementation; those flows belong to WebKit and the system password manager. This Search change is not applicable to Ark-owned code. |
+
 ## Compatibility and migration
 
 | Feature           | Search implementation                                                                                            | Ark implementation and finding                                                                                                             |

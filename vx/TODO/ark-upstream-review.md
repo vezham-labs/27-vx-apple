@@ -198,7 +198,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `efed04f1e0539e0a7440c56a598b0600af3d99e0` | Settings › Passwords › Ask for Touch ID before filling: a saved password goes into a page only after Touch ID or the Mac's password, one yes for a minute (idea 993) | Pending |
 | `6376d84a4d259e1db1862caca0dd2264cce7f440` | Touch ID before filling: the Mac saying it can't ask is a yes only when it has no password set (idea 993) | Pending |
 | `faec5fc7ad1743c264e7bd0eb4d37d187dd8bfaa` | Touch ID before filling: a yes holds for its own site, private and ordinary tabs apart (idea 993) | Pending |
-| `86a67e118405aa09931c3d84d834c6dc6810817b` | Passwords and codes fill only the origin they're for, port included | Pending |
+| `86a67e118405aa09931c3d84d834c6dc6810817b` | Passwords and codes fill only the origin they're for, port included | Not applicable to Ark-owned code: Ark has no saved-password or verification-code fill implementation; those flows belong to WebKit/system autofill. Do not add a parallel vault in this port. |
 | `c17c0fa9345c4ce9f27d7e50eb6b78156cc4bc49` | ⌘-click a bookmarks bar folder: open all of it, as Chrome does (idea 959) | Pending |
 | `8b5ca1bdfcf021cc6158255dcb6cb0bc37d0d9e3` | Keep tab icons tied to the document that declared them (#1453) | Pending |
 | `fad583956b551f38366193d86ec5407cb71a839a` | A full row of tabs still leaves somewhere to take the window by (#1454) | Pending |
@@ -213,7 +213,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `bb0d3160fd5a7e1972f6dcfdce9412aae5df6034` | The agents' page room goes back off screen when displays change (#1421) | Pending |
 | `663cb237b48c0c423d5727cd9d5567cf002f6ec6` | The hidden column stays out while its edge is dragged (#1462) | Pending |
 | `9d46c7b84978c7efecd4266e5bccb8b7e6332557` | SwiftUI popovers hang no further than their button's edge (#1460) | Pending |
-| `505780179d400715192c1e26b507c2d22fa21789` | Extensions' scripts run once where a site's /* covers their narrower paths (#1465) | Pending |
+| `505780179d400715192c1e26b507c2d22fa21789` | Extensions' scripts run once where a site's /* covers their narrower paths (#1465) | Adapted: Ark now grants only broader match patterns that subsume narrower paths on the same scheme, avoiding duplicate WebKit content-script execution. Mac build passed; representative extension runtime verification remains open. |
 | `041aed33c784a6c618c085c08357e210c74f051b` | Keep the column's insets and the fold door clear of the lights when narrowed (idea 1010) | Pending |
 | `dbc76b03ec27859976a9490683569545a586d953` | CHANGELOG: Unreleased checked against every commit since f647b316 for 1.0.19 | Pending |
 | `700d3561decb86e79a542e00f26258c32a34a2e6` | IconColumnTests: each test starts without the last one's session | Pending |

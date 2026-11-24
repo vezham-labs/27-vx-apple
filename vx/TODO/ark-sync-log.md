@@ -466,6 +466,10 @@ Adapted Browsa `5ebc8c1bf1df0169d9f7b828a51794fe0a0c0136` for Ark call-audio con
 
 Adapted Browsa `ed71db69e6bd0647652563ee91a573b0e593dd2b`: Ark now validates the saved Call PiP frame against currently connected displays and moves an off-screen live call window to the main display. `ark:build-mac` passed. A physical display-removal/reconnect runtime check remains pending.
 
+### Browsa private site-permission storage — Mac
+
+Adapted Browsa `18a9e73147a0d0a32d4e2f91b8a967dfaea92e25`: Ark now resolves camera and microphone answers and the site's **Open in App** choices through one site-permission helper. Private tabs see saved answers plus private overrides; prompt answers and site-menu overrides go to the in-memory private cache, which the existing `closePrivateSpace` path clears. This fixes direct site-menu writes that previously bypassed Ark's existing private-only media-prompt cache. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. Runtime checks that private answers never persist and regular-tab choices still do remain pending.
+
 ### Browsa extension host-permission scope — Mac
 
 Adapted the permission-scope portion of Browsa `1642b72ff49a17421b29ba3d56c70b5717a09b8c`: `WebKitExtensions` no longer grants `<all_urls>` to every extension. Broad host access is granted only when an extension's requested match patterns include `<all_urls>` or a wildcard host; otherwise Ark grants its declared patterns. This closes an overbroad WebKit permission grant without changing the extension UI. Browsa's redirect-checked, profile-aware `browsa.fetch` path was not copied because Ark does not expose that API. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. A runtime check with narrow-host and all-host extensions remains open. The comparison's Chrome extensions rating stays Partial pending compatibility and permission-flow verification.

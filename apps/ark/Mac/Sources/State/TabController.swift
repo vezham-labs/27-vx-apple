@@ -170,7 +170,7 @@ final class TabController: EnginePageDelegate {
             return
         }
         let key = Self.openAppKey(scheme)
-        if let saved = library.settings.sitePermissions[host]?[key] {
+        if let saved = library.sitePermissions(for: host, isPrivate: tab.isPrivate)[key] {
             if saved { NSWorkspace.shared.open(url) }
             return
         }
@@ -180,7 +180,7 @@ final class TabController: EnginePageDelegate {
         // Cancelled because the tab went away: don't remember a "no" the user never gave.
         guard answer != .cancel || window.currentTab?.id == tab.id else { return }
         let allowed = answer == .ok
-        library.settings.sitePermissions[host, default: [:]][key] = allowed
+        library.setSitePermission(key, allowed, for: host, isPrivate: tab.isPrivate)
         if allowed { NSWorkspace.shared.open(url) }
     }
 
@@ -268,21 +268,14 @@ final class TabController: EnginePageDelegate {
         guard let library else { return false }
         // Screen sharing is asked every time, like other browsers do.
         let remembers = permission != .screen
-        if remembers, tab.isPrivate, let answered = library.privatePermissions[host]?[permission.rawValue] { return answered }
-        if remembers, let saved = library.settings.sitePermissions[host]?[permission.rawValue] { return saved }
+        if remembers, let saved = library.sitePermissions(for: host, isPrivate: tab.isPrivate)[permission.rawValue] { return saved }
         guard let window else { return false }
         let answer = await window.ask(.permission(permission, host: host), from: tab)
         // Cancelled because the tab went away: don't remember a "no" the user never gave.
         guard answer != .cancel || window.currentTab?.id == tab.id else { return false }
         let granted = answer == .ok
         // A private tab's answer lasts until the private space closes, and isn't saved.
-        if remembers {
-            if tab.isPrivate {
-                library.privatePermissions[host, default: [:]][permission.rawValue] = granted
-            } else {
-                library.settings.sitePermissions[host, default: [:]][permission.rawValue] = granted
-            }
-        }
+        if remembers { library.setSitePermission(permission.rawValue, granted, for: host, isPrivate: tab.isPrivate) }
         return granted
     }
 

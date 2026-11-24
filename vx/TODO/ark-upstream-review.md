@@ -154,7 +154,7 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 | `00ce7bac2d3e78e072348714b707cc0d7752f7ec` | Library: one player per clip, reused, with the file opened off the main thread | Pending |
 | `f7619ec1272743f0dea5bf26562313c0e089a2a4` | Merge remote-tracking branch 'origin/claude/project-thread-himevy' into claude/project-thread-h50a8d | Pending |
 | `1642b72ff49a17421b29ba3d56c70b5717a09b8c` | Extensions: every website only when asked for; browsa.fetch checks each redirect and uses the window's profile | Partially adapted: Ark grants all-URL host access only when the manifest requests all URLs or all hosts. Redirect-checked, profile-aware `browsa.fetch` is not applicable because Ark does not expose that API. Mac build passed; permission behavior needs runtime verification. |
-| `18a9e73147a0d0a32d4e2f91b8a967dfaea92e25` | Private tabs keep open-in-app and camera answers in memory, not in saved settings | Pending |
+| `18a9e73147a0d0a32d4e2f91b8a967dfaea92e25` | Private tabs keep open-in-app and camera answers in memory, not in saved settings | Adapted: Ark routes private prompt and site-menu answers for camera, microphone, and Open in App into the existing private-only permission cache; closing Private clears it. Mac build passed; runtime privacy checks remain pending. |
 | `f27bcf16d64c98c8e11eb5bf53c9fa449e63fd93` | Boosts: one site only, and an imported script asks before it first runs | Pending |
 | `9703e82288d9cb41ee6b072b0700ec1cea54a468` | Live Folders: no GitHub token, cookie-less feeds with a size limit, cookies stay on their site | Pending |
 | `b9cb5102a909dc2e11090378c3850fdbc0490d6f` | Phone, FaceTime and Messages links ask first unless you clicked them | Pending |

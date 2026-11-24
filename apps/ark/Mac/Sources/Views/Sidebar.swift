@@ -299,13 +299,15 @@ private struct SiteMenu: View {
 
     /// Saved answers for camera and microphone on this site: nil means Ark asks.
     private func mediaPermission(_ host: String) -> Bool? {
-        let saved = browser.library.settings.sitePermissions[host] ?? [:]
+        let isPrivate = browser.currentTab?.isPrivate == true
+        let saved = browser.library.sitePermissions(for: host, isPrivate: isPrivate)
         return saved[EnginePermission.cameraAndMicrophone.rawValue] ?? saved[EnginePermission.camera.rawValue] ?? saved[EnginePermission.microphone.rawValue]
     }
 
     private func setMediaPermission(_ host: String, _ value: Bool?) {
+        let isPrivate = browser.currentTab?.isPrivate == true
         for p in [EnginePermission.camera, .microphone, .cameraAndMicrophone] {
-            browser.library.settings.sitePermissions[host, default: [:]][p.rawValue] = value
+            browser.library.setSitePermission(p.rawValue, value, for: host, isPrivate: isPrivate)
         }
     }
 }

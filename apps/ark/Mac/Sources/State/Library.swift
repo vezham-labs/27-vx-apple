@@ -793,6 +793,26 @@ final class Library {
         scheduleSave()
     }
 
+    /// Site permission answers visible to a tab. Private answers override saved answers but stay in memory.
+    func sitePermissions(for host: String, isPrivate: Bool) -> [String: Bool] {
+        let saved = settings.sitePermissions[host] ?? [:]
+        guard isPrivate else { return saved }
+        return saved.merging(privatePermissions[host] ?? [:]) { _, privateAnswer in privateAnswer }
+    }
+
+    /// Private answers last until the private space closes and are never written to settings.
+    func setSitePermission(_ key: String, _ value: Bool?, for host: String, isPrivate: Bool) {
+        if isPrivate {
+            var answers = privatePermissions[host] ?? [:]
+            answers[key] = value
+            privatePermissions[host] = answers.isEmpty ? nil : answers
+        } else {
+            var answers = settings.sitePermissions[host] ?? [:]
+            answers[key] = value
+            settings.sitePermissions[host] = answers.isEmpty ? nil : answers
+        }
+    }
+
     // MARK: Favourites
 
     func favorites(for profileID: UUID?) -> [Favorite] {

@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 23/263 incoming commits assessed (8.7%); 240 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 26/263 incoming commits assessed (9.9%); 237 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -513,6 +513,8 @@ Reviewed Search `2b44d44be86cf0181d8e7368216aba1d49a2a7de`: Ark already opens a 
 Adapted Search `cc1cae9a316f2b3fe6322ca682285b4c34bbf49f`: WebKit's system PiP return callback now selects the PiP page's Ark tab (switching to its owning Space when needed), brings that window forward, and activates Ark. This uses a private WebKit delegate selector, following the upstream behavior. Mac build passed; runtime verification needs an actual system PiP session returned from another Space.
 
 Adapted Search `1c84b99d7127c7c26065c66653cac309f914ebe9`: automatic PiP no longer starts merely because Ark loses focus while its window remains visible. Ark watches the active window's occlusion state on the same screen and starts PiP only after it goes out of sight; a window visible on another display stays inline. Returning to Ark removes the watcher. Mac build passed; display, occlusion, and activation runtime checks remain open.
+
+Adapted Search `f9d7a747a9802f21e174a4221a8e5c287169530f` in Ark's extension compatibility prelude: `i18n.getMessage("")` now answers `""` while other names and substitutions still call through to WebKit. This addresses a WebKit/Chrome API difference that can abort extension popup initialization. JavaScript syntax and Mac build passed; a uBlock popup runtime check remains open.
 
 ### Browsa extension host-permission scope — Mac
 

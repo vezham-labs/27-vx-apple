@@ -60,6 +60,12 @@ Current order: complete the Mac audit first. Mobile implementation and device ve
 | Return system PiP to its tab | `Browser.webViewFullscreenMayReturnToInline` finds the tab across parked Spaces, switches back, selects it, and activates Search. | Ark's WebKit page now forwards the same private delegate callback to its tab controller, which selects the tab in its owning Space and activates the owning window. Mac build passed; actual system PiP return remains unverified. |
 | Wait until the window leaves sight | `Browser.appLeft` watches window occlusion and floats video only when the window is out of sight; it stops that watch when Search is reactivated. | Ark now waits for its visible window to become occluded before automatic PiP. A window visible on another display stays inline, and returning to Ark cancels the observer. Mac build passed; runtime behavior remains open. |
 
+## Extension compatibility
+
+| Feature | Search implementation | Ark implementation and finding |
+| --- | --- | --- |
+| Empty i18n message key | `ExtensionShims.swift` makes `chrome.i18n.getMessage("")` return an empty string instead of propagating WebKit's exception, allowing uBlock Origin's popup to finish loading. | Ark's `extension-compat.js` now intercepts only the empty key and calls WebKit for every other message. JavaScript syntax and Mac build passed; uBlock popup runtime verification remains open. |
+
 ## Compatibility and migration
 
 | Feature           | Search implementation                                                                                            | Ark implementation and finding                                                                                                             |

@@ -19,7 +19,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 23 of 263 commits assessed (8.7%); 240 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 26 of 263 commits assessed (9.9%); 237 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -189,7 +189,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `20942bc01fe5a96f63b3490e5f9cf643f133b996` | Links with target=_blank in an extension's popup open a tab (idea 972) | Pending |
 | `344088842d4fb67b8340aba5e7b799589eb2a0b3` | Readwise Highlighter's worker starts again (idea 813) | Pending |
 | `c2c6d9281f60531e7eb0109b59f0f5a86d9575e2` | Set Up Like Arc turns on Arc's newer habits and is offered in the welcome and after an Arc import (idea 964) | Pending |
-| `f9d7a747a9802f21e174a4221a8e5c287169530f` | Extensions: chrome.i18n.getMessage("") answers "", so uBlock Origin's popup and its dashboard button work (idea 975) | Pending |
+| `f9d7a747a9802f21e174a4221a8e5c287169530f` | Extensions: chrome.i18n.getMessage("") answers "", so uBlock Origin's popup and its dashboard button work (idea 975) | Adapted: Ark's extension compatibility prelude now returns an empty string for `i18n.getMessage("")`, preserving WebKit's behavior for other arguments. JavaScript syntax check and Mac build passed; uBlock popup runtime check remains open. |
 | `f647b3160561512f22970bf101bcbd77f34cf00d` | Sheets: a sideways swipe never goes back where the page's root says overscroll-behavior-x: none (idea 990) | Pending |
 | `b666fb92e88e25f005f31929976a6d525efdf685` | CHANGELOG: Unreleased read through for 1.0.19 | Pending |
 | `cc3ee712f8e6b6e2ed5131fbfd904e0097d0b824` | Extensions: the store update check asks as Chrome's Update button does, so Bitwarden 2026.11.0 arrives (idea 992) | Pending |

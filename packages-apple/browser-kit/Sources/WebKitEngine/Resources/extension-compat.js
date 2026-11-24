@@ -164,6 +164,16 @@
         }
       }
     }
+    // Chrome returns an empty string for getMessage(""); WebKit throws. uBlock Origin asks for
+    // every bare aria-label this way while loading its popup, so one empty lookup can stop all its UI.
+    const i18n = root.i18n;
+    if (i18n && typeof i18n.getMessage === 'function') {
+      const original = i18n.getMessage.bind(i18n);
+      const getMessage = (name, ...args) => name === '' ? '' : original(name, ...args);
+      try { Object.defineProperty(i18n, 'getMessage', { value: getMessage, configurable: true, writable: true }); }
+      catch (e) { try { i18n.getMessage = getMessage; } catch (e2) {} }
+      keep(i18n);
+    }
     if (root.storage && root.storage.managed === undefined) {
       try {
         // Chrome's callback form too: Grammarly passes a callback and waits for it (timing out otherwise).

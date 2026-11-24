@@ -1,10 +1,11 @@
 import SwiftUI
+import BrowserCore
 
 struct SiteStyleEditor: View {
     @Environment(Browser.self) private var browser
     let host: String
     @State var css: String
-    @State var hiddenSelectors: [String]
+    @State var hiddenElements: [HiddenSiteElement]
     @State private var saveFailed = false
 
     var body: some View {
@@ -19,22 +20,38 @@ struct SiteStyleEditor: View {
             Text("Enter CSS for this site. Clear the editor and save to remove the style.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            if !hiddenSelectors.isEmpty {
-                Text("Hidden elements").font(.subheadline.weight(.medium))
+            if !hiddenElements.isEmpty {
+                HStack {
+                    Text("Hidden elements").font(.subheadline.weight(.medium))
+                    Spacer()
+                    Button("Restore All") {
+                        do {
+                            try browser.restoreAllSiteElements(for: host)
+                            hiddenElements = []
+                            browser.previewSiteElement(nil)
+                            saveFailed = false
+                        } catch { saveFailed = true }
+                    }
+                }
                 ScrollView {
-                    ForEach(hiddenSelectors, id: \.self) { selector in
+                    ForEach(hiddenElements) { element in
                         HStack {
-                            Text(selector).font(.caption.monospaced()).lineLimit(1)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(element.label).lineLimit(1)
+                                if let note = element.note {
+                                    Text(note).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                                }
+                            }
                             Spacer()
                             Button("Restore") {
                                 do {
-                                    try browser.restoreSiteElement(selector, for: host)
-                                    hiddenSelectors.removeAll { $0 == selector }
+                                    try browser.restoreSiteElement(element.selector, for: host)
+                                    hiddenElements.removeAll { $0.selector == element.selector }
                                     saveFailed = false
                                 } catch { saveFailed = true }
                             }
-                            .accessibilityLabel("Restore \(selector)")
                         }
+                        .onHover { browser.previewSiteElement($0 ? element.selector : nil) }
                     }
                 }
                 .frame(maxHeight: 108)
@@ -55,5 +72,6 @@ struct SiteStyleEditor: View {
         }
         .padding(20)
         .frame(width: 460)
+        .onDisappear { browser.previewSiteElement(nil) }
     }
 }

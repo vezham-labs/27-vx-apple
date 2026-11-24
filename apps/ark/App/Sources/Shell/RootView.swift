@@ -55,7 +55,7 @@ struct RootView: View {
                                     set: { if !$0 { browser.siteStyleHost = nil } })) {
             if let host = browser.siteStyleHost {
                 SiteStyleEditor(host: host, css: browser.siteStyle(for: host),
-                                hiddenSelectors: browser.hiddenSiteElements(for: host))
+                                hiddenElements: browser.hiddenSiteElements(for: host))
             }
         }
         // A light tap when a download lands, like Safari's downloads button bounce.

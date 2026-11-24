@@ -5,7 +5,8 @@ struct SiteStyleEditor: View {
     @Environment(BrowserState.self) private var browser
     let host: String
     @State var css: String
-    @State var hiddenSelectors: [String]
+    @State var hiddenElements: [HiddenSiteElement]
+    @State private var previewingSelector: String?
     @State private var saveFailed = false
 
     var body: some View {
@@ -23,26 +24,42 @@ struct SiteStyleEditor: View {
                         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.quaternary))
                     Button("Clear CSS") { css = "" }
                         .disabled(css.isEmpty)
-                    if !hiddenSelectors.isEmpty {
+                    if !hiddenElements.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text("Hidden elements").font(.headline)
                                 Spacer()
                                 Button("Restore All") {
                                     do {
-                                        for selector in hiddenSelectors { try browser.restoreSiteElement(selector, for: host) }
-                                        hiddenSelectors = []
+                                        try browser.restoreAllSiteElements(for: host)
+                                        hiddenElements = []
+                                        previewingSelector = nil
+                                        browser.previewSiteElement(nil, for: host)
                                     } catch { saveFailed = true }
                                 }
                             }
-                            ForEach(hiddenSelectors, id: \.self) { selector in
+                            ForEach(hiddenElements) { element in
                                 HStack {
-                                    Text(selector).font(.caption.monospaced()).lineLimit(1)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(element.label).lineLimit(1)
+                                        if let note = element.note {
+                                            Text(note).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                        }
+                                    }
                                     Spacer(minLength: 8)
+                                    Button(previewingSelector == element.selector ? "Done" : "Preview") {
+                                        let next = previewingSelector == element.selector ? nil : element.selector
+                                        previewingSelector = next
+                                        browser.previewSiteElement(next, for: host)
+                                    }
                                     Button("Restore") {
                                         do {
-                                            try browser.restoreSiteElement(selector, for: host)
-                                            hiddenSelectors.removeAll { $0 == selector }
+                                            try browser.restoreSiteElement(element.selector, for: host)
+                                            hiddenElements.removeAll { $0.selector == element.selector }
+                                            if previewingSelector == element.selector {
+                                                previewingSelector = nil
+                                                browser.previewSiteElement(nil, for: host)
+                                            }
                                         } catch { saveFailed = true }
                                     }
                                 }
@@ -68,6 +85,10 @@ struct SiteStyleEditor: View {
                     }
                 }
             }
+        }
+        .onDisappear {
+            previewingSelector = nil
+            browser.previewSiteElement(nil, for: host)
         }
     }
 }

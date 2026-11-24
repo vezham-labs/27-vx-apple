@@ -81,7 +81,7 @@ struct BrowserWindow: View {
                                     set: { if !$0 { browser.siteStyleHost = nil } })) {
             if let host = browser.siteStyleHost {
                 SiteStyleEditor(host: host, css: browser.library.siteStyles[host] ?? "",
-                                hiddenSelectors: browser.library.siteStyles.hiddenSelectors(for: host))
+                                hiddenElements: browser.library.siteStyles.hiddenElements(for: host))
                     .environment(browser)
             }
         }

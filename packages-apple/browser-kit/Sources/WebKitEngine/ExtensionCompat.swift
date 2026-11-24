@@ -3,8 +3,8 @@ import Foundation
 import CryptoKit
 
 /// Prepares an unpacked extension built for Chrome to run in WebKit: copies it into Ark's own
-/// folder and puts `extension-compat.js` in front of its background (see that file). The extension's
-/// own files aren't changed, apart from the manifest's background entry.
+/// folder, puts `extension-compat.js` in front of its background, and injects the same prelude into
+/// extension HTML pages. The source extension remains unchanged.
 enum ExtensionCompat {
     static let compatFile = "_ark_compat.js"
     static let entryFile = "_ark_background.js"
@@ -35,17 +35,26 @@ enum ExtensionCompat {
         #endif
 
         // The extension's own pages (popup, options, onboarding) get the compat script too: they use the
-        // same missing APIs and user-agent checks as the background.
+        // same missing APIs and user-agent checks as the background. Keep the doctype before any
+        // injected script on pages without a <head>, or WebKit will render them in quirks mode.
+        let signature = Data([0xEF, 0xBB, 0xBF])
         if let files = fm.enumerator(at: target, includingPropertiesForKeys: nil) {
-            for case let file as URL in files where file.pathExtension.lowercased() == "html" {
-                guard var html = try? String(contentsOf: file, encoding: .utf8), !html.contains(compatFile) else { continue }
-                let tag = preludes.map { "<script src=\"/\($0)\"></script>" }.joined()
-                if let head = html.range(of: "<head[^>]*>", options: [.regularExpression, .caseInsensitive]) {
-                    html.insert(contentsOf: tag, at: head.upperBound)
-                } else {
-                    html = tag + html
+            for case let file as URL in files where ["html", "htm"].contains(file.pathExtension.lowercased()) {
+                guard let bytes = try? Data(contentsOf: file),
+                      var html = String(data: bytes, encoding: .utf8) else { continue }
+                if bytes.starts(with: signature), !html.hasPrefix("\u{FEFF}") {
+                    html.insert("\u{FEFF}", at: html.startIndex)
                 }
-                try? html.write(to: file, atomically: true, encoding: .utf8)
+                let missingPreludes = preludes.filter { !html.contains("<script src=\"/\($0)\"></script>") }
+                guard !missingPreludes.isEmpty else {
+                    let preserved = Data(html.utf8)
+                    if preserved != bytes { try? preserved.write(to: file, options: .atomic) }
+                    continue
+                }
+                let tag = missingPreludes.map { "<script src=\"/\($0)\"></script>" }.joined()
+                html = Self.inserting(tag, into: html)
+                let rewritten = Data(html.utf8)
+                if rewritten != bytes { try? rewritten.write(to: file, options: .atomic) }
             }
         }
         // A hidden extension page Ark keeps open (see WebKitExtensions.startKeepAlive). Its script is a
@@ -82,6 +91,37 @@ enum ExtensionCompat {
         let data = try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .withoutEscapingSlashes])
         try data.write(to: manifestURL)
         return target
+    }
+
+    /// Places the prelude in the head when one is present. Otherwise keep the HTML prolog intact
+    /// and insert after the doctype and <html> tag, where the parser creates its implied head.
+    private static func inserting(_ tag: String, into source: String) -> String {
+        var html = source
+        let options: String.CompareOptions = [.regularExpression, .caseInsensitive]
+        if let head = html.range(of: #"<head(\s[^>]*)?>"#, options: options) {
+            html.insert(contentsOf: tag, at: head.upperBound)
+            return html
+        }
+
+        var insertion = html.startIndex
+        if html.hasPrefix("\u{FEFF}") { insertion = html.index(after: insertion) }
+        let prolog = [#"\s+"#, #"<!--[\s\S]*?-->"#, #"<!doctype[^>]*>"#]
+        var passedHTML = false
+        let anchored = options.union(.anchored)
+        while insertion < html.endIndex {
+            let remainder = html[insertion...]
+            if let found = prolog.lazy.compactMap({ remainder.range(of: $0, options: anchored) }).first {
+                insertion = found.upperBound
+            } else if !passedHTML,
+                      let found = remainder.range(of: #"<html(\s[^>]*)?>"#, options: anchored) {
+                insertion = found.upperBound
+                passedHTML = true
+            } else {
+                break
+            }
+        }
+        html.insert(contentsOf: tag, at: insertion)
+        return html
     }
 
     /// A folder name for an extension id. Ids can hold anything (a folder extension's is its path), so

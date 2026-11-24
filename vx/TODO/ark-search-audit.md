@@ -34,14 +34,18 @@ Current order: complete the Mac audit first. Mobile implementation and device ve
 | Super Copy          | `CleanLink.swift` filters percent-encoded fields and leaves signed URLs intact.                                  | BrowserKit preserves signed URLs and the encoding of retained fields in Mac and mobile clean link copy and navigation. The URL fixture passed 12 cases. The Mac sidebar’s tab and favourite menus use the same Copy Link action as the command bar. A named-pasteboard fixture verified the copied URL and command subtitle with cleaning on and off. WebKit’s built-in Mac Copy Link for in-page links remains open.                                                                                                                                                                                                                                                                                                                            |
 | Capture             | `Snap.swift` supports region, element, and whole-page capture with a pixel budget.                               | Ark copies full-page, region, and element PNGs. Mac, iPhone, and iPad verified all three modes. Duo runtime verification remains open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
-## Privacy
-
 ## Pinned-link behavior
 
 | Feature | Search implementation | Ark implementation and finding |
 | --- | --- | --- |
 | Links from pinned tabs open in a new tab | Search commit [`cf21241b244cd4af9b77013ce7d453b93843df50`](https://github.com/driceroland/Search/commit/cf21241b244cd4af9b77013ce7d453b93843df50) adds an off-by-default setting. Plain unmodified link clicks that leave the current page open as loose tabs; fragments, redirects, forms, and sign-in routes remain in the pin. | Ark adds the equivalent off-by-default Mac setting and routes eligible clicks to Today tabs. The Mac build passed. Runtime verification is blocked because the isolated app crashes in SwiftUI `BrowserWindow.body` before the existing SnapshotTour check runs. The 42-row Pinned tabs and folders rating remains Partial. |
 | Close to the previously viewed tab | Search's `tabs.closeGoesBack` setting returns to the tab left before a close, including when putting away a pin; Split View's other pane remains the first choice. | Ark adds an off-by-default Mac close preference using its existing per-Space last-used tab tracking. Split View partners take priority, and moving tabs is unaffected. The Mac build passed. SnapshotTour's pin-close check is blocked by an `EXC_BAD_ACCESS` in SwiftUI's main-actor executor path while evaluating `BrowserWindow.background`. |
+
+## Hidden page elements
+
+| Feature | Search implementation | Ark implementation and finding |
+| --- | --- | --- |
+| Hidden-element restore panel | Search commit [`d0a1aa77cdc2403cbe4b89d98507dc919a1be1ae`](https://github.com/driceroland/Search/commit/d0a1aa77cdc2403cbe4b89d98507dc919a1be1ae) makes restored rows disappear immediately and adds a draggable floating panel. | Ark's `SiteStyleEditor` already removes the row from local state after a successful persisted restore, and clears rows after Restore All. Search's floating panel is Search-specific UI, so it was not copied; Arc remains the visual reference. Source review only; no new runtime check. |
 
 ## Privacy
 
@@ -79,6 +83,7 @@ Current order: complete the Mac audit first. Mobile implementation and device ve
 | Feature | Search implementation | Ark implementation and finding |
 | --- | --- | --- |
 | Empty i18n message key | `ExtensionShims.swift` makes `chrome.i18n.getMessage("")` return an empty string instead of propagating WebKit's exception, allowing uBlock Origin's popup to finish loading. | Ark's `extension-compat.js` now intercepts only the empty key and calls WebKit for every other message. JavaScript syntax and Mac build passed; uBlock popup runtime verification remains open. |
+| Headless extension page doctype | Search's extension preparation inserts the shim after a page's BOM, comments, doctype, and `<html>` tag when `<head>` is absent, so it does not force quirks mode. | Ark now follows the same parser-safe insertion in its copied extension folder, avoids mistaking `<header>` for `<head>`, handles `.htm` as well as `.html`, and retains the UTF-8 BOM. Mac build passed; real extension `document.compatMode` remains unverified because the isolated app harness crashes before its checks run. Search reference: [`8c1b9cab3ee25d6a33d6f6e1b4c4d16ee149a23f`](https://github.com/driceroland/Search/commit/8c1b9cab3ee25d6a33d6f6e1b4c4d16ee149a23f). |
 
 ## Compatibility and migration
 

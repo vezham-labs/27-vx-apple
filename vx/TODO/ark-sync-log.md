@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists 149 Browsa and 123 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Browsa's clean worktree matches `origin/main` at `e981df56`. Search's clean worktree is at `33ec7aea`, with nine additional commits available on `origin/main` at `659f74dc`; those diffs were assessed without changing the upstream checkout. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 115/272 incoming commits assessed (42.3%); 157 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 116/272 incoming commits assessed (42.6%); 156 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -708,7 +708,7 @@ Search [`c502d18b67bd557c2a5267f723577e0acf93f427`](https://github.com/dricerola
 
 Search [`488b61c77de604b4c866d48e3ff2f3aa737ad028`](https://github.com/driceroland/Search/commit/488b61c77de604b4c866d48e3ff2f3aa737ad028) fixes ⌘W cycling between a blank tab and a just-parked pin. Ark's close path unloads the active pin and clears the window's selection; it does not create a blank tab that automatically wakes the pin. No equivalent loop was found, so no code change was made. The existing behavior of ⌘W with no selected tab was not runtime-checked.
 
-These reviews do not change comparison ratings. Combined Browsa/Search incoming commits reviewed so far: 115/272 (42.3%); Mac matrix remains 21/42 Yes (50%).
+These reviews do not change comparison ratings. Combined Browsa/Search incoming commits reviewed so far: 116/272 (42.6%); Mac matrix remains 21/42 Yes (50%).
 
 ### Chrome extension management API — Mac
 
@@ -739,6 +739,8 @@ Reviewed Search [`0c600c185cd253228ad58c445b184cd2f8129534`](https://github.com/
 Reviewed Search [`2548fa504d33960d6a88751628dfdb5a8058e8b2`](https://github.com/driceroland/Search/commit/2548fa504d33960d6a88751628dfdb5a8058e8b2). It makes Search's New Tab Themes page fit narrow windows through a menu picker and wrapping grid. Ark's Theme picker row describes Space colors in the Arc-style sidebar, not new-tab backgrounds; Ark has no corresponding page or matching layout defect. No code or matrix rating changed.
 
 Reviewed Search [`c2c6d9281f60531e7eb0109b59f0f5a86d9575e2`](https://github.com/driceroland/Search/commit/c2c6d9281f60531e7eb0109b59f0f5a86d9575e2), which adds a shared **Set Up Like Arc** preference preset, Undo snapshot, welcome-card offer, and post-import prompt. Ark already exposes Arc import in Welcome and Settings, archives Today tabs after 12 hours by default, and offers automatic PiP, pinned-link destination, and link-preview modifier as separate choices. The bundled preset is an onboarding improvement rather than a missing feature in the 42-row Arc matrix; defer it to a dedicated Ark migration UX decision. No code or matrix rating changed. Upstream review is now 115/272 commits (42.3%); Mac remains 21/42 rows rated Yes (50%).
+
+Reviewed Search [`f647b3160561512f22970bf101bcbd77f34cf00d`](https://github.com/driceroland/Search/commit/f647b3160561512f22970bf101bcbd77f34cf00d). Search updates its custom Mac swipe watcher so root `overscroll-behavior-x: none/contain` claims a sideways gesture before navigation. Ark uses WebKit's native back/forward gesture recognizer (`allowsBackForwardNavigationGestures = true`) on Mac and iOS and has no comparable watcher to patch; copying the script would not control WebKit's recognizer. No source or Arc-row change. Test a Sheets page on Mac when SpikeArk launches and include it in the later iPhone/iPad/Duo pass, one simulator at a time. Upstream review is now 116/272 commits (42.6%); the Mac matrix remains 21/42 rows rated Yes (50%).
 
 Reviewed Search [`270f82f7de7774354903d230eee6ce4a558f3b58`](https://github.com/driceroland/Search/commit/270f82f7de7774354903d230eee6ce4a558f3b58). Search prevents its stage marker from treating a folded, overlaying tab strip as the page's split-drop target. Ark's sidebar drag resolver only produces tab-order, folder, favourite, and Space targets; it has no drag-to-split target. The reported drop cannot occur in Ark's current drag flow; no code or matrix change.
 

@@ -13,7 +13,7 @@ Ark uses [WebKit](/docs/ark/engines) across platforms. The migration counts use 
 
 The incoming implementation review targets Browsa `e981df56` and Search `33ec7aea` (November 24, 2026). These heads are not yet fully synced. The [commit inventory and remaining work](../../../../../vx/TODO/ark-upstream-review.md) tracks each incoming change. Arc remains the UI/UX reference for the entire Mac sidebar; upstream interface designs are not automatically adopted. Existing ratings below remain tied to their recorded verification.
 
-Upstream review progress is 50/263 commits (19.0%). The Mac matrix has 21/42 rows rated Yes (50%); build-only and unverified behavior do not count as runtime parity.
+Upstream review progress is 52/263 commits (19.8%). The Mac matrix has 21/42 rows rated Yes (50%); build-only and unverified behavior do not count as runtime parity.
 
 | Incoming batch | Affected rows | Current evidence |
 | --- | --- | --- |
@@ -46,6 +46,8 @@ Upstream review progress is 50/263 commits (19.0%). The Mac matrix has 21/42 row
 | Dvorak–QWERTY ⌘ shortcuts (Search `695fac9`) | Custom Shortcuts | Ark now resolves shortcut events through the active layout's ⌘ keys and paired Latin layout when needed. Mac build passed; live layout checks remain open. |
 | Native media keyboard controls (Search `9a54ad2`) | No direct Arc row | Added an off-by-default Mac General setting for Space play/pause and five-second arrow seeks on a focused native media element. Page-owned keys and full-screen WebKit controls take precedence. Mac build passed; runtime behavior remains open, so the 42-row matrix is unchanged. |
 | Failed provisional navigation URL (Search `fdc43d3`) | Address bar | Mac address editing, Reload, Copy Link, and Copy Markdown now use WebKit's failing HTTP(S) URL while the error is shown; exact copy retains the full query. Mac build passed; runtime failure and retry behavior remain unverified. |
+| In-window update notice (Search `94dc331`) | No direct Arc row | Reviewed; Ark uses Sparkle's standard update windows and its Sparkle release feed is not configured in `vx.deploy.yaml`. There is no ready-stage event to drive or verify a sidebar notice yet; no code change. |
+| External small-window activation (Search `2951fe3`) | Little Arc | Ark now retries foreground activation 250 ms after opening an external Link Preview or activating an existing Ark window, and only forces activation if Ark is still inactive. Mac build and real external-app behavior remain unverified. |
 | Profile navigation shortcuts (Search `7199250`) | Profiles | Ark adds customizable Next/Previous Profile actions for profiles assigned to regular Spaces. Numeric profile keys are omitted because Ark reserves them for tabs and Spaces. Build/runtime check remains open. |
 | Live-folder post placement (Search `2b44d44`) | Live folders | Already covered: Ark opens each post as a Today tab in the feed's owning Space; Ark folders are not tab groups. |
 | Return system PiP to its tab (Search `cc1cae9`) | Auto PiP | Ark now selects the originating tab and Space and activates its window when system PiP returns inline. Mac build passed; system PiP runtime check remains open. Uses a private WebKit delegate selector. |

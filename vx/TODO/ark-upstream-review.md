@@ -19,7 +19,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 50 of 263 commits assessed (19.0%); 213 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 52 of 263 commits assessed (19.8%); 211 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -259,8 +259,8 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `695fac9b505b9d018a99fd96ab7db30d5139fdc6` | Shortcuts: ⌘ chords follow the layout's ⌘ keys on Dvorak – QWERTY ⌘ (idea 1077) | Adapted in Ark's `KeyLayout.swift` and `Shortcuts.swift`: shortcut events now use the current layout's ⌘ layer (including Dvorak–QWERTY ⌘) and the paired Latin layout for non-Latin input. Mac build passed; keyboard-layout behavior remains runtime-unverified. No new tests were added. |
 | `9a54ad2002b4e81506a074e8226eebe55115717e` | Space and arrow keys control a clicked video, off by default (idea 1079) | Adapted as an off-by-default Mac General setting. An isolated-world listener controls only focused native media elements, yields to keys the page already handled, and supports existing and new pages. Mac build passed; video key behavior remains runtime-unverified. This feature has no direct row in the 42-item Arc matrix. No test file was added. |
 | `fdc43d312ed891a22b431105e92a77e13bcbb14d` | A failed load shows and copies the address that failed (idea 1080) | Adapted for Mac: the address field, Reload, Copy Link, and Copy Markdown now use the failing HTTP(S) URL from `LoadError`; copy preserves the full query. Mac build passed. Runtime failure, retry, and back-navigation checks remain open; no test file was added. |
-| `94dc33141605f0f949b3d7aa6d0455eb910b48fc` | "Update ready" in the window: a card at the column's foot, a pill by the tabs | Pending |
-| `2951fe38a208952c15431cb432413131fc01a5da` | A small window from the address field from any app comes up in front (#1494) | Pending |
+| `94dc33141605f0f949b3d7aa6d0455eb910b48fc` | "Update ready" in the window: a card at the column's foot, a pill by the tabs | Reviewed; Search adds a custom notice for its own staged installer. Ark delegates update UI to Sparkle's standard windows and has no release feed configured yet (`vx.deploy.yaml` still carries the Team ID/Sparkle TODO), so there is no ready-stage event to connect to an Ark sidebar card or test. No code change; revisit after release hosting is configured. |
+| `2951fe38a208952c15431cb432413131fc01a5da` | A small window from the address field from any app comes up in front (#1494) | Adapted in Ark's Mac incoming-link flow: external previews and links to an existing window retry activation after 250 ms only if the normal activation request left Ark inactive. Mac build passed; frontmost behavior remains runtime-unverified. No test file was added. |
 | `b81693586068a2daefca5d2440c33fadebbd1d37` | ⇧⌘B with the Bookmarks button hidden says what it did (#1496) | Pending |
 | `fa555191c98e47e44855dfe43e75aa0adcc6a804` | Pinned tabs get Site Information…, the card under the square (idea 1081) | Pending |
 | `f43a570bedf9d7a5e34490feed1a90bfe4f635c9` | Developer tools as optional packages, and Developer Tools Lite (#1451) | Pending |

@@ -379,8 +379,8 @@ final class Library {
         if let window {
             window.commandBar = nil
             window.newTab(url: url, in: target, source: .link)
-            NSApp.activate()
             window.nsWindow?.makeKeyAndOrderFront(nil)
+            activateForIncomingLink()
         } else {
             openWindow(.externalLink(url, spaceID: target.id))
         }
@@ -397,8 +397,22 @@ final class Library {
         }
         linkWindows[preview.tab.id] = preview
         preview.showWindow(nil)
-        NSApp.activate()
+        activateForIncomingLink()
         return preview
+    }
+
+    /// An external link can arrive while another app is frontmost. On macOS
+    /// 14+, retry activation only if the normal request did not bring Ark up.
+    private func activateForIncomingLink() {
+        if #available(macOS 14, *) {
+            NSApp.activate()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                guard !NSApp.isActive else { return }
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     private func externalLinkDestination(for url: URL?, sourceApp: String? = nil, fallback: Space? = nil) -> Space {

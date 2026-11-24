@@ -64,6 +64,11 @@ public protocol BrowserEngine: AnyObject {
     func loadInstalledExtensions(folders: [ExtensionFolder], includeApps: Bool) async -> [String]
     /// Stops every extension.
     func unloadExtensions()
+    /// Whether an extension may inspect private tabs. Engines default to no private access.
+    func extensionAllowedInPrivate(id: String) -> Bool
+    func setExtension(id: String, allowedInPrivate: Bool)
+    /// Forgets permissions retained for an extension that is removed.
+    func forgetExtension(id: String)
     /// The extension's toolbar button was clicked. Its popup, if it has one, appears at `anchor`.
     func performAction(extensionID: String, for page: (any EnginePage)?, anchor: PlatformView?)
     /// An extension's toolbar action as it stands for `page`: its label, badge and icon there.
@@ -83,6 +88,9 @@ public extension BrowserEngine {
         return await loadInstalledExtensions()
     }
     func unloadExtensions() {}
+    func extensionAllowedInPrivate(id: String) -> Bool { false }
+    func setExtension(id: String, allowedInPrivate: Bool) {}
+    func forgetExtension(id: String) {}
     func performAction(extensionID: String, for page: (any EnginePage)?, anchor: PlatformView?) {}
     func extensionActionState(extensionID: String, for page: (any EnginePage)?) -> EngineActionState? { nil }
     func pageDidBecomeActive(_ page: any EnginePage) {}

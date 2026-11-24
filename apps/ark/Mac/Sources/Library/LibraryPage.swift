@@ -1112,6 +1112,7 @@ private struct ExtensionDetail: View {
     let item: InstalledExtension
     let back: () -> Void
     @State private var confirmingRemove = false
+    @State private var inPrivate: Bool?
 
     private var library: Library { browser.library }
     private var running: EngineExtension? { library.extensions.first { $0.id == item.id } }
@@ -1179,6 +1180,23 @@ private struct ExtensionDetail: View {
                     }
                     .background(.primary.opacity(0.035), in: .rect(cornerRadius: 12, style: .continuous))
                 }
+                HStack(spacing: 12) {
+                    Image(systemName: "eye.slash").font(.system(size: 14)).foregroundStyle(.secondary).frame(width: 20)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Allow in private windows").font(.system(size: 13, weight: .medium))
+                        Text("This extension can see private tabs. Off until you allow it.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: Binding(get: { inPrivate ?? library.isAllowedInPrivate(item.id) },
+                                             set: { allowed in
+                                                 inPrivate = allowed
+                                                 library.setAllowedInPrivate(item.id, allowed)
+                                             }))
+                        .toggleStyle(.switch).labelsHidden().controlSize(.small)
+                }
+                .padding(.horizontal, 12).padding(.vertical, 10)
+                .background(.primary.opacity(0.035), in: .rect(cornerRadius: 12, style: .continuous))
                 if let lines = manifest?.permissionSummary, !lines.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("What it can do").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)

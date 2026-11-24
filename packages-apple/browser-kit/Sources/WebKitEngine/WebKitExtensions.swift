@@ -81,6 +81,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
                 // The same address every launch, so restored tabs showing the extension's pages still work.
                 context.baseURL = Self.stableBaseURL(for: id)
                 context.isInspectable = true
+                context.hasAccessToPrivateData = WebKitExtensionsPrivacy.isAllowed(id)
                 grantRequestedPermissions(context)
                 try controller.load(context)
                 contexts[id] = context
@@ -110,6 +111,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
                 // deletes the extension's local storage and IndexedDB, so its settings and sign-ins go.
                 context.baseURL = Self.stableBaseURL(for: id)
                 context.isInspectable = true
+                context.hasAccessToPrivateData = WebKitExtensionsPrivacy.isAllowed(id)
                 grantRequestedPermissions(context)
                 try controller.load(context)
                 contexts[id] = context
@@ -138,6 +140,10 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
     static func comparableName(_ name: String) -> String {
         let head = name.split(whereSeparator: { "–—-:|".contains($0) }).first.map(String.init) ?? name
         return head.trimmingCharacters(in: .whitespaces).lowercased()
+    }
+
+    func applyPrivateAccess(_ id: String) {
+        contexts[id]?.hasAccessToPrivateData = WebKitExtensionsPrivacy.isAllowed(id)
     }
 
     private func describe(_ ext: WKWebExtension, context: WKWebExtensionContext, id: String) -> EngineExtension {
@@ -415,6 +421,21 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
         popover.behavior = .transient
         popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .maxY)
         completionHandler(nil)
+    }
+}
+
+/// Which extensions may inspect private tabs. None do until the person allows them.
+enum WebKitExtensionsPrivacy {
+    private static let key = "extensions.allowedInPrivate"
+
+    static func isAllowed(_ id: String) -> Bool {
+        (UserDefaults.standard.stringArray(forKey: key) ?? []).contains(id)
+    }
+
+    static func set(_ id: String, allowed: Bool) {
+        var ids = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+        if allowed { ids.insert(id) } else { ids.remove(id) }
+        UserDefaults.standard.set(ids.sorted(), forKey: key)
     }
 }
 

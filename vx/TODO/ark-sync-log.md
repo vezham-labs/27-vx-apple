@@ -478,6 +478,14 @@ Reviewed Browsa `f27bcf16d64c98c8e11eb5bf53c9fa449e63fd93`. Ark's site styles an
 
 Adapted Search `fe22040c014e4a0ebd7bf642434919a93b292c7b`: Ark registers `NSAutoFillHeuristicsEnabled = false` before constructing its windows, so AppKit does not walk Ark's full native/SwiftUI view tree to guess whether Ark-owned fields are password fields. Browser-page credential behavior stays in WebKit. The default is registration-only, so an explicit user's persistent preference still overrides it. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. Search reports the original full-window scan can hold its main thread at 100% CPU for tens of seconds; Ark has not yet had a before/after latency or CPU measurement, so no Ark performance delta is claimed.
 
+### Browsa Live Folder request privacy — Mac review
+
+Reviewed Browsa `9703e82288d9cb41ee6b072b0700ec1cea54a468`. Ark already uses an ephemeral feed session without cookie storage, URL credential storage, or credential-bearing feed URLs, and bounds each response at 2 MB. This is stricter than Browsa's 5 MB limit; Ark has no GitHub token integration. No code change. The Live Folders row remains Yes; its existing feed lifecycle checks remain the runtime evidence.
+
+### Browsa private extension access — Mac
+
+Adapted Browsa `63bd758f3b73e22e8ac3a149e0b6b6c80b5f98c6`: extensions now have private-data access disabled by default. The Library extension detail offers an explicit per-extension switch; changing it updates the loaded WebKit context, and removing the extension forgets the grant. Other BrowserEngine implementations default to deny. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. Live checks for the switch, content-script isolation, and grant removal remain pending; the Chrome extensions row stays Partial.
+
 ### Browsa extension host-permission scope — Mac
 
 Adapted the permission-scope portion of Browsa `1642b72ff49a17421b29ba3d56c70b5717a09b8c`: `WebKitExtensions` no longer grants `<all_urls>` to every extension. Broad host access is granted only when an extension's requested match patterns include `<all_urls>` or a wildcard host; otherwise Ark grants its declared patterns. This closes an overbroad WebKit permission grant without changing the extension UI. Browsa's redirect-checked, profile-aware `browsa.fetch` path was not copied because Ark does not expose that API. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. A runtime check with narrow-host and all-host extensions remains open. The comparison's Chrome extensions rating stays Partial pending compatibility and permission-flow verification.

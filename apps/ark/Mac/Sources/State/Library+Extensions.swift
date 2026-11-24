@@ -94,8 +94,15 @@ extension Library {
            path.hasPrefix(extensionInstaller.root.path(percentEncoded: false)) {
             try? FileManager.default.removeItem(atPath: URL(filePath: path).deletingLastPathComponent().path(percentEncoded: false))
         }
+        engine.forgetExtension(id: id)
         extensionCatalog.remove(id: id)
         reloadExtensions()
+    }
+
+    func isAllowedInPrivate(_ id: String) -> Bool { engine.extensionAllowedInPrivate(id: id) }
+
+    func setAllowedInPrivate(_ id: String, _ allowed: Bool) {
+        engine.setExtension(id: id, allowedInPrivate: allowed)
     }
 
     func setExtension(_ id: String, enabled: Bool) {

@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 34/263 incoming commits assessed (12.9%); 229 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 36/263 incoming commits assessed (13.7%); 227 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -31,6 +31,10 @@ Ark commit [`b357c402`](../../commit/b357c402) adapts Browsa `5150b3c83fb7d0aade
 Compared Browsa `c3395378003da051a43fdc71b586ddcd57ea3a47` and pinned Search `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316` with Ark's existing site-style feature. Search explicitly limits its site styles to user CSS and does not run authored page scripts. Ark already had exact-host CSS plus Zap-style element hiding, persistence, restore, and preview. Added per-host Original, System, Serif, Rounded, and Mono font choices to the Mac editor and shared BrowserKit style application, stored separately in `site-fonts.json` to preserve existing style and hidden-element files. Browsa's page-tint overlay and arbitrary user scripts were not adopted: the former needs a deliberate visual/accessibility design, while the latter adds an execution surface beyond Search's CSS-only model.
 
 Verification: all 75 existing BrowserKit tests passed, including font persistence and host isolation; `ark:build-mac` passed. No new test file or simulator was added. Font appearance and save/reload interaction have not yet been checked in the running app, so this does not change the matrix's Mac Yes rating or the mobile Partial ratings. Ark implementation: [`25c7b5d5`](../../commit/25c7b5d5).
+
+### Boosts naming — Mac
+
+Reviewed Browsa `7a494d094c349da5ad5b6ca470e4d154635d7ae2` and duplicate merge result `0ab8524378116a0416a46eecf8189dc6745fc398`. Ark now labels its site customization command and editor **Edit Boosts… / Boosts**, consistent with Arc. Ark's stable internal command ID and storage paths remain unchanged to avoid breaking saved CSS or debug automation. `ark:build-mac` passed; visible menu/editor interaction and refreshed preview capture remain pending. Matrix ratings are unchanged. Ark implementation: [`34b7b742`](../../commit/34b7b742).
 
 Next review candidates include upstream extension permission and redirect checks, private-window extension controls, and avoiding unchanged Live Folder writes. New upstream visual designs require comparison against Arc before adoption.
 

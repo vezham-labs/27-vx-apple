@@ -19,7 +19,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 34 of 263 commits assessed (12.9%); 229 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 36 of 263 commits assessed (13.7%); 227 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -86,11 +86,11 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 | `d987fd28221c5dd4ed483bde40f51a9a933a71ce` | Credentialed extension fetches only to sites the extension may reach [skip ci] | Pending |
 | `155cf7720d950998238b0527a53eb74e59041b85` | Release runbook: 1Password desktop-app onboarding is a blocker for shipping PR #105 [skip ci] | Pending |
 | `7627957dd8a09cdf0237faa08b651b11762ed91f` | Mac: Favourites open in the current Space, not their routed one [skip ci] | Pending |
-| `7a494d094c349da5ad5b6ca470e4d154635d7ae2` | Rename Site Styles to Boosts [skip ci] | Pending |
+| `7a494d094c349da5ad5b6ca470e4d154635d7ae2` | Rename Site Styles to Boosts [skip ci] | Adapted in Ark commit `34b7b742`: Mac menu, command title, and editor heading use Arc's Boosts terminology; internal IDs and persistence names stay stable. Mac build passed; UI runtime check pending. |
 | `85da646a13f2d262d451c518ddbd5608eb9c408c` | Mac: Always Open in app per site, glass open-in-app prompt [skip ci] | Pending |
 | `d60f7ee081ff4eb6b16ec7666de22ad5f68b696c` | Mac: Live Folders, pinned folders that fill themselves from a feed or a GitHub search | Pending |
 | `39eb4ad4a6fce8e49497071e3c5d86e26ec85e51` | Mac: picture in picture for any video | Pending |
-| `0ab8524378116a0416a46eecf8189dc6745fc398` | Rename Site Styles to Boosts (#110) [skip ci] | Pending |
+| `0ab8524378116a0416a46eecf8189dc6745fc398` | Rename Site Styles to Boosts (#110) [skip ci] | Reviewed as the same rename diff as `7a494d0`; no additional code change beyond Ark commit `34b7b742`. |
 | `f18053dc3d648296ea0a370bd55213b85e598f33` | Tests: spell out allSatisfy closure so #expect compiles | Pending |
 | `95e984d88b5053ccdc89b9413dbc43da44c2d17f` | Combine video picture in picture (PR #112) into the Arc features test branch | Pending |
 | `f290465375c93cea89abf14cff2133576a350a69` | Combine Live Folders (PR #113) into the Arc features test branch | Pending |

@@ -30,7 +30,7 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 | `2e7723a00f8c3094a27d99a4fbcfb2b2204487ee` | Mac: SiteNotifications imports BrowserCore [skip ci] | Pending |
 | `a2616b39101ba848d592b7088348429d83fb59ec` | Mac 1.2.1 release notes draft [skip ci] | Pending |
 | `684f39a10befa90fed4cdf994d6b9402c52d0042` | Mac 1.2.1 notes: 48 hours archive option [skip ci] | Pending |
-| `248238b594b0a8af99c0174a705b62b6ec35123e` | Mac: add a 48 hours option to Archive Today tabs after (#103) [skip ci] | Pending |
+| `248238b594b0a8af99c0174a705b62b6ec35123e` | Mac: add a 48 hours option to Archive Today tabs after (#103) [skip ci] | Adapted to Mac and iOS settings as 48 hours / 2 days; Mac build passed; device UI verification pending |
 | `0306f2d1fefe8aa04b5b8041edfb6b749a3a8f22` | Mac 1.2.1 notes: tab placement and sign-in windows (#102) [skip ci] | Pending |
 | `3881650d5179ac7dfb1178b4c9dafdd14d1c551a` | tools: notification test page [skip ci] | Pending |
 | `017485534e38d14d55563fb7076c9b0214a26dab` | Mac: keep the notifications handler pages started with | Pending |

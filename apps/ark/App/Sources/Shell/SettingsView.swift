@@ -99,6 +99,7 @@ struct SettingsView: View {
                         Text("6 hours").tag(6.0)
                         Text("12 hours").tag(12.0)
                         Text("1 day").tag(24.0)
+                        Text("2 days").tag(48.0)
                         Text("7 days").tag(168.0)
                         Text("Never").tag(Double.greatestFiniteMagnitude)
                     }

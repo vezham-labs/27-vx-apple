@@ -753,9 +753,11 @@ final class Library {
             space.setPinFolder(nil, for: tab)
             space.today.insert(tab, at: 0)
             tab.windowKey = (window(showing: tab) ?? activeWindow)?.windowKey
+            tab.pinnedHomeURL = nil
         } else {
             space.today.removeAll { $0.id == tab.id }
             space.pinned.append(tab)
+            tab.pinnedHomeURL = tab.url
         }
         tab.isPinned.toggle()
         scheduleSave()
@@ -777,6 +779,8 @@ final class Library {
         from.pinned.removeAll { $0.id == tab.id }
         from.setPinFolder(nil, for: tab)
         from.today.removeAll { $0.id == tab.id }
+        if pinned && !tab.isPinned { tab.pinnedHomeURL = tab.url }
+        if !pinned { tab.pinnedHomeURL = nil }
         tab.isPinned = pinned
         if pinned {
             let i = target.flatMap { t in to.pinned.firstIndex { $0.id == t.id } } ?? to.pinned.endIndex
@@ -805,6 +809,7 @@ final class Library {
         if from.selectedTabID == tab.id { from.selectedTabID = nil }
         if tab.isPinned { tab.windowKey = activeWindow?.windowKey }
         tab.isPinned = false
+        tab.pinnedHomeURL = nil
         space.today.insert(tab, at: 0)
         scheduleSave()
     }
@@ -1129,6 +1134,7 @@ final class Library {
             result.url = record.url
             result.title = record.title
             result.isPinned = record.isPinned
+            result.pinnedHomeURL = record.isPinned ? record.pinnedHomeURL : nil
             result.lastActive = record.lastActive
             result.interactionState = record.interactionState
             result.isPrivate = false

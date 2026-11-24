@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 61/263 incoming commits assessed (23.2%); 202 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 74/263 incoming commits assessed (28.1%); 189 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -73,6 +73,32 @@ Reviewed Search [`3cb5f87c951c2b554e8920c5a2d1f91fdca9e9f0`](https://github.com/
 Reviewed Search [`c145ae6cfd3860406b977f9f796262ceb8245f94`](https://github.com/driceroland/Search/commit/c145ae6cfd3860406b977f9f796262ceb8245f94). It caps optional DevTools resource responses at 64 MiB and 60 seconds. Ark has no source-map, `devtools.json`, or `robots.txt` fetcher and no optional DevTools host, so there is no matching network path to harden. No code or matrix change.
 
 Reviewed Search [`1c9f3af2064fc7360017daf835e5a3a742543510`](https://github.com/driceroland/Search/commit/1c9f3af2064fc7360017daf835e5a3a742543510). It keeps optional inspector watch expressions ephemeral for private tabs. Ark has no persisted inspector watch state; private browsing data already uses separate ephemeral handling. No code or matrix change.
+
+Reviewed Search [`d2e6ece4469d69a6e8d88f551d597d9606b7f039`](https://github.com/driceroland/Search/commit/d2e6ece4469d69a6e8d88f551d597d9606b7f039). It validates an optional DevTools package's API version from its signed bundle metadata rather than adjacent mutable JSON. Ark has no separately installed signed developer packages or package API version. No code or matrix change.
+
+Reviewed Search [`1fd49891eb229ef098b3b77b5ec8925c879a92e7`](https://github.com/driceroland/Search/commit/1fd49891eb229ef098b3b77b5ec8925c879a92e7). It refuses hidden ZIP entries and strips resource forks, extended attributes, and ACLs while unpacking optional DevTools packages. Ark has no matching developer package installer or Arc matrix row. No code or matrix change.
+
+Reviewed Search [`b9d22e937331d28a714df8eef672d3a92dbbbb7c`](https://github.com/driceroland/Search/commit/b9d22e937331d28a714df8eef672d3a92dbbbb7c). It streams optional DevTools packages to disk and cancels when the signed feed's size limit is exceeded. Ark has no optional package feed or installer; this does not apply to normal user downloads. No code or matrix change.
+
+Reviewed Search [`073288758d09fd0d0343fb658c57946a2496f0f7`](https://github.com/driceroland/Search/commit/073288758d09fd0d0343fb658c57946a2496f0f7). It removes leftover optional package staging/temp folders and restricts DevTools media previews to local, non-private contexts. Ark has no matching optional DevTools/media preview subsystem. No code or matrix change.
+
+Reviewed Search [`ec6e9370717170224f6eb5d18966cb3a054b26bd`](https://github.com/driceroland/Search/commit/ec6e9370717170224f6eb5d18966cb3a054b26bd). It keeps optional developer package settings in a memory-only UserDefaults fallback until the package's own suite is available. Ark has no optional DevTools settings domain; private browser data already uses separate ephemeral stores. No code or matrix change.
+
+Reviewed Search [`e11c3cac5ac00b37076465c6aab67e223989af6d`](https://github.com/driceroland/Search/commit/e11c3cac5ac00b37076465c6aab67e223989af6d). It requires Developer ID signing for release DevTools packages and ensures the feed only lists packages built in that run. Ark's release scripts already validate signing and package the app through `vx.deploy.yaml`; it has no DevTools feed. No code or matrix change.
+
+Reviewed Search [`6f8ecd64ce7238d808804c35e78be5935e840919`](https://github.com/driceroland/Search/commit/6f8ecd64ce7238d808804c35e78be5935e840919). It lets Search's optional Lighthouse/Recorder tooling session close so the page can sleep. Ark has no equivalent auxiliary DevTools session; regular inactive-page unloading is handled separately. No code or matrix change.
+
+Reviewed Search [`111cf442374f9b3b1be9ed3f463c0873d75550a6`](https://github.com/driceroland/Search/commit/111cf442374f9b3b1be9ed3f463c0873d75550a6). It changes only Search's optional DevTools test skip/setup behavior. No tests or code were added to Ark; no matrix change.
+
+Reviewed Search [`0750c1a7fcca55e81940b29177708f3055d95faf`](https://github.com/driceroland/Search/commit/0750c1a7fcca55e81940b29177708f3055d95faf). It adds custom engine suggestion URLs, validation, settings, and sync. Ark currently supports Google and DuckDuckGo only and has no custom-engine model; this is outside the Arc comparison and requires a broader search-settings feature. No code or matrix change.
+
+Reviewed Search [`bd021c42d53821b7de472f0671a58384e778bb90`](https://github.com/driceroland/Search/commit/bd021c42d53821b7de472f0671a58384e778bb90). It adds an optional bookmarks toolbar that appears only on blank tabs, following Chrome/Edge. Ark's Arc-inspired layout puts favourites in the sidebar and has no toolbar; this would add a different navigation surface without closing an Arc row. No code or matrix change.
+
+Reviewed Search [`a122961702e415c16994c1823500ad5c6104309d`](https://github.com/driceroland/Search/commit/a122961702e415c16994c1823500ad5c6104309d). It adds a preference so clicking the selected tab does not replace its title with the address when Search's address bar is always shown. Ark keeps its address pill separate from the sidebar tab row; a single click on the selected tab already leaves the title intact. No matching behavior gap or code change.
+
+Reviewed Search [`3e1efc6a14c69f4810018db34f83c03d417355e5`](https://github.com/driceroland/Search/commit/3e1efc6a14c69f4810018db34f83c03d417355e5). It moves a multiselection of tabs into a pin folder or group and restores the prior row/group/folder state with one ⌘Z. Ark currently moves one tab at a time and has no sidebar multiselect or move undo. This applies to the existing Pinned tabs and folders row; implementation needs an Ark/Arc-consistent selection interaction rather than Search's separate selection model. Mac follow-up remains open; no code or rating change yet.
+
+Adapted Search [`838d238c39bb807a386b4ffcf43b5b3a0271f857`](https://github.com/driceroland/Search/commit/838d238c39bb807a386b4ffcf43b5b3a0271f857). Ark now records a pinned tab's original URL, includes it in snapshot and cross-device sync records, and adds a Mac sidebar icon return action plus a Mac/iOS tab-menu action. `ark:build-mac` passed. The selected interaction remains runtime-unverified, and the shared iOS UI code has not been compiled yet; no simulator or test file was added. The Pinned tabs and folders row remains Partial until runtime checks confirm the feature.
 
 Ark commit [`b357c402`](../../commit/b357c402) adapts Browsa `5150b3c83fb7d0aadec46707a2e802c495942fa2` with Ark's `ark.identity` bridge. Only extensions declaring the `identity` permission can start a Chrome Web Store OAuth flow. Interactive sign-in opens a tab; quiet sign-in uses a hidden WebKit view with the active profile's website data store. Matching redirects are returned to the extension and never loaded from `chromiumapp.org`; redirects from flow-owned popups close with the flow. BrowserKit tests and `ark:build-mac` passed. Provider sign-in, callback behavior, and direct extension-tab redirect observation remain unverified; Ark does not use Search's private `loadSimulatedRequest` API.
 

@@ -9,6 +9,8 @@ public final class BrowserTab: Identifiable {
     public var url: URL?
     public var title: String
     public var isPinned: Bool
+    /// The page a pinned tab returns to when its icon is clicked after it wanders elsewhere.
+    public var pinnedHomeURL: URL? = nil
     public var lastActive: Date
     /// WKWebView.interactionState (back/forward list + scroll), saved when the web view is evicted.
     public var interactionState: Data?
@@ -486,6 +488,8 @@ public struct TabRecord: Codable, Sendable {
     public var id: UUID, url: URL?, title: String, isPinned: Bool, lastActive: Date, interactionState: Data?
     /// Missing in state saved before favourites owned their tabs.
     public var favoriteID: UUID? = nil
+    /// The original URL a pinned tab can return to; absent in older snapshots.
+    public var pinnedHomeURL: URL? = nil
     /// Missing in state saved before each Mac window had its own Today tabs.
     public var windowKey: UUID? = nil
     /// Missing in state saved before tabs could be renamed.
@@ -587,6 +591,7 @@ extension BrowserTab {
     public var record: TabRecord {
         TabRecord(id: id, url: url, title: title, isPinned: isPinned, lastActive: lastActive,
                   interactionState: interactionState, favoriteID: favoriteID,
+                  pinnedHomeURL: isPinned ? pinnedHomeURL : nil,
                   windowKey: isPinned || favoriteID != nil ? nil : windowKey, customTitle: customTitle,
                   pinFolderID: isPinned ? pinFolderID : nil,
                   websiteSessionProfileID: websiteSessionProfileID)
@@ -598,6 +603,7 @@ extension BrowserTab {
         windowKey = r.windowKey
         customTitle = r.customTitle
         pinFolderID = r.isPinned ? r.pinFolderID : nil
+        pinnedHomeURL = r.isPinned ? r.pinnedHomeURL : nil
         websiteSessionProfileID = r.websiteSessionProfileID
     }
 }

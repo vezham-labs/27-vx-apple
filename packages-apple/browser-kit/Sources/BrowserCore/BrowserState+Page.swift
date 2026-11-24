@@ -79,9 +79,11 @@ extension BrowserState {
             space.pinned.removeAll { $0.id == tab.id }
             space.setPinFolder(nil, for: tab)
             space.today.insert(tab, at: 0)
+            tab.pinnedHomeURL = nil
         } else {
             space.today.removeAll { $0.id == tab.id }
             space.pinned.append(tab)
+            tab.pinnedHomeURL = tab.url
         }
         tab.isPinned.toggle()
         scheduleSave()
@@ -101,6 +103,7 @@ extension BrowserState {
 
         let tab = space.today.remove(at: sourceIndex)
         tab.isPinned = true
+        tab.pinnedHomeURL = tab.url
         tab.pinFolderID = folderID
         let insertion: Int
         if let targetID, let targetIndex = space.pinned.firstIndex(where: { $0.id == targetID }) {
@@ -123,9 +126,18 @@ extension BrowserState {
         let tab = space.pinned.remove(at: sourceIndex)
         tab.pinFolderID = nil
         tab.isPinned = false
+        tab.pinnedHomeURL = nil
         space.today.insert(tab, at: targetIndex)
         scheduleSave()
         return true
+    }
+
+    /// Return a pinned tab to the page it was pinned at.
+    public func returnToPinnedPage(_ tab: BrowserTab) {
+        guard tab.isPinned, let home = tab.pinnedHomeURL, let current = tab.url,
+              URLNormalizer.key(for: home) != URLNormalizer.key(for: current) else { return }
+        select(tab)
+        session(for: tab).load(home, source: .typed)
     }
 
     /// Call on launch and when returning to the foreground.

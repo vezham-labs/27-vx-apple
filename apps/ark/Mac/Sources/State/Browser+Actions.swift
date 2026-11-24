@@ -40,6 +40,14 @@ extension Browser {
         }
     }
 
+    /// Return a pinned tab to the URL it had when first pinned.
+    func returnToPinnedPage(_ tab: BrowserTab) {
+        guard tab.isPinned, let home = tab.pinnedHomeURL, let current = tab.url,
+              URLNormalizer.key(for: home) != URLNormalizer.key(for: current) else { return }
+        select(tab)
+        library.controller(for: tab).load(home, source: .typed)
+    }
+
     /// Commands that make sense right now, matched by what you type in the command bar.
     func availableCommands() -> [BrowserCommand] {
         var out: [BrowserCommand] = []

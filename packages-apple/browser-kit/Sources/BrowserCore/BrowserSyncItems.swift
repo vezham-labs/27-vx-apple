@@ -19,6 +19,7 @@ public enum BrowserSyncItems {
     private struct SyncedPin: Codable, Sendable {
         var id: UUID
         var url: URL?
+        var homeURL: URL?
         var title: String
         var customTitle: String?
         var favoriteID: UUID?
@@ -66,7 +67,7 @@ public enum BrowserSyncItems {
             let pins = space.pinned.filter { isShareable($0.url) }
             values["pins:order:\(id)"] = BrowserSyncMerge.text(pins.map { $0.id.uuidString })
             for pin in pins {
-                let item = SyncedPin(id: pin.id, url: pin.url, title: pin.title,
+                let item = SyncedPin(id: pin.id, url: pin.url, homeURL: pin.pinnedHomeURL, title: pin.title,
                                      customTitle: pin.customTitle, favoriteID: pin.favoriteID,
                                      folderID: pin.pinFolderID, websiteProfileID: pin.websiteSessionProfileID)
                 values["pin:\(id):\(pin.id.uuidString)"] = BrowserSyncMerge.text(item)
@@ -147,8 +148,10 @@ public enum BrowserSyncItems {
                     return TabRecord(id: pin.id, url: pin.url, title: pin.title, isPinned: true,
                                      lastActive: previous?.lastActive ?? .distantPast,
                                      interactionState: samePage ? previous?.interactionState : nil,
-                                     favoriteID: pin.favoriteID, windowKey: nil, customTitle: pin.customTitle,
-                                     pinFolderID: pin.folderID, websiteSessionProfileID: pin.websiteProfileID)
+                                     favoriteID: pin.favoriteID,
+                                     pinnedHomeURL: pin.homeURL ?? previous?.pinnedHomeURL,
+                                     windowKey: nil, customTitle: pin.customTitle, pinFolderID: pin.folderID,
+                                     websiteSessionProfileID: pin.websiteProfileID)
                 }
             let pins = sharedPins + localOnlyPins
 
@@ -193,6 +196,7 @@ public enum BrowserSyncItems {
             local.today = local.today.map { tab in
                 var tab = tab
                 tab.isPinned = false
+                tab.pinnedHomeURL = nil
                 tab.favoriteID = nil
                 tab.pinFolderID = nil
                 return tab

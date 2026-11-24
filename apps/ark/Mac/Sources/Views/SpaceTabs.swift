@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import BrowserCore
 import BrowserEngine
+import Suggest
 
 /// The part of the sidebar that belongs to the current space. It slides out and the new space's
 /// tabs cascade in when the space changes, and all of it stays clipped inside the sidebar.
@@ -314,6 +315,7 @@ struct TabRow: View {
     /// Drawn under the pointer while dragged.
     var isLifted = false
     @State private var hovering = false
+    @State private var iconHovering = false
     /// Renaming in place: double-click the tab, or Rename Tab… in its menu.
     @State private var draft: String?
     @FocusState private var nameFocused: Bool
@@ -321,8 +323,25 @@ struct TabRow: View {
     var body: some View {
         HStack(spacing: 10) {
             ZStack {
-                TabIcon(tab: tab, size: 16)
-                    .opacity(tab.isLoading && tab.estimatedProgress < 0.5 ? 0.35 : 1)
+                if tab.isPinned, let home = tab.pinnedHomeURL, let current = tab.url,
+                   URLNormalizer.key(for: home) != URLNormalizer.key(for: current) {
+                    Button { browser.returnToPinnedPage(tab) } label: {
+                        ZStack {
+                            TabIcon(tab: tab, size: 16).opacity(iconHovering ? 0 : 1)
+                            Image(systemName: "arrow.uturn.backward")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .opacity(iconHovering ? 1 : 0)
+                        }
+                        .frame(width: 16, height: 16)
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { iconHovering = $0 }
+                    .help("Back to Pinned Page")
+                } else {
+                    TabIcon(tab: tab, size: 16)
+                }
                 if tab.isLoading && tab.estimatedProgress < 0.5 {
                     ProgressView().controlSize(.mini)
                 }
@@ -480,6 +499,12 @@ struct TabMenu: View {
             }
         }
         if let url = tab.url {
+            if tab.isPinned, let home = tab.pinnedHomeURL,
+               URLNormalizer.key(for: home) != URLNormalizer.key(for: url) {
+                Button("Back to Pinned Page", systemImage: "arrow.uturn.backward") {
+                    browser.returnToPinnedPage(tab)
+                }
+            }
             PreviewLinkButton(url: url, tab: tab)
             Button(browser.isFavorite(url) ? "Already a Favourite" : "Add to Favourites", systemImage: "star") {
                 withAnimation(Motion.snappy) { browser.addFavorite(url: url, title: tab.displayTitle) }

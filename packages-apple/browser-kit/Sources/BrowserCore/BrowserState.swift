@@ -490,6 +490,7 @@ public final class BrowserState {
             result.url = record.url
             result.title = record.title
             result.isPinned = record.isPinned
+            result.pinnedHomeURL = record.isPinned ? record.pinnedHomeURL : nil
             result.lastActive = record.lastActive
             result.interactionState = record.interactionState
             result.isPrivate = false

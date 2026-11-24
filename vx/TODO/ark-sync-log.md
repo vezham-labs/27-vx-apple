@@ -697,3 +697,11 @@ The Debug Ark bundle at `dist/ark/Build/Products/Debug/Ark.app` passed `codesign
 Adapted Search [`f2873fd0b51b8cf19c28e99dd848c81d20c18c46`](https://github.com/driceroland/Search/commit/f2873fd0b51b8cf19c28e99dd848c81d20c18c46) in Ark commit [`9f2c7587`](../../commit/9f2c7587). When the user explicitly types a custom `scheme://` address in Ark's ⌘L/⌘T field, Ark now hands it to a different installed app only if Launch Services resolves a handler and confirms the open request. Unknown schemes retain Ark's search fallback. WebKit/internal/script schemes are excluded, and web-page initiated handoffs continue to use Ark's existing consent flow. This is a Mac-specific integration; mobile behavior is unchanged.
 
 Verification: `NX_ISOLATE_PLUGINS=false pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. Xcode emitted existing warnings; no simulator or test file was added. The built app still cannot be launched through Launch Services in this environment, so a real `vnc://` or `ssh://` handoff is unverified. The comparison's Address Bar placement remains Mac Sidebar; no matrix rating changed based on build evidence.
+
+### Search routing and close-tab review — November 25, 2026
+
+Search [`c502d18b67bd557c2a5267f723577e0acf93f427`](https://github.com/driceroland/Search/commit/c502d18b67bd557c2a5267f723577e0acf93f427) adds a default destination for external links that match no site rule. Ark already has this in Mac Settings as **Open links from other apps in** (`externalLinksSpaceID`); `Library.externalLinkDestination` applies source-app and site routes first, then that default. No code change was needed.
+
+Search [`488b61c77de604b4c866d48e3ff2f3aa737ad028`](https://github.com/driceroland/Search/commit/488b61c77de604b4c866d48e3ff2f3aa737ad028) fixes ⌘W cycling between a blank tab and a just-parked pin. Ark's close path unloads the active pin and clears the window's selection; it does not create a blank tab that automatically wakes the pin. No equivalent loop was found, so no code change was made. The existing behavior of ⌘W with no selected tab was not runtime-checked.
+
+These reviews do not change comparison ratings. Search-origin updates reviewed so far: 99/272 (36.4%); Mac matrix remains 21/42 Yes (50%).

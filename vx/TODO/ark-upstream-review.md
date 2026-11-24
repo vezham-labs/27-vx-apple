@@ -18,7 +18,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 25, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 97 of 272 commits assessed (35.7%); 175 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 99 of 272 commits assessed (36.4%); 173 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -228,12 +228,12 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `659f74dc35
 | `8755ef84d74f8e2f95a86aea4e66fd05d6198b49` | docs: ROADMAP: dragging a download out is done (idea 566) | Pending |
 | `39ab8c5db4af5d2c37838ae22ec121c9ccc352bd` | A peek can share the screen: asked over it, as a tab is | Adapted: Ark's visible Glance now asks through its explicit screen-sharing permission sheet; close, navigation, and promotion cancel pending requests. Mac build passed; live WebKit screen-share request remains unverified. |
 | `f2873fd0b51b8cf19c28e99dd848c81d20c18c46` | Typed vnc:// and other apps' addresses open in their app (#1473) | Adapted in Ark `9f2c7587`: explicitly typed custom schemes hand off only when Launch Services resolves a different installed app; unsafe and WebKit schemes are excluded. Mac build passed; live handoff remains unverified due to Debug Launch Services failure. |
-| `488b61c77de604b4c866d48e3ff2f3aa737ad028` | ⌘W no longer loops between a pin and a new tab (#1480) | Pending |
+| `488b61c77de604b4c866d48e3ff2f3aa737ad028` | ⌘W no longer loops between a pin and a new tab (#1480) | Reviewed; Ark closing an active pin unloads it and clears selection instead of creating a blank tab that can reactivate the parked pin. No matching pin/new-tab loop to port; runtime close-window behavior remains unverified. |
 | `0d1d80a2b7cb0772c40b9a6e162b21c1ebbab604` | Search's own pages have scroll bars (#1478) | Pending |
 | `b601de0e5ffd229d00c6bf857ba1f81fbdbf49dd` | End a closed tab's page process that keeps spinning (#1468) | Pending |
 | `283cd2d4069302e034f5eb4dba73624546a7dfcf` | Fade scroll bars when scrolling stops (#1490) | Pending |
 | `ed129504cdde3ee09da0967e12e48fb16d85ead8` | Go to a tab that has the page works without small windows too (#1485) | Pending |
-| `c502d18b67bd557c2a5267f723577e0acf93f427` | Send links to a space: a default space for links that match no site (#1484) | Pending |
+| `c502d18b67bd557c2a5267f723577e0acf93f427` | Send links to a space: a default space for links that match no site (#1484) | Already covered on Mac by `BrowserSettings.externalLinksSpaceID`; `Library.externalLinkDestination` applies it after source-app and site rules. No code change; the existing path remains runtime-unverified. |
 | `0c600c185cd253228ad58c445b184cd2f8129534` | Find on Page reads open shadow trees, and past soft hyphens (#1476) | Pending |
 | `2548fa504d33960d6a88751628dfdb5a8058e8b2` | Settings › Themes fits a narrow window (#1471) | Pending |
 | `270f82f7de7774354903d230eee6ce4a558f3b58` | Carrying a tab along the hidden sidebar no longer opens Split View (idea 1025) | Pending |

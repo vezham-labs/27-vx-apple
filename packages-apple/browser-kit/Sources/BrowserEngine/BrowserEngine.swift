@@ -403,6 +403,8 @@ public protocol EnginePageDelegate: AnyObject {
 
     func page(_ page: any EnginePage, show dialog: EngineDialog) async -> EngineDialogResponse
     func page(_ page: any EnginePage, requestPermission permission: EnginePermission, host: String) async -> Bool
+    /// A certificate the system rejected. True only for an explicit, exact-certificate exception.
+    func page(_ page: any EnginePage, trusts certificate: ServerCertificate) -> Bool
     /// `<input type=file>`. Nil cancels.
     func page(_ page: any EnginePage, chooseFiles request: FileChooserRequest) async -> [URL]?
     func page(_ page: any EnginePage, didStartDownload download: EngineDownload)
@@ -438,6 +440,7 @@ public extension EnginePageDelegate {
     func pageDidRequestClose(_ page: any EnginePage) {}
     func page(_ page: any EnginePage, show dialog: EngineDialog) async -> EngineDialogResponse { .cancel }
     func page(_ page: any EnginePage, requestPermission permission: EnginePermission, host: String) async -> Bool { false }
+    func page(_ page: any EnginePage, trusts certificate: ServerCertificate) -> Bool { false }
     func page(_ page: any EnginePage, chooseFiles request: FileChooserRequest) async -> [URL]? { nil }
     func page(_ page: any EnginePage, didStartDownload download: EngineDownload) {}
     func pageDidDeclineCookieBanner(_ page: any EnginePage) {}

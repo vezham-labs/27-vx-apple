@@ -342,6 +342,8 @@ public struct BrowserSettings: Codable, Equatable, Sendable {
     public var filterGroups: Set<FilterGroup> = Set(FilterGroup.allCases)
     /// Sites where blocking (ads, trackers, cookie banners) is switched off. Hosts.
     public var blockingDisabledHosts: Set<String> = []
+    /// Exact leaf certificates the user chose to trust, keyed by normalized host and port.
+    public var certificateExceptions: [String: String] = [:]
 
     public init() {}
 
@@ -370,6 +372,7 @@ public struct BrowserSettings: Codable, Equatable, Sendable {
         cleanLinks = try c.decodeIfPresent(Bool.self, forKey: .cleanLinks) ?? true
         filterGroups = try c.decodeIfPresent(Set<FilterGroup>.self, forKey: .filterGroups) ?? Set(FilterGroup.allCases)
         blockingDisabledHosts = try c.decodeIfPresent(Set<String>.self, forKey: .blockingDisabledHosts) ?? []
+        certificateExceptions = try c.decodeIfPresent([String: String].self, forKey: .certificateExceptions) ?? [:]
     }
 }
 
@@ -402,6 +405,7 @@ public struct LoadError: Equatable, Sendable {
     public let url: URL?
     public let kind: Kind
     public let detail: String
+    public let certificateFingerprint: String?
 
     public var title: String {
         switch kind {
@@ -423,11 +427,13 @@ public struct LoadError: Equatable, Sendable {
         }
     }
 
-    /// Certificate problems get "Go Back", never a "Visit anyway".
+    /// Certificate problems can offer a one-certificate exception when WebKit identified it.
     public var canRetry: Bool { kind != .insecure }
+    public var canVisitAnyway: Bool { kind == .insecure && certificateFingerprint != nil }
 
     public init(url: URL?, error: NSError) {
         self.url = url
+        certificateFingerprint = error.userInfo["ArkCertificateFingerprint"] as? String
         switch (error.domain, error.code) {
         case (NSURLErrorDomain, NSURLErrorNotConnectedToInternet), (NSURLErrorDomain, NSURLErrorNetworkConnectionLost),
              (NSURLErrorDomain, NSURLErrorDataNotAllowed), (NSURLErrorDomain, NSURLErrorInternationalRoamingOff):

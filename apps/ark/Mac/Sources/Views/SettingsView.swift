@@ -543,6 +543,21 @@ private struct PrivacySettings: View {
                     }
                 }
             }
+            if !browser.settings.certificateExceptions.isEmpty {
+                Section("Trusted certificates") {
+                    ForEach(browser.settings.certificateExceptions.keys.sorted(), id: \.self) { site in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(site.hasSuffix(":443") ? String(site.dropLast(4)) : site)
+                                Text("Trusted with Visit Anyway").font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Forget") { browser.settings.certificateExceptions[site] = nil }
+                                .buttonStyle(.borderless)
+                        }
+                    }
+                }
+            }
             Section {
                 Toggle("Clear history and website data when Ark quits", isOn: $browser.clearDataOnQuit)
                 Button("Clear History", role: .destructive) {

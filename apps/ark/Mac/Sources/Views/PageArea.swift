@@ -29,7 +29,8 @@ struct PageArea: View {
                 if let server = RadarStore.shared.server(for: tab.url), !server.isUp, !browser.isReaderShowing {
                     RadarStoppedPage(server: server)
                 } else if let error = tab.loadError, !browser.isReaderShowing {
-                    ErrorPage(error: error, retry: browser.reload, goBack: browser.goBack)
+                    ErrorPage(error: error, retry: browser.reload, goBack: browser.goBack,
+                              visitAnyway: browser.currentController?.visitAnyway)
                 }
             } else {
                 EmptyPage()
@@ -318,6 +319,7 @@ struct ErrorPage: View {
     var handlesReturn = true
     let retry: () -> Void
     let goBack: () -> Void
+    var visitAnyway: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 12) {
@@ -339,9 +341,21 @@ struct ErrorPage: View {
                     .controlSize(.large)
                     .padding(.top, 6)
             } else {
-                Button("Go Back", action: goBack)
-                    .controlSize(.large)
-                    .padding(.top, 6)
+                HStack(spacing: 10) {
+                    Button("Go Back", action: goBack)
+                    if error.canVisitAnyway, let visitAnyway {
+                        Button("Visit Anyway", action: visitAnyway)
+                    }
+                }
+                .controlSize(.large)
+                .padding(.top, 6)
+                if error.canVisitAnyway {
+                    Text("Ark remembers this certificate for this site. A different certificate will be blocked.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 380)
+                }
             }
         }
         .padding(40)

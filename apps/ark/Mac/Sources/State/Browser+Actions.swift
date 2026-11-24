@@ -256,6 +256,8 @@ extension Browser {
         c.page.reload()
     }
 
+    func visitAnyway() { currentController?.visitAnyway() }
+
     func reloadFromOrigin() { currentController?.page.reloadFromOrigin() }
     func stopLoading() { currentController?.page.stopLoading() }
 

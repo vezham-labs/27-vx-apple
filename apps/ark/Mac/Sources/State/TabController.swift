@@ -215,6 +215,27 @@ final class TabController: EnginePageDelegate {
         tab.loadError = LoadError(url: failed, error: error)
     }
 
+    func page(_ page: any EnginePage, trusts certificate: ServerCertificate) -> Bool {
+        guard let library else { return false }
+        if tab.isPrivate {
+            return library.privateCertificateExceptions[certificate.site] == certificate.fingerprint
+        }
+        return library.settings.certificateExceptions[certificate.site] == certificate.fingerprint
+    }
+
+    /// Trust only the exact leaf certificate shown on this error page, then retry its URL.
+    func visitAnyway() {
+        guard let error = tab.loadError, let fingerprint = error.certificateFingerprint,
+              let url = error.url, let host = url.host(), let library else { return }
+        let site = ServerCertificate.site(host: host, port: url.port)
+        if tab.isPrivate {
+            library.privateCertificateExceptions[site] = fingerprint
+        } else {
+            library.settings.certificateExceptions[site] = fingerprint
+        }
+        load(url, source: .typed)
+    }
+
     func pageContentProcessDidTerminate(_ page: any EnginePage) {
         guard window != nil else { needsRecovery = true; return }
         // Dying again straight after a reload is the page itself; reloading would loop.

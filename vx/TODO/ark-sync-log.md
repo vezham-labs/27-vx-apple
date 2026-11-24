@@ -2,11 +2,11 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
-## Current Mac sync pass — November 24, 2026
+## Current Mac sync pass — November 24–25, 2026
 
 The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 74/263 incoming commits assessed (28.1%); 189 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 83/263 incoming commits assessed (31.6%); 180 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -99,6 +99,14 @@ Reviewed Search [`a122961702e415c16994c1823500ad5c6104309d`](https://github.com/
 Reviewed Search [`3e1efc6a14c69f4810018db34f83c03d417355e5`](https://github.com/driceroland/Search/commit/3e1efc6a14c69f4810018db34f83c03d417355e5). It moves a multiselection of tabs into a pin folder or group and restores the prior row/group/folder state with one ⌘Z. Ark currently moves one tab at a time and has no sidebar multiselect or move undo. This applies to the existing Pinned tabs and folders row; implementation needs an Ark/Arc-consistent selection interaction rather than Search's separate selection model. Mac follow-up remains open; no code or rating change yet.
 
 Adapted Search [`838d238c39bb807a386b4ffcf43b5b3a0271f857`](https://github.com/driceroland/Search/commit/838d238c39bb807a386b4ffcf43b5b3a0271f857). Ark now records a pinned tab's original URL, includes it in snapshot and cross-device sync records, and adds a Mac sidebar icon return action plus a Mac/iOS tab-menu action. `ark:build-mac` passed. The selected interaction remains runtime-unverified, and the shared iOS UI code has not been compiled yet; no simulator or test file was added. The Pinned tabs and folders row remains Partial until runtime checks confirm the feature.
+
+Reviewed Search [`5c3dfece73dd9ae69efe265ab71d4ce310b1e2e3`](https://github.com/driceroland/Search/commit/5c3dfece73dd9ae69efe265ab71d4ce310b1e2e3). It separates iCloud sync and Mac-only folder sync in settings because the two methods are mutually exclusive. Ark has one sync method: a user-selected folder shared across devices, and no iCloud sync toggle. Its current Sync settings already describe the transport and what stays local; no code or matrix change.
+
+Reviewed Search test-only commits [`616abb9`](https://github.com/driceroland/Search/commit/616abb9c7eea6a77d0c5e2fae999e4f5bd059729), [`1284e4a`](https://github.com/driceroland/Search/commit/1284e4af67b0b6e299acd8e84c4c328d964bf242), and [`588df6f`](https://github.com/driceroland/Search/commit/588df6f4f2c25f1bc92b77872fc4adc41be647f4). They adjust Search fixtures and a split-drag automation wait only. No Ark test files or behavior changes were added, per the current constraint.
+
+Reviewed Browsa [`58f6c41f704e3fb449c4cf015384eb45a0d87cab`](https://github.com/driceroland/Browsa/commit/58f6c41f704e3fb449c4cf015384eb45a0d87cab). It implements web notifications through WebKit engine hooks, a Mac `UNUserNotificationCenter` delegate, remembered site permissions, and click-to-tab/page routing. Ark has saved camera/microphone/motion permissions but no Web Notifications permission type or notification backend. This is a substantial Mac-only subsystem with no direct Arc comparison row, so it is deferred while working through the 42-row matrix. No code or matrix change.
+
+Reviewed Browsa notification follow-ups [`2e7723a`](https://github.com/driceroland/Browsa/commit/2e7723a00f8c3094a27d99a4fbcfb2b2204487ee), [`0174855`](https://github.com/driceroland/Browsa/commit/017485534e38d14d55563fb7076c9b0214a26dab), [`0668064`](https://github.com/driceroland/Browsa/commit/0668064cb39941e8f2d3d85c301f881683ff34de), and [`e454603`](https://github.com/driceroland/Browsa/commit/e45460383f3cc28dec1e732f3fd3b4e4679fd3a5). They fix a framework import, keep WebKit handlers stable while pages are alive, and surface macOS notification authorization state and System Settings. All depend on the deferred Web Notifications subsystem; no Ark code or matrix change.
 
 Ark commit [`b357c402`](../../commit/b357c402) adapts Browsa `5150b3c83fb7d0aadec46707a2e802c495942fa2` with Ark's `ark.identity` bridge. Only extensions declaring the `identity` permission can start a Chrome Web Store OAuth flow. Interactive sign-in opens a tab; quiet sign-in uses a hidden WebKit view with the active profile's website data store. Matching redirects are returned to the extension and never loaded from `chromiumapp.org`; redirects from flow-owned popups close with the flow. BrowserKit tests and `ark:build-mac` passed. Provider sign-in, callback behavior, and direct extension-tab redirect observation remain unverified; Ark does not use Search's private `loadSimulatedRequest` API.
 

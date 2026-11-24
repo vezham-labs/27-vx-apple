@@ -19,7 +19,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 74 of 263 commits assessed (28.1%); 189 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 83 of 263 commits assessed (31.6%); 180 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -28,21 +28,21 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 | Commit | Change | Disposition |
 | --- | --- | --- |
 | `ed71db69e6bd0647652563ee91a573b0e593dd2b` | Mac: bring the call window back on screen if its display is gone (#96) [skip ci] | Adapted: restore saved/off-screen call PiP to the main display; Mac build passed; unplugged-display runtime check pending |
-| `58f6c41f704e3fb449c4cf015384eb45a0d87cab` | Mac: sites' notifications as macOS notifications | Pending |
-| `2e7723a00f8c3094a27d99a4fbcfb2b2204487ee` | Mac: SiteNotifications imports BrowserCore [skip ci] | Pending |
+| `58f6c41f704e3fb449c4cf015384eb45a0d87cab` | Mac: sites' notifications as macOS notifications | Reviewed; bridges web notification events to `UNUserNotificationCenter`, remembers site notification permissions, and routes notification clicks to the tab/page. Ark has no Web Notifications engine API or Mac notification backend. This is a separate Mac-only subsystem outside the 42 Arc rows; defer until the recorded matrix gaps are closed. |
+| `2e7723a00f8c3094a27d99a4fbcfb2b2204487ee` | Mac: SiteNotifications imports BrowserCore [skip ci] | Reviewed; adds a required module import to Browsa's notification manager. No Ark change; the notification subsystem remains deferred. |
 | `a2616b39101ba848d592b7088348429d83fb59ec` | Mac 1.2.1 release notes draft [skip ci] | Pending |
 | `684f39a10befa90fed4cdf994d6b9402c52d0042` | Mac 1.2.1 notes: 48 hours archive option [skip ci] | Pending |
 | `248238b594b0a8af99c0174a705b62b6ec35123e` | Mac: add a 48 hours option to Archive Today tabs after (#103) [skip ci] | Adapted to Mac and iOS settings as 48 hours / 2 days; Mac build passed; device UI verification pending |
 | `0306f2d1fefe8aa04b5b8041edfb6b749a3a8f22` | Mac 1.2.1 notes: tab placement and sign-in windows (#102) [skip ci] | Pending |
 | `3881650d5179ac7dfb1178b4c9dafdd14d1c551a` | tools: notification test page [skip ci] | Pending |
-| `017485534e38d14d55563fb7076c9b0214a26dab` | Mac: keep the notifications handler pages started with | Pending |
+| `017485534e38d14d55563fb7076c9b0214a26dab` | Mac: keep the notifications handler pages started with | Reviewed; retains controller-bound WebKit message handlers instead of swapping them while a page is open. Ark has no notifications bridge to update; no code or matrix change. |
 | `26afb7ba5950b260807d392df7a9d94f3d3c8770` | Mac: narrow sidebar keeps the window buttons in place; note pins stay on the page (#95) [skip ci] | Partially adapted: Ark clamps the sidebar to the measured width of its own top controls and adds a per-site content-blocking switch. Mac build passed; narrow-drag runtime check pending. The dynamic, CSP-resistant note-pin rewrite remains pending; it is outside the 42-row comparison. |
 | `3deba26b9582546a43141f1f8f3d8155e3f2d188` | Mac: Visit Anyway for untrusted certificates, and a local network setting (#98) [skip ci] | Adapted exact-leaf-certificate exceptions per host and port; private-tab exceptions stay in memory; older settings decode with no exceptions. Omitted the broad local-network bypass to retain explicit per-site consent. Mac build passed; live self-signed-certificate verification pending. Supporting security behavior, not an additional Arc comparison row. |
 | `53eebb6fd5b97f403077adb0a509a384b4fe8ad0` | Mac: new tabs go back to their opener, sign-in popups open in a window, New tabs open setting (#102) [skip ci] | Pending |
 | `989e0c7119281a0297389728cd8bc189f54d1817` | Mac: Site Styles (opt-in per-site looks), starting with a tidier LinkedIn feed (#99) [skip ci] | Pending |
 | `198f9de27ad744eb1a3398a94264047b8fa016e1` | Mac: one-click Add for Claude Code, Codex, Cursor and VS Code (#100) [skip ci] | Pending |
-| `0668064cb39941e8f2d3d85c301f881683ff34de` | Mac: say when notifications are off for Browsa in System Settings | Pending |
-| `e45460383f3cc28dec1e732f3fd3b4e4679fd3a5` | Mac: Settings shows whether macOS allows Browsa's notifications | Pending |
+| `0668064cb39941e8f2d3d85c301f881683ff34de` | Mac: say when notifications are off for Browsa in System Settings | Reviewed; adds macOS authorization-state messaging and a route to System Settings for Browsa notifications. No Ark notification UI/backend; no code or matrix change. |
+| `e45460383f3cc28dec1e732f3fd3b4e4679fd3a5` | Mac: Settings shows whether macOS allows Browsa's notifications | Reviewed; adds a Browsa-specific notification authorization status section. It depends on the deferred notification subsystem; no Ark change. |
 | `8cc69a723569858036b05fce13ab185225121f54` | Merge #97 (site notifications) with main: keep Visit Anyway, Site Styles and notifications | Pending |
 | `22a42edb2dbd3f41d2fb28e78f2e59493c8b2268` | Merge remote-tracking branch 'origin/claude/project-thread-m1rxpj' into claude/project-thread-l3weip | Pending |
 | `f25a75af1bb120f5973da0cfbddf3e23933adc39` | Mac 1.2.1: notification setting in notes, What's New entries [skip ci] | Pending |
@@ -282,12 +282,12 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `bd021c42d53821b7de472f0671a58384e778bb90` | Show the bookmarks bar only on new tabs, off by default (idea 1082) | Reviewed; adds a Chrome/Edge-style bookmarks toolbar shown only for blank tabs. Ark's reference design puts favourites in the sidebar and does not have a bookmarks toolbar; no direct Arc row gap, so this UI was not adopted. |
 | `a122961702e415c16994c1823500ad5c6104309d` | A click on the tab you're on can keep its name while the address bar is shown (idea 1076) | Reviewed; makes a click on the selected tab leave its title intact when Search's address bar is always visible. Ark's address pill is a separate control and its selected tab remains named on a single click; no matching behavior gap or Arc row. No code change. |
 | `c0bb3bfcabc882002b420accdef49b572de28513` | CHANGELOG: period before a credit (Find on Page) | Pending |
-| `616abb9c7eea6a77d0c5e2fae999e4f5bd059729` | Tests: FollowFileTests names bookmarksNewTabOnly, read again since bd021c42 (idea 1082) | Pending |
-| `1284e4af67b0b6e299acd8e84c4c328d964bf242` | Tests: SidebarSplitDragTests waits for the press to open the tab before carrying it | Pending |
+| `616abb9c7eea6a77d0c5e2fae999e4f5bd059729` | Tests: FollowFileTests names bookmarksNewTabOnly, read again since bd021c42 (idea 1082) | Reviewed; Search adds a test-only key to its file-following settings fixture. No Ark test file or behavior change. |
+| `1284e4af67b0b6e299acd8e84c4c328d964bf242` | Tests: SidebarSplitDragTests waits for the press to open the tab before carrying it | Reviewed; changes only Search's split-drag automation wait. No Ark test or behavior change. |
 | `3e1efc6a14c69f4810018db34f83c03d417355e5` | Move several picked tabs into a pin folder or a group at once, one ⌘Z back (idea 1092) | Applicable gap identified for Pinned tabs and folders: Ark can drag or move one tab at a time and has no sidebar multi-select/undoable bulk move. Search's selection and undo architecture is tightly coupled to its tab/group model, so adapt only after defining an Ark/Arc-consistent multi-select interaction; Mac implementation remains open. |
-| `588df6f4f2c25f1bc92b77872fc4adc41be647f4` | Tests: FollowFileTests lists bookmarksNewTabOnly once | Pending |
+| `588df6f4f2c25f1bc92b77872fc4adc41be647f4` | Tests: FollowFileTests lists bookmarksNewTabOnly once | Reviewed; removes a duplicate Search test-fixture key. No Ark test or behavior change. |
 | `838d238c39bb807a386b4ffcf43b5b3a0271f857` | A pinned row's icon takes a wandered pin back to its page (idea 1076) | Adapted: Ark now persists/syncs each pin's original URL, returns to it from a Mac row icon and the Mac/iOS tab menus, and shows a hover return arrow on Mac. Mac build passed. Runtime behavior and iOS target compilation remain unverified; no simulator was launched and no test file was added. Pinned tabs and folders rating remains Partial pending runtime checks. |
-| `5c3dfece73dd9ae69efe265ab71d4ce310b1e2e3` | Settings: Sync and other devices, Closing and switching, and the two syncs told apart (idea 1094) | Pending |
+| `5c3dfece73dd9ae69efe265ab71d4ce310b1e2e3` | Settings: Sync and other devices, Closing and switching, and the two syncs told apart (idea 1094) | Reviewed; separates Search's iCloud device sync from its Mac-only folder sync. Ark has one user-folder sync method and no iCloud sync toggle, so its current Sync settings already have one unambiguous path. No code or matrix change. |
 | `a2c0de4c98d08217b3749da8f1707bf76311df40` | Sync with iCloud carries tab groups with the open tabs (idea 1093) | Pending |
 | `48eb0c2a2013279a99b85d218223427276f3eaf1` | The coding agent's line becomes a card like "Update ready", Stop off the tab's row | Pending |
 | `4ed2789eb32f0758f93333fabb2de090e1c30835` | Tests: TabGroupDropTests reads the saved row wherever the window keeps it | Pending |

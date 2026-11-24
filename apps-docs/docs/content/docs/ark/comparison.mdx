@@ -3,7 +3,7 @@ title: Arc vs. Ark
 description: A local feature matrix for comparing Arc with the current Vezham Ark implementation.
 ---
 
-The Arc column uses the [byearc feature matrix](https://byearc.com/compare/) as its reference, with date-sensitive changes from Arc's help center called out where relevant. The Ark columns reflect workspace code and documented checks as of November 24, 2026. iPhone, iPad, and iPhone Duo share the iOS app. Duo has its own column because its cover and inner displays use different layouts.
+The Arc column uses the [byearc feature matrix](https://byearc.com/compare/) as its reference, with date-sensitive changes from Arc's help center called out where relevant. The Ark columns reflect workspace code and documented checks as of November 25, 2026. iPhone, iPad, and iPhone Duo share the iOS app. Duo has its own column because its cover and inner displays use different layouts.
 
 **Yes** means the feature is implemented. **Partial** means its scope or compatibility is limited. **No** means that platform lacks the feature. **Unverified** means the available evidence did not establish support. **—** means the feature does not apply.
 
@@ -13,7 +13,7 @@ Ark uses [WebKit](/docs/ark/engines) across platforms. The migration counts use 
 
 The incoming implementation review targets Browsa `e981df56` and Search `33ec7aea` (November 24, 2026). These heads are not yet fully synced. The [commit inventory and remaining work](../../../../../vx/TODO/ark-upstream-review.md) tracks each incoming change. Arc remains the UI/UX reference for the entire Mac sidebar; upstream interface designs are not automatically adopted. Existing ratings below remain tied to their recorded verification.
 
-Upstream review progress is 74/263 commits (28.1%). The Mac matrix has 21/42 rows rated Yes (50%); build-only and unverified behavior do not count as runtime parity.
+Upstream review progress is 83/263 commits (31.6%). The Mac matrix has 21/42 rows rated Yes (50%); build-only and unverified behavior do not count as runtime parity.
 
 | Incoming batch | Affected rows | Current evidence |
 | --- | --- | --- |
@@ -56,6 +56,7 @@ Upstream review progress is 74/263 commits (28.1%). The Mac matrix has 21/42 row
 | Keep selected tab title on click (Search `a122961`) | Sidebar | Reviewed; Ark's address pill is separate from tabs, and clicking the current tab already leaves its title. No code or matrix rating change. |
 | Bulk move selected tabs to a pin folder (Search `3e1efc6`) | Pinned tabs and folders | Applicable Mac gap: Ark has no sidebar multiselect or bulk move undo. Search's different selection architecture needs adaptation to Ark's sidebar and Arc interaction reference; implementation remains open. |
 | Return a wandered pin to its original page (Search `838d238`) | Pinned tabs and folders | Ark stores and syncs the original pin URL. Mac sidebar icon and Mac/iOS tab-menu actions return to it. Mac build passed; runtime verification and iOS compilation remain open, so the matrix rating stays Partial. |
+| Web notifications (Browsa `58f6c41`, `0174855`, `0668064`, `e454603`) | No direct Arc row | Reviewed; Browsa bridges web notifications to `UNUserNotificationCenter`, keeps WebKit handlers stable, remembers site permissions, routes clicks to tabs, and reports macOS authorization state. Ark has no Web Notifications API/backend; this is a substantial Mac-only subsystem outside the 42-row Arc matrix. Deferred while closing recorded Mac matrix gaps. |
 | Profile navigation shortcuts (Search `7199250`) | Profiles | Ark adds customizable Next/Previous Profile actions for profiles assigned to regular Spaces. Numeric profile keys are omitted because Ark reserves them for tabs and Spaces. Build/runtime check remains open. |
 | Live-folder post placement (Search `2b44d44`) | Live folders | Already covered: Ark opens each post as a Today tab in the feed's owning Space; Ark folders are not tab groups. |
 | Return system PiP to its tab (Search `cc1cae9`) | Auto PiP | Ark now selects the originating tab and Space and activates its window when system PiP returns inline. Mac build passed; system PiP runtime check remains open. Uses a private WebKit delegate selector. |

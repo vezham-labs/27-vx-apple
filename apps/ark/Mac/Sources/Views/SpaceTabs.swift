@@ -170,8 +170,22 @@ private struct DraggableTabRow: View {
     let collapsed: Bool
     @GestureState private var held = false
 
+    private var insertionEdge: VerticalEdge? {
+        guard !collapsed, case .folderSlot(let folderID, let index) = dragging.target,
+              tab.pinFolderID == folderID else { return nil }
+        let siblings = space.pinned.filter { $0.pinFolderID == folderID && !dragging.isLifted($0.id) }
+        if siblings.indices.contains(index), siblings[index].id == tab.id { return .top }
+        if index == siblings.count, siblings.last?.id == tab.id { return .bottom }
+        return nil
+    }
+
     var body: some View {
         TabRow(tab: tab, selected: tab.id == browser.selectedTabID(in: space))
+            .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) {
+                if insertionEdge != nil {
+                    Capsule().fill(Color.accentColor).frame(height: 2).allowsHitTesting(false)
+                }
+            }
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(SidebarDragging.coordinateSpace)) } action: {
                 if !collapsed { dragging.rowFrames[tab.id] = $0 }
             }

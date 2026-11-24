@@ -23,14 +23,17 @@ final class SidebarDragging {
         case today(Int)
         case favourite(Int)
         case folder(UUID)
+        case folderSlot(UUID, Int)
         /// Another space, by dropping on its dot in the switcher.
         case space(UUID)
 
         var isPinned: Bool { if case .pinned = self { true } else { false } }
         var isToday: Bool { if case .today = self { true } else { false } }
         var isFavourite: Bool { if case .favourite = self { true } else { false } }
-        var index: Int { switch self { case .pinned(let i), .today(let i), .favourite(let i): i; case .space, .folder: 0 } }
-        var folderID: UUID? { if case .folder(let id) = self { id } else { nil } }
+        var index: Int { switch self { case .pinned(let i), .today(let i), .favourite(let i), .folderSlot(_, let i): i; case .space, .folder: 0 } }
+        var folderID: UUID? {
+            switch self { case .folder(let id), .folderSlot(let id, _): id; default: nil }
+        }
     }
 
     struct Lift {
@@ -287,7 +290,15 @@ final class SidebarDragging {
         }
         DispatchQueue.main.async { [self] in
             let firstPin = target?.isPinned == true && !space.rootPins.contains { $0.id != lift.tabID }
-            let landing = target?.folderID.flatMap { folderFrames[$0] } ?? (firstPin ? pinZoneFrame : gapFrame)
+            var landing = target?.folderID.flatMap { folderFrames[$0] } ?? (firstPin ? pinZoneFrame : gapFrame)
+            if case .folderSlot(let id, let index) = target {
+                let siblings = space.pinned.filter { $0.pinFolderID == id && $0.id != tab.id }
+                if siblings.indices.contains(index), let frame = rowFrames[siblings[index].id] {
+                    landing = frame
+                } else if let last = siblings.last, let frame = rowFrames[last.id] {
+                    landing = frame.offsetBy(dx: 0, dy: frame.height)
+                }
+            }
             withAnimation(Motion.snappy) {
                 if target?.isFavourite == true {
                     tileSize = landing.size
@@ -321,6 +332,14 @@ final class SidebarDragging {
         if case .folder(let id) = target {
             withTransaction(quiet) {
                 browser.library.move(tab, before: nil, pinned: true, fallback: space, folderID: id)
+            }
+            return
+        }
+        if case .folderSlot(let id, let index) = target {
+            let siblings = space.pinned.filter { $0.pinFolderID == id && $0.id != tab.id }
+            let before = siblings.indices.contains(index) ? siblings[index] : nil
+            withTransaction(quiet) {
+                browser.library.move(tab, before: before, pinned: true, fallback: space, folderID: id)
             }
             return
         }
@@ -378,6 +397,15 @@ final class SidebarDragging {
         if pinned, listFrame.contains(location),
            let folder = space.pinFolders.first(where: { folderFrames[$0.id]?.contains(location) == true }) {
             return .folder(folder.id)
+        }
+        if pinned, listFrame.contains(location),
+           let hovered = space.pinned.first(where: {
+               $0.id != tab.id && $0.pinFolderID != nil && rowFrames[$0.id]?.contains(location) == true
+           }), let folderID = hovered.pinFolderID, let frame = rowFrames[hovered.id] {
+            let siblings = space.pinned.filter { $0.pinFolderID == folderID && $0.id != tab.id }
+            if let index = siblings.firstIndex(where: { $0.id == hovered.id }) {
+                return .folderSlot(folderID, index + (location.y >= frame.midY ? 1 : 0))
+            }
         }
         let others = (pinned ? space.rootPins : listedToday(in: space)).filter { $0.id != tab.id }
         let index = others.filter { (rowFrames[$0.id]?.midY ?? .infinity) < location.y }.count

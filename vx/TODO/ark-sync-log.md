@@ -2,6 +2,12 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+## Current Mac sync pass — November 24, 2026
+
+Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
+
+Before reviewing incoming commits, Ark added insertion positions and a visible insertion marker for dragging pins within a folder. The previous drag resolver only calculated individual positions among root pins. `ark:build-mac` passed; interactive verification of this new folder reorder path is still pending. Earlier SpikeArk checks established pinning, moving into a folder, and returning to Today, but did not establish reordering.
+
 ## Browsa
 
 | Field                    | Value                                                                                                                           |

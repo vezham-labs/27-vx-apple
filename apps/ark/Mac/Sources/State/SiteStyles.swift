@@ -11,8 +11,9 @@ extension Browser {
         siteStyleHost = editableSiteStyleHost
     }
 
-    func saveSiteStyle(_ css: String, for host: String) throws {
+    func saveSiteStyle(_ css: String, font: SiteStyleFont = .original, for host: String) throws {
         try library.siteStyles.set(css, for: host)
+        try library.siteStyles.setFont(font, for: host)
         applySiteStyle(for: host)
         siteStyleHost = nil
     }

@@ -6,18 +6,24 @@ struct SiteStyleEditor: View {
     let host: String
     @State var css: String
     @State var hiddenElements: [HiddenSiteElement]
+    @State var font: SiteStyleFont
     @State private var saveFailed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Site Style").font(.headline)
             Text(host).foregroundStyle(.secondary)
+            Picker("Page font", selection: $font) {
+                ForEach(SiteStyleFont.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            }
             TextEditor(text: $css)
                 .font(.body.monospaced())
                 .accessibilityLabel("Custom CSS")
                 .border(.quaternary)
                 .frame(minHeight: 180)
-            Text("Enter CSS for this site. Clear the editor and save to remove the style.")
+            Text("Choose a font or enter CSS for this site. Select Original and clear the editor to remove the style.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             if !hiddenElements.isEmpty {
@@ -64,7 +70,7 @@ struct SiteStyleEditor: View {
                 Button("Cancel") { browser.siteStyleHost = nil }
                     .keyboardShortcut(.cancelAction)
                 Button("Save") {
-                    do { try browser.saveSiteStyle(css, for: host) }
+                    do { try browser.saveSiteStyle(css, font: font, for: host) }
                     catch { saveFailed = true }
                 }
                 .keyboardShortcut(.defaultAction)

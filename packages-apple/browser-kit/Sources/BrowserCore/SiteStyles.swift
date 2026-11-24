@@ -17,17 +17,50 @@ public struct HiddenSiteElement: Codable, Identifiable, Equatable, Sendable {
     }
 }
 
+public enum SiteStyleFont: String, Codable, CaseIterable, Identifiable, Sendable {
+    case original
+    case system
+    case serif
+    case rounded
+    case mono
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .original: "Original"
+        case .system: "System"
+        case .serif: "Serif"
+        case .rounded: "Rounded"
+        case .mono: "Mono"
+        }
+    }
+
+    fileprivate var css: String? {
+        switch self {
+        case .original: nil
+        case .system: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif"
+        case .serif: "'New York', ui-serif, Georgia, serif"
+        case .rounded: "ui-rounded, 'SF Pro Rounded', -apple-system, sans-serif"
+        case .mono: "ui-monospace, 'SF Mono', Menlo, monospace"
+        }
+    }
+}
+
 @MainActor
 public final class SiteStyles {
     private let fileURL: URL?
     private let hiddenFileURL: URL?
+    private let fontsFileURL: URL?
     private var styles: [String: String]
     private var hidden: [String: [HiddenSiteElement]]
+    private var fonts: [String: SiteStyleFont]
     private var revision = 0
 
     public init(fileURL: URL?) {
         self.fileURL = fileURL
         hiddenFileURL = fileURL?.deletingLastPathComponent().appending(path: "site-hidden-elements.json")
+        fontsFileURL = fileURL?.deletingLastPathComponent().appending(path: "site-fonts.json")
         styles = fileURL.flatMap { try? Data(contentsOf: $0) }
             .flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
         if let data = hiddenFileURL.flatMap({ try? Data(contentsOf: $0) }),
@@ -39,15 +72,33 @@ public final class SiteStyles {
         } else {
             hidden = [:]
         }
+        fonts = fontsFileURL.flatMap { try? Data(contentsOf: $0) }
+            .flatMap { try? JSONDecoder().decode([String: SiteStyleFont].self, from: $0) } ?? [:]
     }
 
     public subscript(host: String) -> String? { styles[host] }
 
     public func hiddenElements(for host: String) -> [HiddenSiteElement] { hidden[host] ?? [] }
 
+    public func font(for host: String) -> SiteStyleFont { fonts[host] ?? .original }
+
     public func hiddenSelectors(for host: String) -> [String] { hiddenElements(for: host).map(\.selector) }
 
-    public func hasStyle(for host: String) -> Bool { styles[host] != nil || hidden[host] != nil }
+    public func hasStyle(for host: String) -> Bool {
+        styles[host] != nil || hidden[host] != nil || font(for: host) != .original
+    }
+
+    public func setFont(_ font: SiteStyleFont, for host: String) throws {
+        guard fonts[host] != font else { return }
+        var updated = fonts
+        updated[host] = font == .original ? nil : font
+        if let fontsFileURL {
+            try FileManager.default.createDirectory(at: fontsFileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try JSONEncoder().encode(updated).write(to: fontsFileURL, options: .atomic)
+        }
+        fonts = updated
+        revision += 1
+    }
 
     public func hide(_ selector: String, for host: String) throws {
         try hide(HiddenSiteElement(selector: selector, label: selector), for: host)
@@ -107,7 +158,8 @@ public final class SiteStyles {
     public func apply(to webView: WKWebView, on host: String, includingRemoval: Bool = false,
                       showing selectorToShow: String?) async {
         guard Self.host(of: webView.url) == host, hasStyle(for: host) || includingRemoval else { return }
-        let css = styles[host] ?? ""
+        let css = [font(for: host).css.map { ":where(body, p, li, h1, h2, h3, h4, h5, h6, a, td, th, dd, dt, blockquote, input, textarea, button, label, figcaption) { font-family: \($0) !important; }" }, styles[host]]
+            .compactMap { $0 }.joined(separator: "\n")
         revision += 1
         let applyRevision = revision
         let selectors = hiddenSelectors(for: host).filter { $0 != selectorToShow }

@@ -10,13 +10,17 @@ struct SiteStylesTests {
         let styles = SiteStyles(fileURL: file)
         let css = "h1 { color: rebeccapurple }"
         try styles.set(css, for: "example.test")
+        try styles.setFont(.serif, for: "example.test")
         try styles.set("main { display: none }", for: "elsewhere.test")
         let reopened = SiteStyles(fileURL: file)
         #expect(reopened["example.test"] == css)
+        #expect(reopened.font(for: "example.test") == .serif)
+        #expect(reopened.font(for: "elsewhere.test") == .original)
         try reopened.set(" \n", for: "example.test")
         let cleaned = SiteStyles(fileURL: file)
         #expect(cleaned["example.test"] == nil)
         #expect(cleaned["elsewhere.test"] == "main { display: none }")
+        #expect(cleaned.font(for: "example.test") == .serif)
     }
 
     @Test @MainActor func extractsOnlyHTTPHostsWithoutMergingSubdomains() {

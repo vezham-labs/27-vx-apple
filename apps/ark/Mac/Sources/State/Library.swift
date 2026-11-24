@@ -715,7 +715,7 @@ final class Library {
         guard let space = space(containing: tab) else { return }
         let index = space.today.firstIndex { $0.id == tab.id }
         // Windows showing it move on first, while it's still in the list to measure from.
-        for w in windows { w.moveOff(tab, in: space) }
+        for w in windows { w.moveOff(tab, in: space, closing: true) }
         space.today.removeAll { $0.id == tab.id }
         if space.selectedTabID == tab.id { space.selectedTabID = nil }
         if index == nil, tab.isPinned {

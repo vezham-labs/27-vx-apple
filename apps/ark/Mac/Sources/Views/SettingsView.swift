@@ -124,6 +124,7 @@ private struct GeneralSettings: View {
     @AppStorage(Preferences.externalLinksInPreviewKey) private var externalLinksInPreview = false
     @AppStorage(Preferences.automaticVideoPiPKey) private var automaticVideoPiP = false
     @AppStorage(Preferences.pinnedLinksOpenInNewTabKey) private var pinnedLinksOpenInNewTab = false
+    @AppStorage(Preferences.closeTabGoesBackKey) private var closeTabGoesBack = false
     @AppStorage("linkPreviewModifier") private var linkPreviewModifier = LinkPreviewModifier.option.rawValue
     @AppStorage(ArkVideoFloat.flicksKey) private var miniPlayerFlicks = false
 
@@ -142,6 +143,9 @@ private struct GeneralSettings: View {
                 Toggle("Open links from other apps in a preview window", isOn: $externalLinksInPreview)
                 Toggle("Open links from pinned tabs in new tabs", isOn: $pinnedLinksOpenInNewTab)
                 Text("A link from a pin opens as a Today tab, keeping the pin on its page. Same-page links and sign-in pages stay in the pin.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle("Closing a tab goes back to the one before", isOn: $closeTabGoesBack)
+                Text("When off, Ark selects the tab beside the one you closed.")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Float videos when switching tabs or apps", isOn: $automaticVideoPiP)
                 Toggle("Swipe to snap and dock Mini Player", isOn: $miniPlayerFlicks)

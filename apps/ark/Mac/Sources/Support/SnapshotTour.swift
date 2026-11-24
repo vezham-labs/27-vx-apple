@@ -172,6 +172,7 @@ struct SnapshotTour {
             browser.newTab(url: second)
             await pause(1)
             await pinnedLinkNavigationCheck(browser, sourceURL: second, targetURL: first)
+            await pinnedCloseNavigationCheck(browser, sourceURL: second, previousURL: first)
             return
         }
         await namedProfileCheck()
@@ -318,6 +319,35 @@ struct SnapshotTour {
         let opened = browser.currentTab
         let passed = opened?.id != source.id && opened?.url == targetURL && source.isPinned && source.url == sourceURL
         note("pinned-link check: \(passed ? "opened Today tab and kept pin at source" : "did not meet expected tab/pin state")")
+    }
+
+    /// Checks the opt-in close behavior using the previously selected Today tab.
+    private func pinnedCloseNavigationCheck(_ browser: Browser, sourceURL: URL, previousURL: URL) async {
+        guard let source = browser.currentTab, source.url == sourceURL else {
+            note("pinned-close check: fixture tab unavailable")
+            return
+        }
+        let originalSetting = UserDefaults.standard.object(forKey: Preferences.closeTabGoesBackKey)
+        let wasPinned = source.isPinned
+        defer {
+            if let originalSetting {
+                UserDefaults.standard.set(originalSetting, forKey: Preferences.closeTabGoesBackKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Preferences.closeTabGoesBackKey)
+            }
+            if !wasPinned, source.isPinned { browser.togglePinned(source) }
+        }
+        if !wasPinned { browser.togglePinned(source) }
+        browser.newTab(url: previousURL)
+        guard let previous = browser.currentTab else {
+            note("pinned-close check: previous tab unavailable")
+            return
+        }
+        browser.select(source)
+        Preferences.closeTabGoesBack = true
+        browser.close(source)
+        let passed = browser.currentTab?.id == previous.id && source.isPinned
+        note("pinned-close check: \(passed ? "returned to previous tab and kept pin" : "did not meet expected tab/pin state")")
     }
 
     private func miniPlayerPreview(_ browser: Browser, base: URL) async {

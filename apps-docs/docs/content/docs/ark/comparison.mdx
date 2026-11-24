@@ -13,7 +13,7 @@ Ark uses [WebKit](/docs/ark/engines) across platforms. The migration counts use 
 
 The incoming implementation review targets Browsa `e981df56` and Search `33ec7aea` (November 24, 2026). These heads are not yet fully synced. The [commit inventory and remaining work](../../../../../vx/TODO/ark-upstream-review.md) tracks each incoming change. Arc remains the UI/UX reference for the entire Mac sidebar; upstream interface designs are not automatically adopted. Existing ratings below remain tied to their recorded verification.
 
-Upstream review progress is 40/263 commits (15.2%). The Mac matrix has 21/42 rows rated Yes (50%); build-only and unverified behavior do not count as runtime parity.
+Upstream review progress is 41/263 commits (15.6%). The Mac matrix has 21/42 rows rated Yes (50%); build-only and unverified behavior do not count as runtime parity.
 
 | Incoming batch | Affected rows | Current evidence |
 | --- | --- | --- |
@@ -36,6 +36,7 @@ Upstream review progress is 40/263 commits (15.2%). The Mac matrix has 21/42 row
 | Hidden-column edge drag (Search `663cb23`) | Sidebar | Not applicable: Ark has no floating auto-hide column that stays visible during a resize drag. |
 | Agent click at zoom (Search `ceaec9b`) | Coding agents | Not applicable: Ark targets elements by DOM reference or selector and does not send coordinate-based mouse clicks. |
 | Open all pinned-folder pages (Search `c17c0fa`) | Pinned tabs and folders | Mac folder context menus open pinned pages in that folder and nested folders, preserving sidebar order and the selected tab. Live-feed articles are excluded. Mac build passed; runtime check remains open. |
+| Close to the previously viewed tab (Search `824664a`) | Pinned tabs and folders | Ark adds an off-by-default Mac setting for close actions; Split View partners retain priority and tab moves are unaffected. Mac build passed; SnapshotTour runtime verification is blocked by a SwiftUI `BrowserWindow.background` crash. |
 | Profile navigation shortcuts (Search `7199250`) | Profiles | Ark adds customizable Next/Previous Profile actions for profiles assigned to regular Spaces. Numeric profile keys are omitted because Ark reserves them for tabs and Spaces. Build/runtime check remains open. |
 | Live-folder post placement (Search `2b44d44`) | Live folders | Already covered: Ark opens each post as a Today tab in the feed's owning Space; Ark folders are not tab groups. |
 | Return system PiP to its tab (Search `cc1cae9`) | Auto PiP | Ark now selects the originating tab and Space and activates its window when system PiP returns inline. Mac build passed; system PiP runtime check remains open. Uses a private WebKit delegate selector. |

@@ -289,12 +289,16 @@ final class Browser {
 
     /// `tab` is going away from this window (closed, moved, or opened in another window).
     /// Arc moves to the tab below, then above.
-    func moveOff(_ tab: BrowserTab, in space: Space) {
+    func moveOff(_ tab: BrowserTab, in space: Space, closing: Bool = false) {
         let partner = detachSplit(containing: tab, in: space)
         guard tabSelection[space.id] == tab.id else { return }
         if selectedSpaceID == space.id { dismissFind(); reader = nil }
         if let partner {
             setSelection(partner, in: space)
+            return
+        }
+        if closing, Preferences.closeTabGoesBack, let previous = lastUsedTab {
+            select(previous)
             return
         }
         let list = today(in: space)
@@ -640,6 +644,11 @@ enum Preferences {
     static var pinnedLinksOpenInNewTab: Bool {
         get { d.bool(forKey: pinnedLinksOpenInNewTabKey) }
         set { d.set(newValue, forKey: pinnedLinksOpenInNewTabKey) }
+    }
+    static let closeTabGoesBackKey = "closeTabGoesBack"
+    static var closeTabGoesBack: Bool {
+        get { d.bool(forKey: closeTabGoesBackKey) }
+        set { d.set(newValue, forKey: closeTabGoesBackKey) }
     }
     static var linkPreviewModifier: LinkPreviewModifier {
         get { d.string(forKey: "linkPreviewModifier").flatMap(LinkPreviewModifier.init(rawValue:)) ?? .option }

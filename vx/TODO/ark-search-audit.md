@@ -41,6 +41,7 @@ Current order: complete the Mac audit first. Mobile implementation and device ve
 | Feature | Search implementation | Ark implementation and finding |
 | --- | --- | --- |
 | Links from pinned tabs open in a new tab | Search commit [`cf21241b244cd4af9b77013ce7d453b93843df50`](https://github.com/driceroland/Search/commit/cf21241b244cd4af9b77013ce7d453b93843df50) adds an off-by-default setting. Plain unmodified link clicks that leave the current page open as loose tabs; fragments, redirects, forms, and sign-in routes remain in the pin. | Ark adds the equivalent off-by-default Mac setting and routes eligible clicks to Today tabs. The Mac build passed. Runtime verification is blocked because the isolated app crashes in SwiftUI `BrowserWindow.body` before the existing SnapshotTour check runs. The 42-row Pinned tabs and folders rating remains Partial. |
+| Close to the previously viewed tab | Search's `tabs.closeGoesBack` setting returns to the tab left before a close, including when putting away a pin; Split View's other pane remains the first choice. | Ark adds an off-by-default Mac close preference using its existing per-Space last-used tab tracking. Split View partners take priority, and moving tabs is unaffected. The Mac build passed. SnapshotTour's pin-close check is blocked by an `EXC_BAD_ACCESS` in SwiftUI's main-actor executor path while evaluating `BrowserWindow.background`. |
 
 ## Privacy
 

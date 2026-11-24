@@ -700,7 +700,7 @@ Verification: `NX_ISOLATE_PLUGINS=false pnpm nx run ark:build-mac --skip-nx-cach
 
 ### Search routing and close-tab review — November 25, 2026
 
-Search [`c502d18b67bd557c2a5267f723577e0acf93f427`](https://github.com/driceroland/Search/commit/c502d18b67bd557c2a5267f723577e0acf93f427) adds a default destination for external links that match no site rule. Ark already has this in Mac Settings as **Open links from other apps in** (`externalLinksSpaceID`); `Library.externalLinkDestination` applies source-app and site routes first, then that default. No code change was needed.
+Search [`c502d18b67bd557c2a5267f723577e0acf93f427`](https://github.com/driceroland/Search/commit/c502d18b67bd557c2a5267f723577e0acf93f427) adds a default destination for external links that match no site rule. Ark already has this in shared Browser Settings as `externalLinksSpaceID`; Mac `Library.externalLinkDestination` applies source-app and site routes first, then that default, and iOS `BrowserState.openExternal` applies site routes then the same fallback. No code change was needed.
 
 Search [`488b61c77de604b4c866d48e3ff2f3aa737ad028`](https://github.com/driceroland/Search/commit/488b61c77de604b4c866d48e3ff2f3aa737ad028) fixes ⌘W cycling between a blank tab and a just-parked pin. Ark's close path unloads the active pin and clears the window's selection; it does not create a blank tab that automatically wakes the pin. No equivalent loop was found, so no code change was made. The existing behavior of ⌘W with no selected tab was not runtime-checked.
 

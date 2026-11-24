@@ -85,6 +85,45 @@ public enum ChromeWebStore {
         url(response: "updatecheck", xs: ids.map { "id=\($0)&uc" })
     }
 
+    /// Checks an installed extension as Chrome does when the user requests an
+    /// update. The store can return `noupdate` for background checks during a
+    /// staged rollout even while offering a newer version to new installs.
+    public static func updateCheckRequest(id: String, version: String) -> URLRequest? {
+        var components = URLComponents(string: "https://clients2.google.com/service/update2/crx")
+        #if arch(arm64)
+        let architecture = "arm64"
+        let naclArchitecture = "arm"
+        #else
+        let architecture = "x64"
+        let naclArchitecture = "x86-64"
+        #endif
+        let fields: [(String, String)] = [
+            ("response", "updatecheck"),
+            ("os", "mac"),
+            ("arch", architecture),
+            ("os_arch", architecture == "arm64" ? "arm64" : "x86_64"),
+            ("nacl_arch", naclArchitecture),
+            ("prod", "chromecrx"),
+            ("prodchannel", ""),
+            ("prodversion", productVersion),
+            ("acceptformat", "crx3"),
+            ("x", "id=\(id)&v=\(version)&installsource=ondemand&installedby=internal&uc"),
+        ]
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: "&=+")
+        components?.percentEncodedQuery = fields.map { name, value in
+            name + "=" + (value.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")
+        }.joined(separator: "&")
+        guard let url = components?.url else { return nil }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 60
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("fg", forHTTPHeaderField: "X-Goog-Update-Interactivity")
+        request.setValue(id, forHTTPHeaderField: "X-Goog-Update-AppId")
+        request.setValue("chromecrx-\(productVersion)", forHTTPHeaderField: "X-Goog-Update-Updater")
+        return request
+    }
+
     /// Each `x` value is itself a query string, so its `&` and `=` must be escaped inside the outer one.
     private static func url(response: String, xs: [String]) -> URL {
         var inner = CharacterSet.urlQueryAllowed

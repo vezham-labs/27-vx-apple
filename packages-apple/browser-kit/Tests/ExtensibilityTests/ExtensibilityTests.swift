@@ -17,6 +17,15 @@ import Testing
         #expect(url.contains("response=updatecheck"))
     }
 
+    @Test func asksForInstalledExtensionsAsForegroundUpdates() throws {
+        let request = try #require(ChromeWebStore.updateCheckRequest(id: "abc", version: "1.2.3"))
+        let url = try #require(request.url?.absoluteString)
+        #expect(url.contains("x=id%3Dabc%26v%3D1.2.3%26installsource%3Dondemand%26installedby%3Dinternal%26uc"))
+        #expect(request.value(forHTTPHeaderField: "X-Goog-Update-Interactivity") == "fg")
+        #expect(request.value(forHTTPHeaderField: "X-Goog-Update-AppId") == "abc")
+        #expect(request.value(forHTTPHeaderField: "X-Goog-Update-Updater") == "chromecrx-\(ChromeWebStore.productVersion)")
+    }
+
     @Test func comparesVersions() {
         #expect(isVersion("1.2.10", newerThan: "1.2.9"))
         #expect(!isVersion("1.2", newerThan: "1.2.0"))

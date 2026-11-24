@@ -31,6 +31,10 @@ extension Library {
     nonisolated static let fetch: ExtensionInstaller.Fetch = { url in
         var request = URLRequest(url: url)
         request.setValue("Ark", forHTTPHeaderField: "User-Agent")
+        return try await fetchRequest(request)
+    }
+
+    nonisolated static let fetchRequest: ExtensionInstaller.FetchRequest = { request in
         let (data, response) = try await URLSession.shared.data(for: request)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw URLError(.badServerResponse)

@@ -131,7 +131,7 @@ final class Library {
         extensionCatalog = ExtensionCatalog(fileURL: support?.appending(path: "extensions.json"))
         extensionInstaller = ExtensionInstaller(
             root: (support ?? FileManager.default.temporaryDirectory).appending(path: "Extensions"),
-            fetch: Library.fetch, unzip: Library.unzip)
+            fetch: Library.fetch, unzip: Library.unzip, fetchRequest: Library.fetchRequest)
         margin = MarginStore(fileURL: support?.appending(path: "margin.json"))
         if let snapshotURL, let data = try? Data(contentsOf: snapshotURL),
            let snap = try? JSONDecoder().decode(BrowserSnapshot.self, from: data), !snap.spaces.isEmpty {

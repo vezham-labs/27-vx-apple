@@ -91,11 +91,13 @@ public final class ExtensionCatalog {
 @MainActor
 public final class ExtensionInstaller {
     public typealias Fetch = @Sendable (URL) async throws -> Data
+    public typealias FetchRequest = @Sendable (URLRequest) async throws -> Data
     public typealias Unzip = @Sendable (_ zip: URL, _ into: URL) async throws -> Void
 
     public enum Failure: LocalizedError, Equatable {
         case notAStoreSource
         case notFound(String)
+        case invalidUpdateRequest
         case hashMismatch
         case noManifest
 
@@ -103,6 +105,7 @@ public final class ExtensionInstaller {
             switch self {
             case .notAStoreSource: "That extension doesn't come from a store."
             case .notFound(let id): "The store has no extension \(id)."
+            case .invalidUpdateRequest: "The store update request could not be created."
             case .hashMismatch: "The download didn't match what the store said it would be."
             case .noManifest: "The package has no manifest.json."
             }
@@ -120,12 +123,18 @@ public final class ExtensionInstaller {
     /// Unpacked extensions go in `root/<source key>/<version>/`.
     public let root: URL
     private let fetch: Fetch
+    private let fetchRequest: FetchRequest
     private let unzip: Unzip
 
-    public init(root: URL, fetch: @escaping Fetch, unzip: @escaping Unzip) {
+    public init(root: URL, fetch: @escaping Fetch, unzip: @escaping Unzip,
+                fetchRequest: FetchRequest? = nil) {
         self.root = root
         self.fetch = fetch
         self.unzip = unzip
+        self.fetchRequest = fetchRequest ?? { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            return try await fetch(url)
+        }
     }
 
     /// Downloads and unpacks the newest version. Nothing is added to the catalog: the caller shows
@@ -144,7 +153,7 @@ public final class ExtensionInstaller {
         guard item.source.isFromStore else { throw Failure.notAStoreSource }
         var item = item
         item.checkedAt = .now
-        let release = try await latestRelease(item.source)
+        let release = try await latestRelease(item.source, installedVersion: item.version)
         guard isVersion(release.version, newerThan: item.version) else {
             catalog.upsert(item)
             return .upToDate
@@ -195,10 +204,18 @@ public final class ExtensionInstaller {
 
     // MARK: Steps
 
-    func latestRelease(_ source: ExtensionSource) async throws -> StoreRelease {
+    func latestRelease(_ source: ExtensionSource, installedVersion: String? = nil) async throws -> StoreRelease {
         switch source {
         case .chromeWebStore(let id):
-            let data = try await fetch(ChromeWebStore.updateCheckURL(ids: [id]))
+            let data: Data
+            if let installedVersion {
+                guard let request = ChromeWebStore.updateCheckRequest(id: id, version: installedVersion) else {
+                    throw Failure.invalidUpdateRequest
+                }
+                data = try await fetchRequest(request)
+            } else {
+                data = try await fetch(ChromeWebStore.updateCheckURL(ids: [id]))
+            }
             guard let release = UpdateManifestParser.parse(data).first(where: { $0.id == id }) else { throw Failure.notFound(id) }
             return release
         case .firefoxAddons(let slug):

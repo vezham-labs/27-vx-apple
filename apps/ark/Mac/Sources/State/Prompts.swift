@@ -40,6 +40,17 @@ extension Browser {
         }
     }
 
+    /// A visible Glance can request screen sharing without pretending it is the selected tab.
+    /// Closing or promoting the Glance cancels this request through its stable session id.
+    func askFromGlance(_ kind: Prompt.Kind, glance: GlanceSession) async -> EngineDialogResponse {
+        guard self.glance === glance else { return .cancel }
+        return await withCheckedContinuation { cont in
+            let prompt = Prompt(kind: kind, tabID: glance.id)
+            promptQueue.append((prompt, cont))
+            if activePrompt == nil { activePrompt = promptQueue.first?.0 }
+        }
+    }
+
     func answer(_ response: EngineDialogResponse) {
         guard let current = activePrompt, let i = promptQueue.firstIndex(where: { $0.0.id == current.id }) else { return }
         let (_, cont) = promptQueue.remove(at: i)

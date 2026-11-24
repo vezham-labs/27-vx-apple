@@ -21,6 +21,9 @@ public final class WebKitPage: NSObject, EnginePage {
     private var awaitingRestore = false
     /// Certificates observed for the current navigation, used to offer a scoped exception on error.
     private var seenCertificates: [String: String] = [:]
+    /// WebKit's private display-capture callback is asynchronous; retain it so closing the page
+    /// can deny a request that no longer belongs to a live page.
+    private var displayCaptureRequest: (id: UUID, decision: (Int) -> Void)?
 
     public var view: NSView { webView }
 
@@ -263,6 +266,7 @@ public final class WebKitPage: NSObject, EnginePage {
     }
 
     public func close() {
+        finishDisplayCapture(0)
         webView.stopLoading()
         observations = []
         webView.navigationDelegate = nil
@@ -343,6 +347,7 @@ extension WebKitPage: WKNavigationDelegate {
     }
 
     public func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        finishDisplayCapture(0)
         awaitingRestore = false
         seenCertificates = [:]
         // A new document: the old one's sound and drafts are gone, and its frames report afresh.
@@ -486,6 +491,29 @@ extension WebKitPage: WKUIDelegate {
         default: .cameraAndMicrophone
         }
         return await delegate.page(self, requestPermission: kind, host: origin.host) ? .grant : .deny
+    }
+
+    /// WebKit exposes display-capture permission through this private delegate selector on macOS.
+    /// Ark still asks in its own site permission sheet; the page is never granted silently.
+    @objc(_webView:requestDisplayCapturePermissionForOrigin:initiatedByFrame:withSystemAudio:decisionHandler:)
+    func webView(_ webView: WKWebView, requestDisplayCapturePermissionForOrigin origin: WKSecurityOrigin,
+                 initiatedBy frame: WKFrameInfo, withSystemAudio systemAudio: Bool,
+                 decisionHandler: @escaping (Int) -> Void) {
+        guard displayCaptureRequest == nil, delegate != nil else { decisionHandler(0); return }
+        let requestID = UUID()
+        displayCaptureRequest = (requestID, decisionHandler)
+        Task { @MainActor [weak self] in
+            guard let self, let delegate = self.delegate else { return }
+            let allowed = await delegate.page(self, requestPermission: .screen, host: origin.host)
+            guard self.displayCaptureRequest?.id == requestID else { return }
+            self.finishDisplayCapture(allowed ? 1 : 0)
+        }
+    }
+
+    private func finishDisplayCapture(_ decision: Int) {
+        guard let request = displayCaptureRequest else { return }
+        displayCaptureRequest = nil
+        request.decision(decision)
     }
 
     public func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters,

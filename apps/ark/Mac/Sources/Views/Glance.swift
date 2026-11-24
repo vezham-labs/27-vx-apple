@@ -37,10 +37,18 @@ final class GlanceSession: Identifiable, EnginePageDelegate {
         return .allow
     }
 
-    func page(_ page: any EnginePage, didCommit url: URL?) { loadedURL = nil }
+    func page(_ page: any EnginePage, didCommit url: URL?) {
+        loadedURL = nil
+        browser?.cancelPrompts(for: id)
+    }
     func page(_ page: any EnginePage, didFinish url: URL, title: String) { loadedURL = url }
     func page(_ page: any EnginePage, didFailWith error: NSError) { loadedURL = nil }
     func pageContentProcessDidTerminate(_ page: any EnginePage) { loadedURL = nil }
+
+    func page(_ page: any EnginePage, requestPermission permission: EnginePermission, host: String) async -> Bool {
+        guard permission == .screen, let browser else { return false }
+        return await browser.askFromGlance(.permission(permission, host: host), glance: self) == .ok
+    }
 
     func page(_ page: any EnginePage, openedPopup popup: any EnginePage, url: URL?) -> (any EnginePageDelegate)? {
         if let url { browser?.newTab(url: url, isPrivate: isPrivate, source: .link) }
@@ -71,19 +79,22 @@ extension Browser {
     }
 
     func openGlance(_ url: URL, profile: BrowsingProfile) {
-        glance?.page.close()
+        closeGlance()
         glance = GlanceSession(url: url, profile: profile, browser: self)
     }
 
     func closeGlance() {
-        glance?.page.close()
-        glance = nil
+        guard let glance else { return }
+        cancelPrompts(for: glance.id)
+        glance.page.close()
+        self.glance = nil
     }
 
     /// Keeps the live document when the destination uses the same website profile and engine.
     func expandGlance() {
         guard let glance else { return }
         guard let url = glance.url else { return closeGlance() }
+        cancelPrompts(for: glance.id)
         self.glance = nil
         newTab(url: url, isPrivate: glance.isPrivate, source: .link, promoting: glance)
     }
@@ -95,6 +106,7 @@ extension Browser {
 
     func expandGlanceInSplit() {
         guard canExpandGlanceInSplit, let glance, let url = glance.url else { return }
+        cancelPrompts(for: glance.id)
         let addingPane = activeSplit != nil
         // Release the overlay's host as the pane takes over the same view.
         var transition = Transaction(animation: nil)

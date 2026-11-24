@@ -368,6 +368,25 @@ final class Library {
 
     /// A link from another app, in the window in use, or a new one when none is open.
     func openExternal(_ url: URL, sourceApp: String? = nil, inLinkWindow: Bool = Preferences.externalLinksInPreview) {
+        let hasExplicitRoute = SpaceRouter.shared.externalSpace(for: url, sourceApp: sourceApp, in: regularSpaces) != nil
+        if !hasExplicitRoute, Preferences.externalLinksFindExistingTab, url.host() != nil,
+           ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+            if let preview = linkWindows.values.first(where: { Self.sameExternalPage(url, $0.tab.url) }) {
+                preview.showWindow(nil)
+                activateForIncomingLink()
+                return
+            }
+            for window in windows {
+                guard !window.currentSpace.isPrivate,
+                      let tab = window.currentSpace.allTabs.first(where: {
+                          window.lists($0) && !$0.isPrivate && Self.sameExternalPage(url, $0.url)
+                      }) else { continue }
+                window.select(tab)
+                window.nsWindow?.makeKeyAndOrderFront(nil)
+                activateForIncomingLink()
+                return
+            }
+        }
         let window = activeWindow
         let opensPreview = inLinkWindow && LinkPreviewWindow.supports(url)
         let launchSpace = window == nil && !opensPreview ? regularSpaces.first { $0.id == launchSpaceID } : nil
@@ -384,6 +403,15 @@ final class Library {
         } else {
             openWindow(.externalLink(url, spaceID: target.id))
         }
+    }
+
+    /// Search's incoming-link behavior compares the complete address, ignoring only trailing slashes.
+    private static func sameExternalPage(_ one: URL, _ other: URL?) -> Bool {
+        guard var other = other?.absoluteString else { return false }
+        var one = one.absoluteString
+        while one.hasSuffix("/") { one.removeLast() }
+        while other.hasSuffix("/") { other.removeLast() }
+        return one == other
     }
 
     @discardableResult

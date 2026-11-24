@@ -123,6 +123,7 @@ private struct GeneralSettings: View {
     @State private var importing = false
     @AppStorage(ArkAppearance.key) private var appearance = ""
     @AppStorage(Preferences.externalLinksInPreviewKey) private var externalLinksInPreview = false
+    @AppStorage(Preferences.externalLinksFindExistingTabKey) private var externalLinksFindExistingTab = false
     @AppStorage(Preferences.automaticVideoPiPKey) private var automaticVideoPiP = false
     @AppStorage(Preferences.videoKeyControlsKey) private var videoKeyControls = false
     @AppStorage(Preferences.pinnedLinksOpenInNewTabKey) private var pinnedLinksOpenInNewTab = false
@@ -143,6 +144,9 @@ private struct GeneralSettings: View {
                     }
                 }
                 Toggle("Open links from other apps in a preview window", isOn: $externalLinksInPreview)
+                Toggle("Go to a tab that's already open", isOn: $externalLinksFindExistingTab)
+                Text("When a link from another app is already open in Ark, switch to that tab instead of opening another copy. Space routes take precedence.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Open links from pinned tabs in new tabs", isOn: $pinnedLinksOpenInNewTab)
                 Text("A link from a pin opens as a Today tab, keeping the pin on its page. Same-page links and sign-in pages stay in the pin.")
                     .font(.caption).foregroundStyle(.secondary)

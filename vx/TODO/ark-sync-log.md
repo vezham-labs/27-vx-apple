@@ -496,6 +496,12 @@ Adapted Search `505780179d400715192c1e26b507c2d22fa21789`: when a requested host
 
 Reviewed Search `86a67e118405aa09931c3d84d834c6dc6810817b`: Ark does not own saved-password or verification-code filling, so the origin-and-port security change has no Ark implementation to port. Those interactions remain with WebKit and the system password manager; Ark will not introduce a second vault.
 
+Reviewed Search `8b5ca1bdfcf021cc6158255dcb6cb0bc37d0d9e3`: Search reads icons declared by the current document and rejects a probe result if navigation changed first. Ark currently uses its host favicon provider and does not probe page-declared icons, so the race guard has no Ark probe to protect. A document-favicon feature would need a separate design and privacy review.
+
+Reviewed Search `663cb237b48c0c423d5727cd9d5567cf002f6ec6`: it keeps Search's hidden auto-hide column visible while dragging its edge. Ark's sidebar floats on edge hover and is resizable only while docked; it has no matching hidden-column drag path, so no code was ported.
+
+Reviewed Search `ceaec9b8c7544df19745579d343551ce8cb51fef`: its bench sends page CSS coordinates as native mouse events, so page zoom must scale the point. Ark's `page_click` resolves a DOM reference or selector and invokes `.click()` directly; it has no coordinate click path to fix.
+
 ### Browsa extension host-permission scope — Mac
 
 Adapted the permission-scope portion of Browsa `1642b72ff49a17421b29ba3d56c70b5717a09b8c`: `WebKitExtensions` no longer grants `<all_urls>` to every extension. Broad host access is granted only when an extension's requested match patterns include `<all_urls>` or a wildcard host; otherwise Ark grants its declared patterns. This closes an overbroad WebKit permission grant without changing the extension UI. Browsa's redirect-checked, profile-aware `browsa.fetch` path was not copied because Ark does not expose that API. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. A runtime check with narrow-host and all-host extensions remains open. The comparison's Chrome extensions rating stays Partial pending compatibility and permission-flow verification.

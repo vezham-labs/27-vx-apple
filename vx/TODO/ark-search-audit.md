@@ -46,6 +46,9 @@ Current order: complete the Mac audit first. Mobile implementation and device ve
 | --- | --- | --- |
 | Overlapping host paths | `Extensions.swift` grants only the broadest matching paths when one site's `/*` covers narrower paths, preventing repeated content-script execution. | Ark now coalesces subsumed WebKit match patterns on the same scheme before granting them. The Mac build passed. Verify an actual extension with overlapping paths and count injections at runtime. |
 | Password/code fill origin | `Tab.swift` compares the page's full origin, including port, before filling credentials or verification codes. | Ark has no saved-credential or verification-code fill implementation; those flows belong to WebKit and the system password manager. This Search change is not applicable to Ark-owned code. |
+| Document-declared tab icons | `Icons.swift` reads the current document's declared icons and discards results if navigation changed before the probe returns. | Ark uses a host favicon provider and has no document-icon probe. The race fix is not directly portable; any switch to page-declared icons needs a separate source and privacy design. |
+| Hidden-column drag | `Fold.swift` keeps a floating auto-hide column open while its edge is dragged. | Ark's sidebar floats on edge hover and is resizable only while docked, so there is no matching hidden-column drag path. No code change. |
+| Agent click at page zoom | `PageHands.swift` scales CSS-pixel points before sending native mouse events. | Ark's `page_click` resolves a DOM reference or CSS selector and calls `.click()`; there is no coordinate click path affected by zoom. |
 
 ## Compatibility and migration
 

@@ -200,7 +200,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `faec5fc7ad1743c264e7bd0eb4d37d187dd8bfaa` | Touch ID before filling: a yes holds for its own site, private and ordinary tabs apart (idea 993) | Pending |
 | `86a67e118405aa09931c3d84d834c6dc6810817b` | Passwords and codes fill only the origin they're for, port included | Not applicable to Ark-owned code: Ark has no saved-password or verification-code fill implementation; those flows belong to WebKit/system autofill. Do not add a parallel vault in this port. |
 | `c17c0fa9345c4ce9f27d7e50eb6b78156cc4bc49` | ⌘-click a bookmarks bar folder: open all of it, as Chrome does (idea 959) | Pending |
-| `8b5ca1bdfcf021cc6158255dcb6cb0bc37d0d9e3` | Keep tab icons tied to the document that declared them (#1453) | Pending |
+| `8b5ca1bdfcf021cc6158255dcb6cb0bc37d0d9e3` | Keep tab icons tied to the document that declared them (#1453) | Reviewed, no direct port: Search probes document-declared icons and guards against navigation races. Ark uses its host favicon provider and has no per-document icon probe; this would require a separate favicon-source design, not a transplant of this race fix. |
 | `fad583956b551f38366193d86ec5407cb71a839a` | A full row of tabs still leaves somewhere to take the window by (#1454) | Pending |
 | `a3ad9c1bac338688e435475811dea4b6f70447de` | Rename left as it was gives a tab no name of its own (#1450) | Pending |
 | `cc1cae9a316f2b3fe6322ca682285b4c34bbf49f` | Return macOS picture in picture to its tab across spaces (#1424) | Pending |
@@ -209,9 +209,9 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `61cc8e136b409227967c3749f0e250187836e66a` | chrome.management.getAll() lists installed extensions for one with "management" (#1431) | Pending |
 | `71992504d6e5ce9ab72032ce53c8b559b4aeb202` | Keys for profiles: Next Profile, Previous Profile, Profile 1–9 (#1437) | Pending |
 | `fe22040c014e4a0ebd7bf642434919a93b292c7b` | Native fields no longer run macOS's password-field guess over every view in the window (#1458) | Adapted: Ark disables AppKit's native-field heuristic through a volatile UserDefaults registration; browser-page password handling remains in WebKit. Mac build passed. Ark focus-latency and CPU measurements remain open; Search reported up to 100% CPU for tens of seconds in a full window. |
-| `ceaec9b8c7544df19745579d343551ce8cb51fef` | An agent's click lands where it aims on a zoomed page (#1464) | Pending |
+| `ceaec9b8c7544df19745579d343551ce8cb51fef` | An agent's click lands where it aims on a zoomed page (#1464) | Reviewed, no matching path: Search's bench sends CSS-pixel coordinates as native mouse events. Ark's `page_click` targets a DOM element by reference or selector and calls `.click()`, so the coordinate/zoom conversion bug does not exist in Ark. |
 | `bb0d3160fd5a7e1972f6dcfdce9412aae5df6034` | The agents' page room goes back off screen when displays change (#1421) | Pending |
-| `663cb237b48c0c423d5727cd9d5567cf002f6ec6` | The hidden column stays out while its edge is dragged (#1462) | Pending |
+| `663cb237b48c0c423d5727cd9d5567cf002f6ec6` | The hidden column stays out while its edge is dragged (#1462) | Not applicable to Ark's current interaction: Ark's sidebar floats on edge hover and can be resized only while docked; it does not auto-hide while a floating-column edge is being dragged. |
 | `9d46c7b84978c7efecd4266e5bccb8b7e6332557` | SwiftUI popovers hang no further than their button's edge (#1460) | Pending |
 | `505780179d400715192c1e26b507c2d22fa21789` | Extensions' scripts run once where a site's /* covers their narrower paths (#1465) | Adapted: Ark now grants only broader match patterns that subsume narrower paths on the same scheme, avoiding duplicate WebKit content-script execution. Mac build passed; representative extension runtime verification remains open. |
 | `041aed33c784a6c618c085c08357e210c74f051b` | Keep the column's insets and the fold door clear of the lights when narrowed (idea 1010) | Pending |

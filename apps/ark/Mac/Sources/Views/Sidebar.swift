@@ -67,7 +67,7 @@ struct Sidebar: View {
             if browser.currentTab?.isLoading == true {
                 SidebarIconButton(symbol: "xmark", help: Shortcuts.shared.help("Stop", .stop)) { browser.stopLoading() }
             } else {
-                SidebarIconButton(symbol: "arrow.clockwise", help: Shortcuts.shared.help("Reload", .reload), enabled: browser.currentTab?.url != nil) { browser.reload() }
+                SidebarIconButton(symbol: "arrow.clockwise", help: Shortcuts.shared.help("Reload", .reload), enabled: browser.currentAddress != nil) { browser.reload() }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

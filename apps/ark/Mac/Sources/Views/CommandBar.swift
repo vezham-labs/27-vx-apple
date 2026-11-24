@@ -238,7 +238,7 @@ struct CommandBar: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(.secondary)
                 CommandField(
-                    initialText: mode == .editCurrent ? (browser.currentTab?.url?.absoluteString ?? "") : "",
+                    initialText: mode == .editCurrent ? (browser.currentAddress?.absoluteString ?? "") : "",
                     placeholder: placeholder,
                     inline: model?.inline,
                     onChange: { text, inserted in

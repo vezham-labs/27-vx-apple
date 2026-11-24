@@ -244,6 +244,16 @@ extension Browser {
 
     // MARK: Page actions
 
+    /// The URL the user should see or copy. WebKit can keep showing the last
+    /// committed page after a provisional navigation fails.
+    var currentAddress: URL? {
+        if let failed = currentTab?.loadError?.url,
+           let scheme = failed.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+            return failed
+        }
+        return currentTab?.url
+    }
+
     func goBack() {
         if isReaderShowing { closeReader(); return }
         currentController?.page.goBack()
@@ -252,6 +262,10 @@ extension Browser {
 
     func reload() {
         guard let c = currentController else { return }
+        if let failedURL = c.tab.loadError?.url {
+            c.load(failedURL, source: .typed)
+            return
+        }
         c.tab.loadError = nil
         c.page.reload()
     }
@@ -272,9 +286,19 @@ extension Browser {
     var currentZoom: Double { currentTab?.pageZoom ?? 1 }
 
     func copyCurrentLink() {
-        guard let url = currentTab?.url else { return }
+        guard let url = currentAddress else { return }
+        if currentTab?.loadError?.url == url {
+            copyLinkExactly(url)
+            showToast("Address copied")
+            return
+        }
         copyLink(url)
         showToast("Link copied")
+    }
+
+    private func copyLinkExactly(_ url: URL, to pasteboard: NSPasteboard = .general) {
+        pasteboard.clearContents()
+        pasteboard.setString(url.absoluteString, forType: .string)
     }
 
     func copyLink(_ url: URL, to pasteboard: NSPasteboard = .general) {
@@ -284,9 +308,10 @@ extension Browser {
 
     /// `[Title](url)`, like Arc's ⌥⇧⌘C.
     func copyCurrentLinkAsMarkdown() {
-        guard let tab = currentTab, let url = tab.url else { return }
+        guard let tab = currentTab, let url = currentAddress else { return }
         let title = tab.displayTitle.replacingOccurrences(of: "[", with: "\\[").replacingOccurrences(of: "]", with: "\\]")
-        let link = linkForCopy(url).absoluteString.replacingOccurrences(of: "(", with: "%28").replacingOccurrences(of: ")", with: "%29")
+        let copied = tab.loadError?.url == url ? url : linkForCopy(url)
+        let link = copied.absoluteString.replacingOccurrences(of: "(", with: "%28").replacingOccurrences(of: ")", with: "%29")
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString("[\(title)](\(link))", forType: .string)
         showToast("Markdown link copied")

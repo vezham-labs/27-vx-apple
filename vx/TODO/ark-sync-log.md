@@ -36,6 +36,10 @@ Verification: all 75 existing BrowserKit tests passed, including font persistenc
 
 Reviewed Browsa `7a494d094c349da5ad5b6ca470e4d154635d7ae2` and duplicate merge result `0ab8524378116a0416a46eecf8189dc6745fc398`. Ark now labels its site customization command and editor **Edit Boosts… / Boosts**, consistent with Arc. Ark's stable internal command ID and storage paths remain unchanged to avoid breaking saved CSS or debug automation. `ark:build-mac` passed; visible menu/editor interaction and refreshed preview capture remain pending. Matrix ratings are unchanged. Ark implementation: [`34b7b742`](../../commit/34b7b742).
 
+### Pinned-page ordering regression coverage — Mac
+
+Added an ordering regression case to the existing `PinFolderTests.swift` file. It exercises moving a pin before/after another pin, moving between root and folder membership, and maintaining each visible group order. The BrowserKit suite passed all 76 tests across 14 suites. This validates the model used by the drop handler but does not verify that a physical Mac drag reaches the intended drop row; the matrix remains Partial until that interaction is observed in the app. Ark implementation: [`b1bc11c6`](../../commit/b1bc11c6).
+
 Next review candidates include upstream extension permission and redirect checks, private-window extension controls, and avoiding unchanged Live Folder writes. New upstream visual designs require comparison against Arc before adoption.
 
 ## Browsa

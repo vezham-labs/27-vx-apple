@@ -20,6 +20,14 @@ final class Browser {
     /// window in use (see `WindowSizing`).
     let isNewWindow: Bool
     var selectedSpaceID: UUID
+    /// Pins selected with Command-click or Shift-click in the Mac sidebar.
+    var selectedSidebarPinIDs: Set<UUID> = []
+    @ObservationIgnored private var sidebarPinSelectionAnchor: UUID?
+    var isCreatingPinFolderForSelection = false
+    var newPinFolderName = ""
+    @ObservationIgnored private var pendingPinFolderIDs: Set<UUID> = []
+    @ObservationIgnored private var pendingPinFolderSpaceID: UUID?
+    @ObservationIgnored private var pinMoveUndo: PinMoveUndo?
     /// The tab this window shows in each space it has visited. Two windows never show the same tab.
     private var tabSelection: [UUID: UUID] = [:]
     private var lastUsedTabIDs: [UUID: UUID] = [:]
@@ -172,6 +180,157 @@ final class Browser {
 
     // MARK: Selection
 
+    private struct PinAssignment: Equatable {
+        let tabID: UUID
+        let folderID: UUID?
+    }
+
+    private struct PinMoveUndo {
+        let space: Space
+        let tabs: [BrowserTab]
+        let folders: [PinFolder]
+        let assignments: [PinAssignment]
+        let afterTabIDs: [UUID]
+        let afterFolders: [PinFolder]
+        let afterAssignments: [PinAssignment]
+    }
+
+    /// Plain click keeps Ark's normal single-tab behavior. Command-click toggles a pin in the
+    /// selection; Shift-click selects the range between the last anchor and this pin.
+    func clickSidebarTab(_ tab: BrowserTab, modifiers: NSEvent.ModifierFlags) {
+        let flags = modifiers.intersection(.deviceIndependentFlagsMask)
+        guard tab.isPinned, !currentSpace.isPrivate, flags.contains(.command) || flags.contains(.shift) else {
+            selectedSidebarPinIDs.removeAll()
+            sidebarPinSelectionAnchor = nil
+            select(tab)
+            return
+        }
+        guard space(containing: tab)?.id == currentSpace.id else { return }
+        let ordered = visibleSidebarPinnedTabs(in: currentSpace)
+        if flags.contains(.shift) {
+            let anchor = sidebarPinSelectionAnchor.flatMap { id in ordered.firstIndex { $0.id == id } }
+                ?? ordered.firstIndex { $0.id == tab.id }
+            guard let anchor, let target = ordered.firstIndex(where: { $0.id == tab.id }) else { return }
+            selectedSidebarPinIDs = Set(ordered[min(anchor, target)...max(anchor, target)].map(\.id))
+        } else {
+            if selectedSidebarPinIDs.isEmpty { sidebarPinSelectionAnchor = tab.id }
+            if !selectedSidebarPinIDs.insert(tab.id).inserted {
+                selectedSidebarPinIDs.remove(tab.id)
+                if selectedSidebarPinIDs.isEmpty { sidebarPinSelectionAnchor = nil }
+            }
+        }
+    }
+
+    func selectedSidebarPins(for tab: BrowserTab) -> [BrowserTab] {
+        guard tab.isPinned, selectedSidebarPinIDs.contains(tab.id),
+              space(containing: tab)?.id == currentSpace.id else { return [tab] }
+        return visibleSidebarPinnedTabs(in: currentSpace).filter { selectedSidebarPinIDs.contains($0.id) }
+    }
+
+    private func visibleSidebarPinnedTabs(in space: Space) -> [BrowserTab] {
+        let folders = Dictionary(grouping: space.pinFolders, by: \.parentID)
+        var visible: [BrowserTab] = []
+        func appendFolders(inside parentID: UUID?) {
+            for folder in folders[parentID] ?? [] where !folder.isCollapsed {
+                appendFolders(inside: folder.id)
+                visible.append(contentsOf: space.pinned.filter { $0.pinFolderID == folder.id })
+            }
+        }
+        appendFolders(inside: nil)
+        visible.append(contentsOf: space.rootPins)
+        return visible
+    }
+
+    func moveSelectedPins(into folderID: UUID?) {
+        let space = currentSpace
+        let tabs = visibleSidebarPinnedTabs(in: space).filter { selectedSidebarPinIDs.contains($0.id) }
+        guard tabs.count > 1, !space.isPrivate else { return }
+        let beforeTabs = space.pinned
+        let beforeFolders = space.pinFolders
+        let beforeAssignments = Self.pinAssignments(in: space)
+        guard space.movePinnedTabs(tabs.map(\.id), into: folderID) != nil else { return }
+        finishPinMoveUndo(space: space, beforeTabs: beforeTabs, beforeFolders: beforeFolders,
+                          beforeAssignments: beforeAssignments)
+        selectedSidebarPinIDs.removeAll()
+        sidebarPinSelectionAnchor = nil
+        library.scheduleSave()
+        showToast("Moved \(tabs.count) pinned tabs · ⌘Z to undo")
+    }
+
+    func beginPinFolderForSelectedPins(from tab: BrowserTab) {
+        let tabs = selectedSidebarPins(for: tab)
+        guard tabs.count > 1, tabs.allSatisfy(\.isPinned), !currentSpace.isPrivate else { return }
+        pendingPinFolderIDs = Set(tabs.map(\.id))
+        pendingPinFolderSpaceID = currentSpace.id
+        newPinFolderName = ""
+        isCreatingPinFolderForSelection = true
+    }
+
+    func createPinFolderForSelectedPins() {
+        guard let spaceID = pendingPinFolderSpaceID,
+              let space = spaces.first(where: { $0.id == spaceID }), !space.isPrivate else { return }
+        let tabs = visibleSidebarPinnedTabs(in: space).filter { pendingPinFolderIDs.contains($0.id) }
+        guard tabs.count > 1 else { return }
+        let beforeTabs = space.pinned
+        let beforeFolders = space.pinFolders
+        let beforeAssignments = Self.pinAssignments(in: space)
+        guard let folder = space.addPinFolder(named: newPinFolderName),
+              space.movePinnedTabs(tabs.map(\.id), into: folder.id) != nil else { return }
+        finishPinMoveUndo(space: space, beforeTabs: beforeTabs, beforeFolders: beforeFolders,
+                          beforeAssignments: beforeAssignments)
+        pendingPinFolderIDs.removeAll()
+        pendingPinFolderSpaceID = nil
+        selectedSidebarPinIDs.removeAll()
+        sidebarPinSelectionAnchor = nil
+        library.scheduleSave()
+        showToast("Created \(folder.name) with \(tabs.count) pins · ⌘Z to undo")
+    }
+
+    var canUndoSidebarPinMove: Bool {
+        guard let undo = pinMoveUndo, undo.space.pinned.map(\.id) == undo.afterTabIDs,
+              undo.space.pinFolders == undo.afterFolders,
+              Self.pinAssignments(in: undo.space) == undo.afterAssignments else { return false }
+        return true
+    }
+
+    func undoSidebarPinMove() {
+        guard canUndoSidebarPinMove, let undo = pinMoveUndo else { pinMoveUndo = nil; return }
+        guard undo.space.restorePinnedOrganization(undo.tabs, folders: undo.folders,
+                                                   folderIDs: Self.folderMap(undo.assignments)) else {
+            pinMoveUndo = nil
+            return
+        }
+        pinMoveUndo = nil
+        selectedSidebarPinIDs.removeAll()
+        sidebarPinSelectionAnchor = nil
+        library.scheduleSave()
+        showToast("Pin move undone")
+    }
+
+    func clearSidebarPinMoveUndo() { pinMoveUndo = nil }
+
+    func clearSidebarPinSelection() {
+        selectedSidebarPinIDs.removeAll()
+        sidebarPinSelectionAnchor = nil
+    }
+
+    private func finishPinMoveUndo(space: Space, beforeTabs: [BrowserTab], beforeFolders: [PinFolder],
+                                   beforeAssignments: [PinAssignment]) {
+        pinMoveUndo = PinMoveUndo(space: space, tabs: beforeTabs, folders: beforeFolders,
+                                  assignments: beforeAssignments, afterTabIDs: space.pinned.map(\.id),
+                                  afterFolders: space.pinFolders, afterAssignments: Self.pinAssignments(in: space))
+    }
+
+    private static func pinAssignments(in space: Space) -> [PinAssignment] {
+        space.pinned.map { PinAssignment(tabID: $0.id, folderID: $0.pinFolderID) }
+    }
+
+    private static func folderMap(_ assignments: [PinAssignment]) -> [UUID: UUID?] {
+        var result: [UUID: UUID?] = [:]
+        for assignment in assignments { result.updateValue(assignment.folderID, forKey: assignment.tabID) }
+        return result
+    }
+
     var currentSpace: Space { spaces.first { $0.id == selectedSpaceID } ?? regularSpaces[0] }
 
     var currentTab: BrowserTab? {
@@ -199,6 +358,8 @@ final class Browser {
 
     /// Shows a tab. If another window already shows it, that window comes forward instead, like Arc.
     func select(_ tab: BrowserTab) {
+        selectedSidebarPinIDs.removeAll()
+        sidebarPinSelectionAnchor = nil
         if let other = library.window(showing: tab), other !== self {
             other.nsWindow?.makeKeyAndOrderFront(nil)
             return
@@ -225,6 +386,8 @@ final class Browser {
 
     private func selectSpace(_ space: Space, resolving: Bool) {
         guard space.id != selectedSpaceID else { return }
+        selectedSidebarPinIDs.removeAll()
+        sidebarPinSelectionAnchor = nil
         if library.browsingProfile(in: currentSpace) != library.browsingProfile(in: space) {
             closeGlance()
             commandBar = nil

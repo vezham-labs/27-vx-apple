@@ -90,6 +90,31 @@ struct PinFolderTests {
         #expect(space.pinned.filter { $0.pinFolderID == folder.id }.map(\.id) == [second.id, first.id])
     }
 
+    @Test @MainActor func movesSeveralPinsInSidebarOrderAndRestoresTheirOrganization() throws {
+        let first = BrowserTab(url: nil, title: "First", isPinned: true)
+        let second = BrowserTab(url: nil, title: "Second", isPinned: true)
+        let third = BrowserTab(url: nil, title: "Third", isPinned: true)
+        let fourth = BrowserTab(url: nil, title: "Fourth", isPinned: true)
+        let space = Space(name: "Work", pinned: [first, second, third, fourth])
+        let reading = try #require(space.addPinFolder(named: "Reading"))
+        let later = try #require(space.addPinFolder(named: "Later"))
+        space.setPinFolder(reading.id, for: first)
+        space.setPinFolder(later.id, for: second)
+        let beforeTabs = space.pinned
+        let beforeFolders = space.pinFolders
+        var beforeFoldersByTab: [UUID: UUID?] = [:]
+        for tab in beforeTabs { beforeFoldersByTab.updateValue(tab.pinFolderID, forKey: tab.id) }
+
+        #expect(space.movePinnedTabs([first.id, third.id], into: later.id)?.map(\.id) == [first.id, third.id])
+        #expect(space.pinned.map(\.id) == [second.id, first.id, third.id, fourth.id])
+        #expect(space.pinned.filter { $0.pinFolderID == later.id }.map(\.id) == [second.id, first.id, third.id])
+
+        #expect(space.restorePinnedOrganization(beforeTabs, folders: beforeFolders, folderIDs: beforeFoldersByTab))
+        #expect(space.pinned.map(\.id) == [first.id, second.id, third.id, fourth.id])
+        #expect(space.pinned.map(\.pinFolderID) == [reading.id, later.id, nil, nil])
+        #expect(space.pinFolders == beforeFolders)
+    }
+
     @Test @MainActor func portableLinksRecreateFoldersWithFreshIDs() throws {
         let url = try #require(URL(string: "https://example.com/reference"))
         let tab = BrowserTab(url: url, isPinned: true)

@@ -182,7 +182,8 @@ private struct DraggableTabRow: View {
     }
 
     var body: some View {
-        TabRow(tab: tab, selected: tab.id == browser.selectedTabID(in: space))
+        TabRow(tab: tab, selected: tab.id == browser.selectedTabID(in: space),
+               bulkSelected: browser.selectedSidebarPinIDs.contains(tab.id))
             .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) {
                 if insertionEdge != nil {
                     Capsule().fill(Color.accentColor).frame(height: 2).allowsHitTesting(false)
@@ -312,6 +313,7 @@ struct TabRow: View {
     @Environment(Browser.self) private var browser
     let tab: BrowserTab
     let selected: Bool
+    var bulkSelected = false
     /// Drawn under the pointer while dragged.
     var isLifted = false
     @State private var hovering = false
@@ -404,11 +406,19 @@ struct TabRow: View {
         .frame(height: 34)
         .background {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(selected ? AnyShapeStyle(SelectedFill()) : AnyShapeStyle(.primary.opacity(hovering ? 0.06 : 0)))
-                .shadow(color: .black.opacity(selected ? 0.08 : 0), radius: 1.5, y: 1)
+                .fill(selected ? AnyShapeStyle(SelectedFill())
+                    : AnyShapeStyle(bulkSelected ? Color.accentColor.opacity(0.14) : .primary.opacity(hovering ? 0.06 : 0)))
         }
+        .overlay {
+            if bulkSelected && !selected {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .strokeBorder(Color.accentColor.opacity(0.42), lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
+        }
+        .shadow(color: .black.opacity(selected ? 0.08 : 0), radius: 1.5, y: 1)
         .contentShape(.rect)
-        .onTapGesture { browser.select(tab) }
+        .onTapGesture { browser.clickSidebarTab(tab, modifiers: NSEvent.modifierFlags) }
         // Alongside the single click, so selecting a tab never waits to see if a second click follows.
         .simultaneousGesture(TapGesture(count: 2).onEnded { startRename() })
         // Moving to another tab, however it happens, finishes a rename left open (clicking a row
@@ -481,6 +491,7 @@ struct TabMenu: View {
     var rename: (() -> Void)? = nil
 
     var body: some View {
+        let selectedPins = browser.selectedSidebarPins(for: tab)
         if let rename {
             Button("Rename Tab…", systemImage: "pencil", action: rename)
         }
@@ -496,6 +507,27 @@ struct TabMenu: View {
             }
             if let space = browser.space(containing: tab) {
                 MovePinMenu(tab: tab, space: space, save: browser.library.scheduleSave)
+                if tab.isPinned, selectedPins.count > 1 {
+                    Divider()
+                    Button("New Folder with \(selectedPins.count) Pins…", systemImage: "folder.badge.plus") {
+                        browser.beginPinFolderForSelectedPins(from: tab)
+                    }
+                    Menu("Move \(selectedPins.count) Pins to Folder") {
+                        ForEach(space.pinFolders.filter { $0.feed == nil }) { folder in
+                            Button(space.pinFolderName(folder), systemImage: "folder") {
+                                browser.moveSelectedPins(into: folder.id)
+                            }
+                            .disabled(selectedPins.allSatisfy { $0.pinFolderID == folder.id })
+                        }
+                        if selectedPins.contains(where: { $0.pinFolderID != nil }) {
+                            Divider()
+                            Button("Remove from Folder", systemImage: "folder") {
+                                browser.moveSelectedPins(into: nil)
+                            }
+                            .disabled(selectedPins.allSatisfy { $0.pinFolderID == nil })
+                        }
+                    }
+                }
             }
         }
         if let url = tab.url {

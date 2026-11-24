@@ -211,6 +211,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown]) { [weak self] event in
             let handled = MainActor.assumeIsolated {
                 guard event.type == .keyDown else {
+                    if let window = event.window, let browser = self?.library.window(for: window) {
+                        browser.clearSidebarPinMoveUndo()
+                    }
                     PageHost.focusClickedPane(event)
                     return false
                 }
@@ -264,6 +267,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Sheets, the settings window and other windows keep their own keys.
         guard let window = event.window, window.attachedSheet == nil,
               let browser = library.window(for: window) else { return false }
+        if flags == .command, key.lowercased() == "z", browser.canUndoSidebarPinMove {
+            browser.undoSidebarPinMove()
+            return true
+        }
+        browser.clearSidebarPinMoveUndo()
         if flags == .command, key == "=" { browser.zoom(1); return true }
         let shortcuts = Shortcuts.shared
         // Pages that take ⌘S for themselves (Save in Docs, Notion, Figma…) would otherwise swallow
@@ -290,6 +298,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return false
         }
         if flags.isEmpty, event.keyCode == 53 {   // Escape
+            if !browser.selectedSidebarPinIDs.isEmpty {
+                browser.clearSidebarPinSelection()
+                return true
+            }
             if browser.find != nil { browser.closeFind(); return true }
             if browser.isReaderShowing, browser.commandBar == nil { browser.closeReader(); return true }
             if browser.currentTab?.isLoading == true, browser.commandBar == nil { browser.stopLoading(); return false }

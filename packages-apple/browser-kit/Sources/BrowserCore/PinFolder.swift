@@ -185,6 +185,42 @@ extension Space {
         tab.pinFolderID = id
     }
 
+    /// Moves several pinned tabs as one sidebar operation, preserving their current sidebar order.
+    /// Live folders cannot own manually moved pins.
+    @discardableResult
+    public func movePinnedTabs(_ orderedIDs: [UUID], into folderID: UUID?) -> [BrowserTab]? {
+        let ids = Set(orderedIDs)
+        guard !isPrivate, !ids.isEmpty, ids.count == orderedIDs.count else { return nil }
+        if let folderID, !pinFolders.contains(where: { $0.id == folderID && $0.feed == nil }) { return nil }
+        let byID = Dictionary(uniqueKeysWithValues: pinned.map { ($0.id, $0) })
+        let moving = orderedIDs.compactMap { byID[$0] }
+        guard moving.count == ids.count else { return nil }
+        let unchanged = moving.allSatisfy { $0.pinFolderID == folderID }
+        guard !unchanged else { return nil }
+
+        var updated = pinned.filter { !ids.contains($0.id) }
+        let insertion = updated.lastIndex(where: { $0.pinFolderID == folderID }).map { $0 + 1 } ?? updated.endIndex
+        for tab in moving { tab.pinFolderID = folderID }
+        updated.insert(contentsOf: moving, at: insertion)
+        pinned = updated
+        return moving
+    }
+
+    /// Restores one immediately preceding pin-folder operation if the pin set is still the same.
+    @discardableResult
+    public func restorePinnedOrganization(_ tabs: [BrowserTab], folders: [PinFolder],
+                                          folderIDs: [UUID: UUID?]) -> Bool {
+        guard !isPrivate, Set(tabs.map(\.id)) == Set(pinned.map(\.id)) else { return false }
+        for tab in tabs {
+            if let folderID = folderIDs[tab.id] ?? nil,
+               !folders.contains(where: { $0.id == folderID && $0.feed == nil }) { return false }
+        }
+        restorePinFolders(folders)
+        for tab in tabs { tab.pinFolderID = folderIDs[tab.id] ?? nil }
+        pinned = tabs
+        return true
+    }
+
     /// Moves a pinned tab into a folder and optionally places it beside another pinned tab.
     @discardableResult
     public func movePinnedTab(_ id: UUID, into folderID: UUID?, relativeTo targetID: UUID? = nil,

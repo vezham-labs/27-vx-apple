@@ -70,6 +70,51 @@ extension Library {
         }
     }
 
+    /// chrome.management must also see installs that are disabled and therefore not loaded in WebKit.
+    var extensionManagementEntries: [EngineExtensionManagementEntry] {
+        extensionCatalog.items.map { item in
+            let folder: URL? = item.folderPath.map { URL(fileURLWithPath: $0) } ?? item.folderBookmark.flatMap { bookmark in
+                var stale = false
+                return try? URL(resolvingBookmarkData: bookmark, options: .withSecurityScope,
+                                bookmarkDataIsStale: &stale)
+            }
+            let accessed = folder?.startAccessingSecurityScopedResource() ?? false
+            defer { if accessed { folder?.stopAccessingSecurityScopedResource() } }
+            let manifest = folder.flatMap { try? ExtensionManifest(data: Data(contentsOf: $0.appending(path: "manifest.json"))) }
+            let name = folder.flatMap { manifest?.localizedName(in: $0) } ?? item.name
+            let raw = manifest?.raw
+            let options = raw?["options_ui"]?["page"]?.string ?? raw?["options_page"]?.string
+            let icon = folder.flatMap { Self.managementIconDataURL(manifest, folder: $0) }
+            let installType: String
+            if case .folder = item.source { installType = "development" } else { installType = "normal" }
+            return EngineExtensionManagementEntry(
+                id: item.id, name: name, shortName: raw?["short_name"]?.string ?? name,
+                version: manifest?.version ?? item.version, versionName: raw?["version_name"]?.string,
+                description: raw?["description"]?.string ?? "", enabled: item.isEnabled,
+                installType: installType, permissions: (manifest?.permissions ?? []).sorted(),
+                hostPermissions: (manifest?.hostPermissions ?? []).sorted(),
+                homepageURL: raw?["homepage_url"]?.string, optionsURL: options,
+                offlineEnabled: raw?["offline_enabled"]?.bool ?? false, iconDataURL: icon)
+        }
+    }
+
+    private static func managementIconDataURL(_ manifest: ExtensionManifest?, folder: URL) -> String? {
+        guard let icons = manifest?.raw["icons"]?.object else { return nil }
+        let candidate = icons.compactMap { key, value -> (Int, String)? in
+            guard let size = Int(key), size <= 128, let path = value.string,
+                  !path.hasPrefix("/"), !URL(fileURLWithPath: path).pathComponents.contains("..") else { return nil }
+            return (size, path)
+        }.max { $0.0 < $1.0 }
+        guard let (_, path) = candidate else { return nil }
+        let root = folder.standardizedFileURL.path(percentEncoded: false) + "/"
+        let url = folder.appending(path: path).standardizedFileURL
+        guard url.path(percentEncoded: false).hasPrefix(root),
+              let image = NSImage(contentsOf: url), let tiff = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff),
+              let png = bitmap.representation(using: .png, properties: [:]) else { return nil }
+        return "data:image/png;base64," + png.base64EncodedString()
+    }
+
     /// A pasted store link ("chromewebstore.google.com/detail/…/aeblfdkhhhdcdjpifhhbdiojplfjncoa"
     /// or "addons.mozilla.org/…/ublock-origin"): downloads it for the add sheet.
     func previewExtension(link: String) async throws -> ExtensionPreview {

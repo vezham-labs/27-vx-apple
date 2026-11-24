@@ -178,6 +178,8 @@ public struct EngineWindowInfo {
 public protocol EngineExtensionHost: AnyObject {
     /// Open windows, the focused one first.
     var extensionWindows: [EngineWindowInfo] { get }
+    /// Installed extension details used by chrome.management. Includes disabled catalog entries.
+    var extensionManagementEntries: [EngineExtensionManagementEntry] { get }
     func focusExtensionWindow(_ id: UUID)
     /// A new tab, in `windowID` or the focused window. Returns its page.
     func openExtensionTab(url: URL?, windowID: UUID?, active: Bool) -> (any EnginePage)?
@@ -191,8 +193,50 @@ public protocol EngineExtensionHost: AnyObject {
 }
 
 public extension EngineExtensionHost {
+    var extensionManagementEntries: [EngineExtensionManagementEntry] { [] }
     func extensionActionsDidChange() {}
     func showExtensionPanel(extensionID: String) -> Bool { false }
+}
+
+/// Manifest-derived details needed by Chrome's `management` API. The WebKit engine overlays live
+/// context metadata for enabled extensions and merges these records so disabled installs remain
+/// discoverable to an extension that requested the `management` permission.
+public struct EngineExtensionManagementEntry: Sendable {
+    public let id: String
+    public let name: String
+    public let shortName: String
+    public let version: String
+    public let versionName: String?
+    public let description: String
+    public let enabled: Bool
+    public let installType: String
+    public let permissions: [String]
+    public let hostPermissions: [String]
+    public let homepageURL: String?
+    public let optionsURL: String?
+    public let offlineEnabled: Bool
+    public let iconDataURL: String?
+
+    public init(id: String, name: String, shortName: String? = nil, version: String, versionName: String? = nil,
+                description: String = "", enabled: Bool = true,
+                installType: String = "normal", permissions: [String] = [], hostPermissions: [String] = [],
+                homepageURL: String? = nil, optionsURL: String? = nil, offlineEnabled: Bool = false,
+                iconDataURL: String? = nil) {
+        self.id = id
+        self.name = name
+        self.shortName = shortName ?? name
+        self.version = version
+        self.versionName = versionName
+        self.description = description
+        self.enabled = enabled
+        self.installType = installType
+        self.permissions = permissions
+        self.hostPermissions = hostPermissions
+        self.homepageURL = homepageURL
+        self.optionsURL = optionsURL
+        self.offlineEnabled = offlineEnabled
+        self.iconDataURL = iconDataURL
+    }
 }
 
 /// An extension's toolbar action for one page.

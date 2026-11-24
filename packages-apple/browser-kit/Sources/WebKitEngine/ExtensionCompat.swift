@@ -82,9 +82,14 @@ enum ExtensionCompat {
             }
             manifest["background"] = background
         }
-        // The compat script's WebSocket stand-in talks to Ark over native messaging.
+        // Ark's internal extension bridges use WebKit's native-message delegate; this does not launch
+        // external native hosts. A background needs it for its existing bridge, and a management-only
+        // extension page needs it for the permission-checked chrome.management bridge.
         var permissions = (manifest["permissions"] as? [String]) ?? []
-        if manifest["background"] != nil, !permissions.contains("nativeMessaging") {
+        let optionalPermissions = (manifest["optional_permissions"] as? [String]) ?? []
+        let needsArkBridge = manifest["background"] != nil
+            || (permissions + optionalPermissions).contains("management")
+        if needsArkBridge, !permissions.contains("nativeMessaging") {
             permissions.append("nativeMessaging")
             manifest["permissions"] = permissions
         }

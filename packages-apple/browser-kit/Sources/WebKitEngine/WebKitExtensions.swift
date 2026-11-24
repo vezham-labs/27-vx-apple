@@ -405,6 +405,10 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
                                  host: host, reply: replyHandler)
             return
         }
+        if applicationIdentifier == "ark.management" {
+            handleManagement(message as? [String: Any] ?? [:], from: extensionContext, reply: replyHandler)
+            return
+        }
         if let name = applicationIdentifier, ExtensionBridges.names.contains(name) {
             ExtensionBridges.handle(name, message: message, extensionID: extensionContext.uniqueIdentifier,
                                     displayName: extensionContext.webExtension.displayName ?? "An extension",
@@ -412,6 +416,117 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
             return
         }
         replyHandler(nil, Self.noNativeMessaging(applicationIdentifier))
+    }
+
+    /// chrome.management is implemented here so the caller's manifest permission is checked by
+    /// native code, and disabled catalog installs remain visible without loading their contexts.
+    private func handleManagement(_ request: [String: Any], from caller: WKWebExtensionContext,
+                                  reply: @escaping (Any?, (any Error)?) -> Void) {
+        let callerID = caller.uniqueIdentifier
+        let action = request["action"] as? String ?? ""
+        let askedID = request["id"] as? String ?? callerID
+        let callerManifest = caller.webExtension.manifest
+        // Optional permission declarations do not grant access by themselves. Ark currently wires
+        // this bridge for required management permission only; a future optional-permission grant
+        // flow must update the active-permission check before it can use this API.
+        let hasManagementPermission = (callerManifest["permissions"] as? [String] ?? []).contains("management")
+
+        switch action {
+        case "getSelf":
+            reply(managementInfo(for: callerID), nil)
+        case "get":
+            guard askedID == callerID || hasManagementPermission else {
+                reply(nil, managementError("The extension never asked for ‘management’"))
+                return
+            }
+            guard let info = managementInfo(for: askedID) else {
+                reply(nil, managementError("Could not find extension with id \(askedID)."))
+                return
+            }
+            reply(info, nil)
+        case "getAll":
+            guard hasManagementPermission else {
+                reply(nil, managementError("The extension never asked for ‘management’"))
+                return
+            }
+            reply(managementList(), nil)
+        default:
+            reply(nil, managementError("Unsupported chrome.management action"))
+        }
+    }
+
+    private func managementList() -> [[String: Any]] {
+        var entries: [String: [String: Any]] = [:]
+        var order: [String] = []
+        for item in host?.extensionManagementEntries ?? [] {
+            order.append(item.id)
+            entries[item.id] = managementInfo(item)
+        }
+        for item in loaded where entries[item.id] == nil { order.append(item.id) }
+        for (id, context) in contexts { entries[id] = managementInfo(context, fallback: entries[id]) }
+        return order.compactMap { entries[$0] }
+    }
+
+    private func managementInfo(for id: String) -> [String: Any]? {
+        let fallback = host?.extensionManagementEntries.first { $0.id == id }.map { managementInfo($0) }
+        if let context = contexts[id] { return managementInfo(context, fallback: fallback) }
+        return fallback
+    }
+
+    private func managementInfo(_ entry: EngineExtensionManagementEntry) -> [String: Any] {
+        var info: [String: Any] = [
+            "id": entry.id, "name": entry.name, "shortName": entry.shortName, "version": entry.version,
+            "description": entry.description, "enabled": entry.enabled, "type": "extension", "isApp": false,
+            "installType": entry.installType, "mayDisable": true, "mayEnable": true,
+            "offlineEnabled": entry.offlineEnabled, "permissions": entry.permissions,
+            "hostPermissions": entry.hostPermissions,
+        ]
+        if let versionName = entry.versionName { info["versionName"] = versionName }
+        if let homepage = entry.homepageURL { info["homepageUrl"] = homepage }
+        if let options = entry.optionsURL { info["optionsUrl"] = options }
+        if let icon = entry.iconDataURL { info["icons"] = [["size": 48, "url": icon]] }
+        if !entry.enabled { info["disabledReason"] = "unknown" }
+        return info
+    }
+
+    private func managementInfo(_ context: WKWebExtensionContext, fallback: [String: Any]? = nil) -> [String: Any] {
+        let ext = context.webExtension
+        let manifest = ext.manifest
+        let rawPermissions = manifest["permissions"] as? [String] ?? []
+        let hostPermissions = (manifest["host_permissions"] as? [String] ?? [])
+            + (manifest["manifest_version"] as? Int == 2 ? rawPermissions.filter { $0.contains("://") || $0 == "<all_urls>" } : [])
+        var info = fallback ?? [:]
+        info["id"] = context.uniqueIdentifier
+        info["name"] = ext.displayName ?? manifest["name"] as? String ?? context.uniqueIdentifier
+        info["shortName"] = manifest["short_name"] as? String ?? info["name"] as? String ?? context.uniqueIdentifier
+        info["version"] = ext.version ?? manifest["version"] as? String ?? ""
+        info["description"] = manifest["description"] as? String ?? ""
+        info["enabled"] = true
+        info["type"] = "extension"
+        info["isApp"] = false
+        info["installType"] = fallback?["installType"] ?? "normal"
+        info["mayDisable"] = true
+        info["mayEnable"] = true
+        info["offlineEnabled"] = manifest["offline_enabled"] as? Bool ?? false
+        info["homepageUrl"] = manifest["homepage_url"] as? String ?? ""
+        info["optionsUrl"] = context.optionsPageURL?.absoluteString ?? ""
+        // Prefer the source manifest's record: ExtensionCompat adds an internal nativeMessaging
+        // entry to the prepared copy, which Chrome's management API should not report as requested.
+        info["permissions"] = fallback?["permissions"] ?? rawPermissions.filter { !$0.contains("://") && $0 != "<all_urls>" }
+        info["hostPermissions"] = fallback?["hostPermissions"] ?? hostPermissions
+        if let versionName = manifest["version_name"] as? String, versionName != (ext.version ?? "") {
+            info["versionName"] = versionName
+        }
+        if let image = ext.icon(for: CGSize(width: 48, height: 48)), let data = image.tiffRepresentation,
+           let bitmap = NSBitmapImageRep(data: data),
+           let png = bitmap.representation(using: .png, properties: [:]) {
+            info["icons"] = [["size": 48, "url": "data:image/png;base64," + png.base64EncodedString()]]
+        }
+        return info
+    }
+
+    private func managementError(_ message: String) -> NSError {
+        NSError(domain: "Ark.Extensions.Management", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
     }
 
     func webExtensionController(_ controller: WKWebExtensionController, connectUsing port: WKWebExtension.MessagePort,

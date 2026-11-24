@@ -75,11 +75,7 @@
       queryState: resolves('active'), setDetectionInterval() {}, getAutoLockDelay: resolves(0),
       onStateChanged: event(),
     }),
-    management: () => ({
-      getSelf: () => Promise.resolve({ id: chrome.runtime.id, name: chrome.runtime.getManifest().name, enabled: true, installType: 'normal', type: 'extension', version: chrome.runtime.getManifest().version }),
-      getAll: resolves([]), get: unsupported('management.get'),
-      onInstalled: event(), onUninstalled: event(), onEnabled: event(), onDisabled: event(),
-    }),
+    management: (previous = {}, root = globalThis.chrome || globalThis.browser) => managementAPI(root, previous),
     privacy: () => {
       const setting = () => ({ get: resolves({ value: false, levelOfControl: 'not_controllable' }), set: resolves(undefined), clear: resolves(undefined), onChange: event() });
       return { services: { passwordSavingEnabled: setting(), autofillAddressEnabled: setting(), autofillCreditCardEnabled: setting(), autofillEnabled: setting() }, network: {}, websites: {} };
@@ -159,6 +155,28 @@
   };
   const offscreenCall = (action, url) => chrome.runtime.sendNativeMessage('ark.offscreen', { action, url });
   const bridge = (name, body) => chrome.runtime.sendNativeMessage(name, body);
+  function managementAPI(root, previous = {}) {
+    const call = (action, id, callback) => {
+      const message = { action };
+      if (id !== undefined) message.id = String(id);
+      const promise = root.runtime.sendNativeMessage('ark.management', message);
+      if (typeof callback !== 'function') return promise;
+      promise.then(callback, (error) => {
+        try { root.runtime.lastError = { message: String(error && error.message || error) }; } catch (_) {}
+        try { callback(undefined); } finally {
+          setTimeout(() => { try { root.runtime.lastError = undefined; } catch (_) {} }, 0);
+        }
+      });
+      return undefined;
+    };
+    return {
+      getSelf: (callback) => call('getSelf', undefined, callback),
+      getAll: (callback) => call('getAll', undefined, callback),
+      get: (id, callback) => call('get', id, callback),
+      onInstalled: previous.onInstalled || event(), onUninstalled: previous.onUninstalled || event(),
+      onEnabled: previous.onEnabled || event(), onDisabled: previous.onDisabled || event(),
+    };
+  }
   const offscreenReasons = Object.fromEntries(['TESTING', 'AUDIO_PLAYBACK', 'IFRAME_SCRIPTING', 'DOM_SCRAPING', 'BLOBS', 'DOM_PARSER',
     'USER_MEDIA', 'DISPLAY_MEDIA', 'WEB_RTC', 'CLIPBOARD', 'LOCAL_STORAGE', 'WORKERS', 'BATTERY_STATUS', 'MATCH_MEDIA', 'GEOLOCATION'].map(r => [r, r]));
   // Constants and small helpers Chrome has on namespaces WebKit does provide. Extensions read some of
@@ -180,7 +198,13 @@
   const missing = [];
   for (const root of roots) {
     for (const [name, make] of Object.entries(namespaces)) {
-      if (root[name] === undefined) {
+      if (name === 'management') {
+        const previous = root[name] || {};
+        const ours = keep(make(previous, root));
+        try { Object.defineProperty(root, name, { value: ours, configurable: true, writable: true }); }
+        catch (e) { try { Object.assign(previous, ours); } catch (e2) {} }
+        missing.push('management (bridged)');
+      } else if (root[name] === undefined) {
         try { root[name] = keep(make()); missing.push(name); } catch (e) {}
       } else if (name === 'sidePanel') {
         // WebKit has its own chrome.sidePanel, which Ark can't show: route its calls to Ark's panel.

@@ -96,7 +96,7 @@ struct BrowserCommands: Commands {
         }
 
         CommandGroup(before: .toolbar) {
-            Button("Edit Site Style…") { browser?.editSiteStyle() }
+            Button("Edit Boosts…") { browser?.editSiteStyle() }
                 .disabled(browser?.editableSiteStyleHost == nil)
             Button("Hide Page Element…") { browser?.selectSiteElementToHide() }
                 .disabled(browser?.editableSiteStyleHost == nil)

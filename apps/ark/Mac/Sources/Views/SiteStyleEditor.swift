@@ -11,7 +11,7 @@ struct SiteStyleEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Site Style").font(.headline)
+            Text("Boosts").font(.headline)
             Text(host).foregroundStyle(.secondary)
             Picker("Page font", selection: $font) {
                 ForEach(SiteStyleFont.allCases) { option in
@@ -23,7 +23,7 @@ struct SiteStyleEditor: View {
                 .accessibilityLabel("Custom CSS")
                 .border(.quaternary)
                 .frame(minHeight: 180)
-            Text("Choose a font or enter CSS for this site. Select Original and clear the editor to remove the style.")
+            Text("Customize this site with a font and CSS. Select Original and clear the editor to remove your changes.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             if !hiddenElements.isEmpty {
@@ -63,7 +63,7 @@ struct SiteStyleEditor: View {
                 .frame(maxHeight: 108)
             }
             if saveFailed {
-                Text("Couldn’t save the site style.").font(.caption).foregroundStyle(.red)
+                Text("Couldn’t save these Boosts.").font(.caption).foregroundStyle(.red)
             }
             HStack {
                 Spacer()

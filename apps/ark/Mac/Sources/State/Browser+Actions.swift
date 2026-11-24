@@ -97,7 +97,7 @@ extension Browser {
         }
         out.append(BrowserCommand(id: "import-space-links", title: "Import Space Links…", keywords: ["restore", "tabs", "bookmarks", "json"]))
         if let host = editableSiteStyleHost {
-            out.append(BrowserCommand(id: "edit-site-style", title: "Edit Site Style…", subtitle: host, keywords: ["css", "boost", "customize"]))
+            out.append(BrowserCommand(id: "edit-site-style", title: "Edit Boosts…", subtitle: host, keywords: ["css", "site style", "customize"]))
             out.append(BrowserCommand(id: "hide-site-element", title: "Hide Page Element…", keywords: ["boost", "element", "customize"]))
         }
         if !splitCandidates.isEmpty {

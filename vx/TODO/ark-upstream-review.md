@@ -19,7 +19,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 27 of 263 commits assessed (10.3%); 236 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 28 of 263 commits assessed (10.6%); 235 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -193,7 +193,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `f647b3160561512f22970bf101bcbd77f34cf00d` | Sheets: a sideways swipe never goes back where the page's root says overscroll-behavior-x: none (idea 990) | Pending |
 | `b666fb92e88e25f005f31929976a6d525efdf685` | CHANGELOG: Unreleased read through for 1.0.19 | Pending |
 | `cc3ee712f8e6b6e2ed5131fbfd904e0097d0b824` | Extensions: the store update check asks as Chrome's Update button does, so Bitwarden 2026.11.0 arrives (idea 992) | Adapted: Ark now sends installed version, Chrome product/platform fields, and foreground update headers for Chrome Web Store updates. Existing BrowserKit Swift tests and the Mac build passed; live staged-rollout behavior remains unverified. |
-| `987da47510c80df6c7d3d648caae375aee4dc909` | Extensions: a failed store update check is retried in an hour, backing off to a day, instead of waiting 20 h (idea 992) | Pending |
+| `987da47510c80df6c7d3d648caae375aee4dc909` | Extensions: a failed store update check is retried in an hour, backing off to a day, instead of waiting 20 h (idea 992) | Adapted: Ark persists per-extension retry timing with 1/2/4/8/16-hour backoff capped at 20 hours; manual checks bypass the delay. Existing BrowserKit tests and Mac build passed; live outage/recovery timing remains unverified. |
 | `2f99ea479579582ff6eaf63f6596aef7ca78b26b` | Bench seam: a hidden probe's window told it is in full screen or out of sight, and a probe for Escape there (idea 582) | Pending |
 | `1c84b99d7127c7c26065c66653cac309f914ebe9` | The floating video's window watch goes when Search is left again (idea 470) | Adapted: Ark now waits for a visible window to become occluded before starting automatic PiP; windows on another display stay inline, and returning to Ark cancels the watch. Mac build passed; visibility-change runtime checks remain open. |
 | `75eb6728a20e4f91a8465ce8bb2a91812058b4dc` | Settings › Show icons only on the bookmarks bar: every bookmark its icon alone, its name on hover; folders keep names (idea 980) | Pending |

@@ -18,6 +18,9 @@ public struct InstalledExtension: Codable, Identifiable, Hashable, Sendable {
     public var permissions: Set<String>
     public var addedAt: Date
     public var checkedAt: Date?
+    /// Backoff state for failed store checks; absent in catalogs saved before retry support.
+    public var updateFailures: Int?
+    public var updateRetryAt: Date?
     /// A newer version that asks for more than this one, waiting for the user to say yes.
     public var pendingUpdate: PendingUpdate?
 
@@ -37,6 +40,8 @@ public struct InstalledExtension: Codable, Identifiable, Hashable, Sendable {
         self.folderBookmark = folderBookmark
         self.permissions = permissions
         self.addedAt = addedAt
+        updateFailures = nil
+        updateRetryAt = nil
     }
 }
 
@@ -153,6 +158,8 @@ public final class ExtensionInstaller {
         guard item.source.isFromStore else { throw Failure.notAStoreSource }
         var item = item
         item.checkedAt = .now
+        item.updateFailures = nil
+        item.updateRetryAt = nil
         let release = try await latestRelease(item.source, installedVersion: item.version)
         guard isVersion(release.version, newerThan: item.version) else {
             catalog.upsert(item)
@@ -195,9 +202,24 @@ public final class ExtensionInstaller {
     /// in one request. Returns what changed, by extension id; failures are skipped until next time.
     public func updateAll(in catalog: ExtensionCatalog, olderThan interval: TimeInterval = 20 * 3600) async -> [String: UpdateOutcome] {
         var results: [String: UpdateOutcome] = [:]
-        let due = catalog.enabled.filter { $0.source.isFromStore && ($0.checkedAt.map { -$0.timeIntervalSinceNow > interval } ?? true) }
+        let now = Date()
+        let due = catalog.enabled.filter { item in
+            guard item.source.isFromStore else { return false }
+            if interval == 0 { return true }
+            if let retryAt = item.updateRetryAt { return retryAt <= now }
+            return item.checkedAt.map { now.timeIntervalSince($0) > interval } ?? true
+        }
         for item in due {
-            if let outcome = try? await update(item, in: catalog), outcome != .upToDate { results[item.id] = outcome }
+            do {
+                let outcome = try await update(item, in: catalog)
+                if outcome != .upToDate { results[item.id] = outcome }
+            } catch {
+                guard var failed = catalog[item.id] else { continue }
+                let failures = (failed.updateFailures ?? 0) + 1
+                failed.updateFailures = failures
+                failed.updateRetryAt = Date().addingTimeInterval(ExtensionUpdateRetry.delay(failures: failures))
+                catalog.upsert(failed)
+            }
         }
         return results
     }

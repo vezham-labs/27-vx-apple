@@ -135,6 +135,15 @@ public enum ChromeWebStore {
     }
 }
 
+/// Retry failed extension checks sooner than the normal daily cadence, then back off.
+public enum ExtensionUpdateRetry {
+    public static let regularInterval: TimeInterval = 20 * 60 * 60
+
+    public static func delay(failures: Int) -> TimeInterval {
+        min(60 * 60 * pow(2, Double(max(failures, 1) - 1)), regularInterval)
+    }
+}
+
 /// One extension's answer in a Chrome update check.
 public struct StoreRelease: Equatable, Sendable {
     public let id: String

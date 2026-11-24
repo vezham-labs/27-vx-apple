@@ -26,6 +26,13 @@ import Testing
         #expect(request.value(forHTTPHeaderField: "X-Goog-Update-Updater") == "chromecrx-\(ChromeWebStore.productVersion)")
     }
 
+    @Test func backsOffFailedExtensionUpdateChecks() {
+        #expect(ExtensionUpdateRetry.delay(failures: 1) == 60 * 60)
+        #expect(ExtensionUpdateRetry.delay(failures: 2) == 2 * 60 * 60)
+        #expect(ExtensionUpdateRetry.delay(failures: 3) == 4 * 60 * 60)
+        #expect(ExtensionUpdateRetry.delay(failures: 8) == 20 * 60 * 60)
+    }
+
     @Test func comparesVersions() {
         #expect(isVersion("1.2.10", newerThan: "1.2.9"))
         #expect(!isVersion("1.2", newerThan: "1.2.0"))

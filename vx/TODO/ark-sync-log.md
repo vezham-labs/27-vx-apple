@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 27/263 incoming commits assessed (10.3%); 236 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 28/263 incoming commits assessed (10.6%); 235 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -17,6 +17,8 @@ Fetched upstream heads: Browsa `e981df56c551fc83efc39efe1b7d61cd7abe3071`; Searc
 Adapted Browsa `85f6092a072347c472cc7e841ecbced7707e5ba5` in Ark's `PageActivity.swift`: coalesce media events over 200 ms instead of rescanning media for every event. Ark additionally cancels the pending report on `pagehide` so an old timer cannot overwrite the inactive report. Input and submit reporting remain immediate. An in-memory Node check of the extracted script verified that 100 media events scheduled one scan and page hide cancelled the pending timer. This uses a mock DOM, not live WebKit, and does not establish a measured CPU improvement. Live timing verification remains pending.
 
 Adapted Search `cc3ee712f8e6b6e2ed5131fbfd904e0097d0b824` in BrowserKit's Chrome Web Store updater. Installed extensions now send their current version, Chrome platform/product fields, and foreground update headers; first-time downloads keep their existing discovery request. The existing BrowserKit Swift test target and `ark:build-mac` passed. A live staged-rollout update remains unverified. Arc's Chrome extensions row and its compatibility evidence are unchanged.
+
+Ark implementation checkpoint: [`d6c96345`](../../commit/d6c96345) adapts Search `cc3ee712f8e6b6e2ed5131fbfd904e0097d0b824` as described above. The next reviewed Search change, `987da47510c80df6c7d3d648caae375aee4dc909`, adds retry backoff after failed update checks. Ark now persists retry timing per extension (1, 2, 4, 8, 16 hours, capped at 20 hours) and lets a manual check bypass it. BrowserKit tests and Mac build verification are in progress for this increment.
 
 Next review candidates include upstream extension permission and redirect checks, private-window extension controls, and avoiding unchanged Live Folder writes. New upstream visual designs require comparison against Arc before adoption.
 

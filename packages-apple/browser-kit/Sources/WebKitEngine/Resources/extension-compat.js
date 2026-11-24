@@ -172,6 +172,7 @@
         contextId: 'ark-offscreen', tabId: -1, windowId: -1, frameId: -1, incognito: false }] : [], () => []);
     } },
     scripting: { ExecutionWorld: { ISOLATED: 'ISOLATED', MAIN: 'MAIN' } },
+    identity: { AccountStatus: Object.freeze({ SYNC: 'SYNC', ANY: 'ANY' }) },
     tabs: { TAB_ID_NONE: -1, TAB_INDEX_NONE: -1 },
     windows: { WINDOW_ID_NONE: -1, WINDOW_ID_CURRENT: -2 },
     offscreen: { Reason: offscreenReasons },

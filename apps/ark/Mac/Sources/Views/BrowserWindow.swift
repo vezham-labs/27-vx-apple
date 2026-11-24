@@ -15,8 +15,21 @@ struct BrowserWindow: View {
     var body: some View {
         @Bindable var browser = browser
         let docked = browser.isSidebarDocked
+        // Capture actor-bound state before the background builder is evaluated by SwiftUI.
+        let backgroundSurface = SpacePalette.surface(for: browser.currentSpace, dark: colorScheme == .dark)
+        let backgroundSpaceID = browser.selectedSpaceID
+        let isIntroHoldingSidebar = browser.isIntroHoldingSidebar
         WindowColumns(browser: browser, sidebarDocked: docked, panelOpen: browser.panel != nil)
-        .background { background }
+        .background {
+            ZStack {
+                WindowMaterial(material: .sidebar)
+                Color(nsColor: backgroundSurface.color)
+                    .opacity(isIntroHoldingSidebar ? 0 : backgroundSurface.opacity)
+                    .animation(Motion.spring, value: backgroundSpaceID)
+                    .animation(.easeInOut(duration: 0.5), value: isIntroHoldingSidebar)
+            }
+            .ignoresSafeArea()
+        }
         .overlay(alignment: .leading) {
             if !docked { peekingSidebar }
         }
@@ -105,22 +118,9 @@ struct BrowserWindow: View {
         }
     }
 
-    /// The space's colour and shade over the window material. It tints the sidebar and the frame
-    /// around the page, never the icons or the page itself.
+    /// The space's colour and shade for the floating sidebar.
     private var surface: (color: NSColor, opacity: Double, isDark: Bool) {
         SpacePalette.surface(for: browser.currentSpace, dark: colorScheme == .dark)
-    }
-
-    private var background: some View {
-        ZStack {
-            WindowMaterial(material: .sidebar)
-            // Neutral until the intro reaches the sidebar, then the tint comes in.
-            Color(nsColor: surface.color)
-                .opacity(browser.isIntroHoldingSidebar ? 0 : surface.opacity)
-                .animation(Motion.spring, value: browser.selectedSpaceID)
-                .animation(.easeInOut(duration: 0.5), value: browser.isIntroHoldingSidebar)
-        }
-        .ignoresSafeArea()
     }
 
     /// With the sidebar hidden, pointing at the window's left edge slides it over the page, like Arc.

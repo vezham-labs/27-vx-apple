@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 33/263 incoming commits assessed (12.5%); 230 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 34/263 incoming commits assessed (12.9%); 229 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -25,6 +25,12 @@ Review-only dispositions: Search `2f99ea479579582ff6eaf63f6596aef7ca78b26b` adds
 Search `344088842d4fb67b8340aba5e7b799589eb2a0b3` changes a worker `window` shim that Ark does not have: Ark leaves `window` undefined in extension workers, allowing Readwise to define it as `globalThis`. No port is needed unless Ark reproduces a failure.
 
 Ark commit [`b357c402`](../../commit/b357c402) adapts Browsa `5150b3c83fb7d0aadec46707a2e802c495942fa2` with Ark's `ark.identity` bridge. Only extensions declaring the `identity` permission can start a Chrome Web Store OAuth flow. Interactive sign-in opens a tab; quiet sign-in uses a hidden WebKit view with the active profile's website data store. Matching redirects are returned to the extension and never loaded from `chromiumapp.org`; redirects from flow-owned popups close with the flow. BrowserKit tests and `ark:build-mac` passed. Provider sign-in, callback behavior, and direct extension-tab redirect observation remain unverified; Ark does not use Search's private `loadSimulatedRequest` API.
+
+### Boost fonts — Mac implementation
+
+Compared Browsa `c3395378003da051a43fdc71b586ddcd57ea3a47` and pinned Search `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316` with Ark's existing site-style feature. Search explicitly limits its site styles to user CSS and does not run authored page scripts. Ark already had exact-host CSS plus Zap-style element hiding, persistence, restore, and preview. Added per-host Original, System, Serif, Rounded, and Mono font choices to the Mac editor and shared BrowserKit style application, stored separately in `site-fonts.json` to preserve existing style and hidden-element files. Browsa's page-tint overlay and arbitrary user scripts were not adopted: the former needs a deliberate visual/accessibility design, while the latter adds an execution surface beyond Search's CSS-only model.
+
+Verification: all 75 existing BrowserKit tests passed, including font persistence and host isolation; `ark:build-mac` passed. No new test file or simulator was added. Font appearance and save/reload interaction have not yet been checked in the running app, so this does not change the matrix's Mac Yes rating or the mobile Partial ratings. Ark implementation: [`25c7b5d5`](../../commit/25c7b5d5).
 
 Next review candidates include upstream extension permission and redirect checks, private-window extension controls, and avoiding unchanged Live Folder writes. New upstream visual designs require comparison against Arc before adoption.
 

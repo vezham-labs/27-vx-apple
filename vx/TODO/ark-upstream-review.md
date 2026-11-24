@@ -19,7 +19,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 33 of 263 commits assessed (12.5%); 230 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 34 of 263 commits assessed (12.9%); 229 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -96,7 +96,7 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 | `f290465375c93cea89abf14cff2133576a350a69` | Combine Live Folders (PR #113) into the Arc features test branch | Pending |
 | `4aba34670ec0f2860889bd523c8f600b5120f967` | Combine Always open in app (PR #111) into the Arc features test branch | Pending |
 | `b858dfab60cb64c5832717dd31f44f29f82b711a` | Combine Favourites stay in current Space (PR #109) into the Arc features test branch | Pending |
-| `c3395378003da051a43fdc71b586ddcd57ea3a47` | Boosts you make yourself: font, tint, Zap, CSS and scripts per site [skip ci] | Pending |
+| `c3395378003da051a43fdc71b586ddcd57ea3a47` | Boosts you make yourself: font, tint, Zap, CSS and scripts per site [skip ci] | Adapted font presets into Ark's existing exact-host CSS and Zap feature; BrowserKit suite and Mac build passed. Browsa's tint overlay and arbitrary scripts were not adopted; Mac font rendering and interaction remain unverified. |
 | `7013dc172e3a10c84100b250e24cffcd63164dee` | Mac: open-in-app buttons Open / Not Now / Always Open / Don't Open [skip ci] | Pending |
 | `19651fbebec3c5695271d5d6d1ad9c59394be7c7` | Merge earlier rename branch (already in main) [skip ci] | Pending |
 | `caba8d6498a92179038bb44de3e6c9daea7b64ba` | Update Always open in app (PR #111) in the Arc features test branch | Pending |

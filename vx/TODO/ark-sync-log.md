@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 83/263 incoming commits assessed (31.6%); 180 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 87/263 incoming commits assessed (33.1%); 176 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -23,6 +23,14 @@ Ark implementation checkpoints: [`d6c96345`](../../commit/d6c96345) adapts Searc
 Review-only dispositions: Search `2f99ea479579582ff6eaf63f6596aef7ca78b26b` adds hidden test-bench seams, not browser behavior; `75eb6728a20e4f91a8465ce8bb2a91812058b4dc` adds a bookmarks-bar icon-only preference that does not match Arc's sidebar. Search `20942bc01fe5a96f63b3490e5f9cf643f133b996` fixes links in Search's custom extension popup; Ark instead uses WebKit's native extension-action popover, so reproducing the Raindrop sign-in case in Ark remains open before a port decision.
 
 Search `344088842d4fb67b8340aba5e7b799589eb2a0b3` changes a worker `window` shim that Ark does not have: Ark leaves `window` undefined in extension workers, allowing Readwise to define it as `globalThis`. No port is needed unless Ark reproduces a failure.
+
+Reviewed Browsa `53eebb6fd5b97f403077adb0a509a384b4fe8ad0`: Ark's link-open path already inserts a child tab after its source, while manually created tabs use Ark's existing placement and WebKit popups become tabs. The upstream's opener-return history, small sign-in windows, and new-tab placement preference are separate Mac behaviors with no direct Arc matrix gap. Deferred for a focused compatibility decision; no code or matrix rating changed.
+
+Reviewed Browsa `989e0c7119281a0297389728cd8bc189f54d1817`: Ark already implements per-site Boosts with custom CSS, font choice, element hiding/restoring, and live application. Browsa adds a bundled LinkedIn preset and a one-time animated suggestion; these do not close a capability gap in the 42-row Boosts comparison. No code or matrix rating changed.
+
+Reviewed Browsa `198f9de27ad744eb1a3398a94264047b8fa016e1`: Ark already offers one-click Claude Code setup, exact Codex/Cursor config snippets, connected-agent status, and Claude token refresh. Browsa additionally writes Codex/Cursor/VS Code config files and unifies their setup/status UI. This is a separate Agents workflow improvement outside the 42 Arc rows and pinned Search gaps; defer to a dedicated Agents pass. No code or matrix rating changed.
+
+Reviewed Browsa `05163ec1fd691ae7ed07f9a1ffd5038cd2dbcb5f`: third-party native messaging would start local executables and needs strict `allowed_origins` validation, extension permission checks, bounded framing, process cleanup, and clear errors. The same commit changes Chrome Web Store extensions from Ark's current `webkit-extension` identity to `chrome-extension`; existing storage/cookies depend on the old identity, so a migration must preserve sign-ins. Defer the code until the security and migration design has focused verification. Chrome extensions remains Partial; no code or matrix rating changed.
 
 ### Search pinned-link behavior — Mac
 

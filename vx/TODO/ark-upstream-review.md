@@ -19,7 +19,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 83 of 263 commits assessed (31.6%); 180 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 87 of 263 commits assessed (33.1%); 176 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -38,9 +38,9 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 | `017485534e38d14d55563fb7076c9b0214a26dab` | Mac: keep the notifications handler pages started with | Reviewed; retains controller-bound WebKit message handlers instead of swapping them while a page is open. Ark has no notifications bridge to update; no code or matrix change. |
 | `26afb7ba5950b260807d392df7a9d94f3d3c8770` | Mac: narrow sidebar keeps the window buttons in place; note pins stay on the page (#95) [skip ci] | Partially adapted: Ark clamps the sidebar to the measured width of its own top controls and adds a per-site content-blocking switch. Mac build passed; narrow-drag runtime check pending. The dynamic, CSP-resistant note-pin rewrite remains pending; it is outside the 42-row comparison. |
 | `3deba26b9582546a43141f1f8f3d8155e3f2d188` | Mac: Visit Anyway for untrusted certificates, and a local network setting (#98) [skip ci] | Adapted exact-leaf-certificate exceptions per host and port; private-tab exceptions stay in memory; older settings decode with no exceptions. Omitted the broad local-network bypass to retain explicit per-site consent. Mac build passed; live self-signed-certificate verification pending. Supporting security behavior, not an additional Arc comparison row. |
-| `53eebb6fd5b97f403077adb0a509a384b4fe8ad0` | Mac: new tabs go back to their opener, sign-in popups open in a window, New tabs open setting (#102) [skip ci] | Pending |
-| `989e0c7119281a0297389728cd8bc189f54d1817` | Mac: Site Styles (opt-in per-site looks), starting with a tidier LinkedIn feed (#99) [skip ci] | Pending |
-| `198f9de27ad744eb1a3398a94264047b8fa016e1` | Mac: one-click Add for Claude Code, Codex, Cursor and VS Code (#100) [skip ci] | Pending |
+| `53eebb6fd5b97f403077adb0a509a384b4fe8ad0` | Mac: new tabs go back to their opener, sign-in popups open in a window, New tabs open setting (#102) [skip ci] | Reviewed; Ark already places link-opened tabs after their source and opens WebKit popups as tabs. Opener-history and sized sign-in windows add separate Mac tab/window behavior outside a direct Arc matrix gap; defer for a focused compatibility decision. No code or matrix change. |
+| `989e0c7119281a0297389728cd8bc189f54d1817` | Mac: Site Styles (opt-in per-site looks), starting with a tidier LinkedIn feed (#99) [skip ci] | Reviewed; Ark already implements per-site Boosts with custom CSS, fonts, element hiding/restoring, and live apply. Browsa's bundled LinkedIn preset and one-time suggestion animation are not needed to close the Boosts row; no code or matrix change. |
+| `198f9de27ad744eb1a3398a94264047b8fa016e1` | Mac: one-click Add for Claude Code, Codex, Cursor and VS Code (#100) [skip ci] | Reviewed; Ark already provides one-click Claude Code setup and exact Codex/Cursor snippets, with connection state and token reset. Browsa adds config-file writes, VS Code setup, and unified status UI; these improve the separate Agents workflow but are outside the Arc feature rows and pinned Search gap list. Defer to a dedicated Agents pass; no code or matrix change. |
 | `0668064cb39941e8f2d3d85c301f881683ff34de` | Mac: say when notifications are off for Browsa in System Settings | Reviewed; adds macOS authorization-state messaging and a route to System Settings for Browsa notifications. No Ark notification UI/backend; no code or matrix change. |
 | `e45460383f3cc28dec1e732f3fd3b4e4679fd3a5` | Mac: Settings shows whether macOS allows Browsa's notifications | Reviewed; adds a Browsa-specific notification authorization status section. It depends on the deferred notification subsystem; no Ark change. |
 | `8cc69a723569858036b05fce13ab185225121f54` | Merge #97 (site notifications) with main: keep Visit Anyway, Site Styles and notifications | Pending |
@@ -49,7 +49,7 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 | `23802c8bbb2a222ecf3ee6501a77eed14bec4db3` | Mac 1.2.1 notes: Improvements section [skip ci] | Pending |
 | `6f1e6d2cc3a3a18fdc6be64d92cabb8d171c492f` | Release notes guide: Improvements section [skip ci] | Pending |
 | `f34b47e03fe3688097b5e733da2161ad4d37ab41` | Mac 1.2.1: site notifications (#97), release notes (#101), What's New (#104) [skip ci] | Pending |
-| `05163ec1fd691ae7ed07f9a1ffd5038cd2dbcb5f` | Mac extensions: Chrome's addresses and native messaging, Chrome 156 | Pending |
+| `05163ec1fd691ae7ed07f9a1ffd5038cd2dbcb5f` | Mac extensions: Chrome's addresses and native messaging, Chrome 156 | Reviewed; native messaging would launch local executables and requires origin allow-list, permission, process-lifecycle, and error-path review. Switching installed extensions from Ark's existing WebKit identity to Chrome origins also requires data-store migration to preserve sign-ins. Defer implementation until these decisions and focused verification are ready; Chrome extensions stays Partial. |
 | `d635c764932b09e8d9b401fe308e8ff1024196ff` | Merge main into claude/project-thread-himevy [skip ci] | Pending |
 | `d50c599e23290877bd4609d0b1f2758ea25460a3` | Mark HostPipe macOS 15.4-only so BrowserKit builds [skip ci] | Pending |
 | `b7d5f229874aba0a8ee32e12f41a1d9085502987` | Start native hosts in Browsa's process group, and throttle restarts [skip ci] | Pending |

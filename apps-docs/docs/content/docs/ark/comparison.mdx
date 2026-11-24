@@ -13,10 +13,14 @@ Ark uses [WebKit](/docs/ark/engines) across platforms. The migration counts use 
 
 The incoming implementation review targets Browsa `e981df56` and Search `33ec7aea` (November 24, 2026). These heads are not yet fully synced. The [commit inventory and remaining work](../../../../../vx/TODO/ark-upstream-review.md) tracks each incoming change. Arc remains the UI/UX reference for the entire Mac sidebar; upstream interface designs are not automatically adopted. Existing ratings below remain tied to their recorded verification.
 
-Upstream review progress is 83/263 commits (31.6%). The Mac matrix has 21/42 rows rated Yes (50%); build-only and unverified behavior do not count as runtime parity.
+Upstream review progress is 87/263 commits (33.1%). The Mac matrix has 21/42 rows rated Yes (50%); build-only and unverified behavior do not count as runtime parity.
 
 | Incoming batch | Affected rows | Current evidence |
 | --- | --- | --- |
+| Chrome extension origins and native hosts (Browsa `05163ec`) | Chrome extensions | Reviewed; not ported yet. Native messaging launches local programs and changing extension origins can invalidate existing storage/sign-ins. Requires a permission, process-safety, and identity-migration plan; row remains Partial. |
+| Multi-agent one-click setup (Browsa `198f9de`) | No direct Arc row | Reviewed; Ark already has Claude setup and Codex/Cursor snippets. Config-file writes and VS Code support are deferred to a separate Agents pass. |
+| Curated Site Style preset (Browsa `989e0c7`) | Boosts | Reviewed; Ark already supports per-site CSS, fonts, element hiding/restoring, and live apply. The LinkedIn-specific preset and suggestion animation were not imported. |
+| Opener history and sized popups (Browsa `53eebb6`) | No direct Arc row | Reviewed, not ported: Ark already places link-opened tabs after their source and opens WebKit popups as tabs. Opener-return history and separate sign-in windows need a focused compatibility decision. |
 | Media-event batching (Browsa `85f6092`) | Archive, Bloat | Adapted. Extracted-script check verifies one scan for 100 events and cancellation on page hide. Mac build passed; live WebKit timing and CPU impact remain unverified. |
 | Script-only controller refresh (Browsa `5ebc8c1`) | Built-in ad blocker, Bloat | Adapted for call-audio setting changes, preserving installed blocker lists. Mac build passed; runtime verification pending. |
 | Folder insertion positions (Ark adaptation) | Pinned tabs and folders | Mac build passed; runtime verification of the new reorder path remains pending. |

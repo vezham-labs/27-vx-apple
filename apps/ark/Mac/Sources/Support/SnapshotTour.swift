@@ -7,6 +7,11 @@ import Suggest
 import WebKit
 import WebKitEngine
 
+@MainActor
+private enum SnapshotTourWindows {
+    static var retained: [NSWindow] = []
+}
+
 /// Debug only: with ARK_SNAPSHOT=<folder> set, walks through the main screens and saves a PNG of
 /// the window at each step, then quits. For checking layouts on a Mac nobody is looking at.
 @MainActor
@@ -452,10 +457,10 @@ struct SnapshotTour {
         settings.title = "Spaces"
         settings.contentView = NSHostingView(rootView: SettingsView().environment(library).environment(delegate.updates))
         settings.center()
+        SnapshotTourWindows.retained.append(settings)
         settings.makeKeyAndOrderFront(nil)
         await pause(0.8)
         saveVisible("space-profiles", in: settings)
-        settings.close()
         browser.nsWindow?.makeKeyAndOrderFront(nil)
     }
 

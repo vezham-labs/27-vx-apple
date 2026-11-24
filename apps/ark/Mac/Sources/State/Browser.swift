@@ -745,7 +745,12 @@ final class Browser {
     var blockingDisabledForCurrentSite: Bool { settings.blockingDisabled(for: currentTab?.url?.host()) }
 
     func toggleBlockingForCurrentSite() {
-        guard let tab = currentTab, let host = tab.url?.host()?.lowercased() else { return }
+        guard let tab = currentTab else { return }
+        toggleBlocking(for: tab)
+    }
+
+    func toggleBlocking(for tab: BrowserTab) {
+        guard let host = tab.url?.host()?.lowercased() else { return }
         let site = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
         if settings.blockingDisabled(for: host) {
             settings.blockingDisabledHosts = settings.blockingDisabledHosts.filter { host != $0 && !host.hasSuffix("." + $0) }

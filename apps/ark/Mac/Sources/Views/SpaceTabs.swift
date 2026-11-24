@@ -545,6 +545,25 @@ struct TabMenu: View {
             Button("Copy Link", systemImage: "link") {
                 browser.copyLink(url)
             }
+            if tab.isPinned, !tab.isPrivate, let host = url.host() {
+                Menu("Site Information…", systemImage: "info.circle") {
+                    Text(URLNormalizer.displayHost(url)).disabled(true)
+                    if browser.settings.blockContent {
+                        Toggle("Block Ads and Trackers", isOn: Binding(
+                            get: { !browser.settings.blockingDisabled(for: host) },
+                            set: { _ in browser.toggleBlocking(for: tab) }
+                        ))
+                    }
+                    Picker("Camera and Microphone", selection: Binding(
+                        get: { mediaPermission(for: host, tab: tab) },
+                        set: { setMediaPermission($0, for: host, tab: tab) }
+                    )) {
+                        Text("Ask").tag(Bool?.none)
+                        Text("Allow").tag(Bool?.some(true))
+                        Text("Block").tag(Bool?.some(false))
+                    }
+                }
+            }
             Button("Duplicate Tab", systemImage: "plus.square.on.square") {
                 browser.newTab(url: url, in: browser.space(containing: tab), source: .link)
             }
@@ -563,6 +582,19 @@ struct TabMenu: View {
         }
         Button(tab.isPinned ? "Unload Tab" : "Close Tab", systemImage: "xmark", role: .destructive) {
             withAnimation(Motion.snappy) { browser.close(tab) }
+        }
+    }
+
+    private func mediaPermission(for host: String, tab: BrowserTab) -> Bool? {
+        let saved = browser.library.sitePermissions(for: host, isPrivate: tab.isPrivate)
+        return saved[EnginePermission.cameraAndMicrophone.rawValue]
+            ?? saved[EnginePermission.camera.rawValue]
+            ?? saved[EnginePermission.microphone.rawValue]
+    }
+
+    private func setMediaPermission(_ value: Bool?, for host: String, tab: BrowserTab) {
+        for permission in [EnginePermission.camera, .microphone, .cameraAndMicrophone] {
+            browser.library.setSitePermission(permission.rawValue, value, for: host, isPrivate: tab.isPrivate)
         }
     }
 }

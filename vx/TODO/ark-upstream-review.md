@@ -25,7 +25,7 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 
 | Commit | Change | Disposition |
 | --- | --- | --- |
-| `ed71db69e6bd0647652563ee91a573b0e593dd2b` | Mac: bring the call window back on screen if its display is gone (#96) [skip ci] | Pending |
+| `ed71db69e6bd0647652563ee91a573b0e593dd2b` | Mac: bring the call window back on screen if its display is gone (#96) [skip ci] | Adapted: restore saved/off-screen call PiP to the main display; Mac build passed; unplugged-display runtime check pending |
 | `58f6c41f704e3fb449c4cf015384eb45a0d87cab` | Mac: sites' notifications as macOS notifications | Pending |
 | `2e7723a00f8c3094a27d99a4fbcfb2b2204487ee` | Mac: SiteNotifications imports BrowserCore [skip ci] | Pending |
 | `a2616b39101ba848d592b7088348429d83fb59ec` | Mac 1.2.1 release notes draft [skip ci] | Pending |

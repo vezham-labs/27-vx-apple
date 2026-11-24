@@ -72,11 +72,11 @@ final class CallPiP {
     }
 
     private func float(_ tab: BrowserTab) {
-        guard let controller = library.existingController(for: tab) else { return }
-        guard let page = controller.page else { return }
+        guard let controller = library.existingController(for: tab), let page = controller.page else { return }
         let panel = self.panel ?? makePanel()
         // A new call starts full size; the same call keeps the size you left it at.
         if lastTabID != tab.id { panel.setMinimised(false, animated: false) }
+        if !panel.isOnScreen { panel.moveTo(Self.defaultFrame(on: NSScreen.main)) }
         lastTabID = tab.id
         floating = (tab, page.zoom)
         page.zoom = Self.scale
@@ -118,15 +118,18 @@ final class CallPiP {
 
     private func makePanel() -> CallPiPPanel {
         var frame = NSRectFromString(UserDefaults.standard.string(forKey: Self.frameKey) ?? "")
-        let screen = NSScreen.screens.first { $0.visibleFrame.intersects(frame) } ?? NSScreen.main
-        if frame.width < 200 || screen == nil {
-            let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-            frame = NSRect(x: visible.maxX - Self.defaultSize.width - 16, y: visible.minY + 16,
-                           width: Self.defaultSize.width, height: Self.defaultSize.height)
+        if frame.width < 200 || !CallPiPPanel.showsEnough(of: frame) {
+            frame = Self.defaultFrame(on: NSScreen.main)
         }
         let panel = CallPiPPanel(frame: frame, scale: Self.scale)
         self.panel = panel
         return panel
+    }
+
+    private static func defaultFrame(on screen: NSScreen?) -> NSRect {
+        let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        return NSRect(x: visible.maxX - defaultSize.width - 16, y: visible.minY + 16,
+                      width: defaultSize.width, height: defaultSize.height)
     }
 }
 
@@ -153,6 +156,24 @@ final class CallPiPPanel: NSPanel {
     private var fullFrame: NSRect
     /// Where to keep the window next time: its full size even while it's an icon.
     var restingFrame: NSRect { isMinimised ? fullFrame : frame }
+
+    static func showsEnough(of frame: NSRect) -> Bool {
+        NSScreen.screens.contains {
+            let visible = $0.visibleFrame.intersection(frame)
+            return visible.width >= 40 && visible.height >= 40
+        }
+    }
+
+    var isOnScreen: Bool { Self.showsEnough(of: frame) }
+
+    func moveTo(_ full: NSRect) {
+        fullFrame = full
+        let target = isMinimised
+            ? NSRect(x: full.maxX - Self.miniSize, y: full.minY,
+                     width: Self.miniSize, height: Self.miniSize)
+            : full
+        setFrame(target, display: isVisible)
+    }
     private var hovering = false
     private var hideTimer: Timer?
     /// Changing between the window and the icon: the name and buttons stay put and hidden meanwhile.

@@ -408,6 +408,8 @@ public protocol EnginePageDelegate: AnyObject {
     func page(_ page: any EnginePage, openedPopup popup: any EnginePage, url: URL?) -> (any EnginePageDelegate)?
     /// The page called window.close().
     func pageDidRequestClose(_ page: any EnginePage)
+    /// The system PiP close control is returning this page to inline playback.
+    func pageWillReturnFromPictureInPicture(_ page: any EnginePage)
 
     func page(_ page: any EnginePage, show dialog: EngineDialog) async -> EngineDialogResponse
     func page(_ page: any EnginePage, requestPermission permission: EnginePermission, host: String) async -> Bool
@@ -446,6 +448,7 @@ public extension EnginePageDelegate {
     func pageContentProcessDidTerminate(_ page: any EnginePage) { page.reload() }
     func page(_ page: any EnginePage, openedPopup popup: any EnginePage, url: URL?) -> (any EnginePageDelegate)? { nil }
     func pageDidRequestClose(_ page: any EnginePage) {}
+    func pageWillReturnFromPictureInPicture(_ page: any EnginePage) {}
     func page(_ page: any EnginePage, show dialog: EngineDialog) async -> EngineDialogResponse { .cancel }
     func page(_ page: any EnginePage, requestPermission permission: EnginePermission, host: String) async -> Bool { false }
     func page(_ page: any EnginePage, trusts certificate: ServerCertificate) -> Bool { false }

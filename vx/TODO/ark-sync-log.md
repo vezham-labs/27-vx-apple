@@ -510,6 +510,8 @@ Partially adapted Search `71992504d6e5ce9ab72032ce53c8b559b4aeb202`: Ark's short
 
 Reviewed Search `2b44d44be86cf0181d8e7368216aba1d49a2a7de`: Ark already opens a live-folder article as a Today tab in the Space that owns the folder. Ark pinned folders do not form tab groups, so the Search-specific `loose` placement behavior has no separate equivalent to port.
 
+Adapted Search `cc1cae9a316f2b3fe6322ca682285b4c34bbf49f`: WebKit's system PiP return callback now selects the PiP page's Ark tab (switching to its owning Space when needed), brings that window forward, and activates Ark. This uses a private WebKit delegate selector, following the upstream behavior. Mac build passed; runtime verification needs an actual system PiP session returned from another Space.
+
 ### Browsa extension host-permission scope — Mac
 
 Adapted the permission-scope portion of Browsa `1642b72ff49a17421b29ba3d56c70b5717a09b8c`: `WebKitExtensions` no longer grants `<all_urls>` to every extension. Broad host access is granted only when an extension's requested match patterns include `<all_urls>` or a wildcard host; otherwise Ark grants its declared patterns. This closes an overbroad WebKit permission grant without changing the extension UI. Browsa's redirect-checked, profile-aware `browsa.fetch` path was not copied because Ark does not expose that API. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. A runtime check with narrow-host and all-host extensions remains open. The comparison's Chrome extensions rating stays Partial pending compatibility and permission-flow verification.

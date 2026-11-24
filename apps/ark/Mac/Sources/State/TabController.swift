@@ -259,6 +259,17 @@ final class TabController: EnginePageDelegate {
         if let linkPreview { linkPreview.close() } else { library?.close(tab) }
     }
 
+    func pageWillReturnFromPictureInPicture(_ page: any EnginePage) {
+        guard page === self.page, let library else { return }
+        if let browser = library.window(showing: tab) ?? library.owner(of: tab) ?? library.activeWindow {
+            browser.select(tab)
+            browser.nsWindow?.makeKeyAndOrderFront(nil)
+        } else {
+            library.openWindow(.tab(tab))
+        }
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     func page(_ page: any EnginePage, show dialog: EngineDialog) async -> EngineDialogResponse {
         guard let window else { return .cancel }
         return await window.ask(.dialog(dialog), from: tab)

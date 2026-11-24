@@ -426,6 +426,14 @@ extension WebKitPage: WKNavigationDelegate {
 // MARK: - UI
 
 extension WebKitPage: WKUIDelegate {
+    /// WebKit's system PiP close control uses this private delegate selector. The tab may live in
+    /// another Space, so let the app select its owning page before PiP returns inline.
+    @objc(webViewFullscreenMayReturnToInline:)
+    func webViewFullscreenMayReturnToInline(_ webView: WKWebView) {
+        guard webView === self.webView else { return }
+        delegate?.pageWillReturnFromPictureInPicture(self)
+    }
+
     public func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                         for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         guard let engine, let delegate else { return nil }

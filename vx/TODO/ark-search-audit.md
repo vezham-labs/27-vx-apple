@@ -53,6 +53,12 @@ Current order: complete the Mac audit first. Mobile implementation and device ve
 | Profile shortcuts | `Profiles.step` and `Profiles.go` add customizable Next/Previous Profile and Profile 1–9 actions, offered only when multiple profiles exist. | Ark adds customizable Next/Previous Profile actions for website profiles assigned to regular Spaces. Profile 1–9 is omitted because Ark reserves number shortcuts for tabs and Spaces. Mac build passed; runtime menu and key verification remain open. |
 | Live-folder post placement | `LiveFolders.openFeedItem` opens a post as a loose tab instead of inheriting the active tab's group. | Ark opens a post into the feed's owning Space as a Today tab; pinned folders are not tab groups. Existing behavior already keeps the post out of the pinned folder. |
 
+## Picture in Picture
+
+| Feature | Search implementation | Ark implementation and finding |
+| --- | --- | --- |
+| Return system PiP to its tab | `Browser.webViewFullscreenMayReturnToInline` finds the tab across parked Spaces, switches back, selects it, and activates Search. | Ark's WebKit page now forwards the same private delegate callback to its tab controller, which selects the tab in its owning Space and activates the owning window. Mac build passed; actual system PiP return remains unverified. |
+
 ## Compatibility and migration
 
 | Feature           | Search implementation                                                                                            | Ark implementation and finding                                                                                                             |

@@ -23,6 +23,16 @@ struct WebsiteDataStoreTests {
         #expect(!engine.shouldPreviewLink(on: [.option]))
     }
 
+    @Test @available(macOS 15.4, *) func recognizesOnlySecureChromeSignInRedirects() {
+        let id = "kbfnbcaeplbcioakkpcpgfkobkghlhen"
+        #expect(ExtensionAuth.redirectOwner(URL(string: "https://\(id).chromiumapp.org/?code=x")) == id)
+        #expect(ExtensionAuth.redirectOwner(URL(string: "http://\(id).chromiumapp.org/")) == nil)
+        #expect(ExtensionAuth.redirectOwner(URL(string: "https://not-an-id.chromiumapp.org/")) == nil)
+        #expect(ExtensionAuth.isChromiumAppURL(URL(string: "https://\(id).chromiumapp.org/cb")))
+        #expect(ExtensionAuth.isChromiumAppURL(URL(string: "https://chromiumapp.org/cb")))
+        #expect(!ExtensionAuth.isChromiumAppURL(URL(string: "https://example.com/")))
+    }
+
     @Test @MainActor func deletingNamedProfileStoreRemovesItsPersistentCookies() async throws {
         let id = UUID()
         let engine = WebKitEngine()

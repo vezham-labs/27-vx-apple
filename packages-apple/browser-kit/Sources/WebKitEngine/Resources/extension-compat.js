@@ -96,7 +96,12 @@
       getPanelBehavior: () => bridge('ark.sidepanel', { action: 'getBehavior' }),
       open: () => bridge('ark.sidepanel', { action: 'open' }).then(() => undefined),
     }),
-    identity: () => ({ launchWebAuthFlow: unsupported('identity.launchWebAuthFlow'), getRedirectURL: (p = '') => `https://${chrome.runtime.id}.chromiumapp.org/${p}`, onSignInChanged: event() }),
+    identity: () => ({ launchWebAuthFlow: (details = {}, cb) => {
+      const p = bridge('ark.identity', { url: String(details.url || ''), interactive: !!details.interactive,
+        timeout: details.timeoutMsForNonInteractive || 5000 });
+      if (cb) p.then(cb, (e) => { try { chrome.runtime.lastError = e; } catch (_) {} cb(undefined); });
+      return p;
+    }, getRedirectURL: (p = '') => `https://${chrome.runtime.id}.chromiumapp.org/${p}`, onSignInChanged: event() }),
     contentSettings: () => ({}),
   };
   // Events missing from namespaces WebKit does have.

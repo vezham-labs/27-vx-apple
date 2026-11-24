@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 32/263 incoming commits assessed (12.2%); 231 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 33/263 incoming commits assessed (12.5%); 230 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -23,6 +23,8 @@ Ark implementation checkpoints: [`d6c96345`](../../commit/d6c96345) adapts Searc
 Review-only dispositions: Search `2f99ea479579582ff6eaf63f6596aef7ca78b26b` adds hidden test-bench seams, not browser behavior; `75eb6728a20e4f91a8465ce8bb2a91812058b4dc` adds a bookmarks-bar icon-only preference that does not match Arc's sidebar. Search `20942bc01fe5a96f63b3490e5f9cf643f133b996` fixes links in Search's custom extension popup; Ark instead uses WebKit's native extension-action popover, so reproducing the Raindrop sign-in case in Ark remains open before a port decision.
 
 Search `344088842d4fb67b8340aba5e7b799589eb2a0b3` changes a worker `window` shim that Ark does not have: Ark leaves `window` undefined in extension workers, allowing Readwise to define it as `globalThis`. No port is needed unless Ark reproduces a failure.
+
+Adapted Browsa `5150b3c83fb7d0aadec46707a2e802c495942fa2` with Ark's `ark.identity` bridge. Only extensions declaring the `identity` permission can start a Chrome Web Store OAuth flow. Interactive sign-in opens a tab; quiet sign-in uses a hidden WebKit view with the active profile's website data store. Matching redirects are returned to the extension and never loaded from `chromiumapp.org`; redirects from flow-owned popups close with the flow. BrowserKit tests and `ark:build-mac` passed. Provider sign-in, callback behavior, and direct extension-tab redirect observation remain unverified; Ark does not use Search's private `loadSimulatedRequest` API.
 
 Next review candidates include upstream extension permission and redirect checks, private-window extension controls, and avoiding unchanged Live Folder writes. New upstream visual designs require comparison against Arc before adoption.
 

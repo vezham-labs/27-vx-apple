@@ -291,6 +291,10 @@ extension WebKitPage: WKNavigationDelegate {
         }
         if navigationAction.shouldPerformDownload { return (.download, preferences) }
         guard let url = navigationAction.request.url else { return (.allow, preferences) }
+        if #available(macOS 15.4, *), ExtensionAuth.isChromiumAppURL(url) {
+            if navigationAction.targetFrame?.isMainFrame ?? true { _ = ExtensionAuth.intercept(url, from: self) }
+            return (.cancel, preferences)
+        }
         let kind: NavigationRequest.Kind = switch navigationAction.navigationType {
         case .linkActivated: .link
         case .formSubmitted, .formResubmitted: .formSubmit
@@ -438,6 +442,7 @@ extension WebKitPage: WKUIDelegate {
                         for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         guard let engine, let delegate else { return nil }
         let popup = engine.makePopup(configuration: configuration, opener: self)
+        if #available(macOS 15.4, *) { ExtensionAuth.registerPopup(from: self, popup: popup) }
         guard let popupDelegate = delegate.page(self, openedPopup: popup, url: navigationAction.request.url) else {
             popup.close()
             return nil

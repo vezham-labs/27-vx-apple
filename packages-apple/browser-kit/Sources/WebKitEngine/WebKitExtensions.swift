@@ -394,6 +394,17 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
             ExtensionOffscreen.writeClipboard(message, for: extensionContext, reply: replyHandler)
             return
         }
+        if applicationIdentifier == ExtensionAuth.bridgeName {
+            let permissions = extensionContext.webExtension.manifest["permissions"] as? [String] ?? []
+            guard permissions.contains("identity") else {
+                replyHandler(nil, NSError(domain: "Ark.ExtensionAuth", code: 2,
+                                          userInfo: [NSLocalizedDescriptionKey: "This extension did not request identity permission."]))
+                return
+            }
+            ExtensionAuth.handle(message as? [String: Any] ?? [:], extensionID: extensionContext.uniqueIdentifier,
+                                 host: host, reply: replyHandler)
+            return
+        }
         if let name = applicationIdentifier, ExtensionBridges.names.contains(name) {
             ExtensionBridges.handle(name, message: message, extensionID: extensionContext.uniqueIdentifier,
                                     displayName: extensionContext.webExtension.displayName ?? "An extension",

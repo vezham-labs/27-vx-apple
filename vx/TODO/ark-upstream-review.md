@@ -1,0 +1,298 @@
+# Ark incoming implementation review
+
+## Goal and acceptance
+
+Preserve the full 42-row feature audit and all four platform columns. Complete Mac implementation and verification first, then return to iPhone, iPad, and Duo, one simulator at a time. Arc is the reference for the entire sidebar: layout, spacing, typography, colors, menus, animation, and drag behavior. Browsa and Search are implementation references.
+
+For each incoming change: inspect the diff, compare Ark behavior, adapt applicable code, verify the changed path, and record the resulting Ark commit and evidence. A source review or successful build alone does not establish runtime parity. Keep local milestone commits; do not push. Do not add new test files.
+
+## Work order
+
+1. Complete the pending media batching and script-only refresh batch; verify lifecycle behavior.
+2. Review extension permissions, private access, redirect handling, and native messaging fixes before expanding extension compatibility claims.
+3. Compare folder ordering, split groups, live feeds, profile isolation, and sync against Ark’s existing models; preserve current data migrations.
+4. Match the whole Mac sidebar to local Arc, then verify keyboard, pointer, and drag paths in the actual updated build and capture previews.
+5. Review remaining browser behavior and performance changes, update all affected matrix rows, and retain explicit evidence gaps.
+6. Resume deferred mobile verification after the Mac pass. Retain Easels, service-specific previews, and externally blocked DRM/passkeys checks in the full goal.
+
+## Commit inventory
+
+This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
+
+### Browsa
+
+Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c551fc83efc39efe1b7d61cd7abe3071`.
+
+| Commit | Change | Disposition |
+| --- | --- | --- |
+| `ed71db69e6bd0647652563ee91a573b0e593dd2b` | Mac: bring the call window back on screen if its display is gone (#96) [skip ci] | Pending |
+| `58f6c41f704e3fb449c4cf015384eb45a0d87cab` | Mac: sites' notifications as macOS notifications | Pending |
+| `2e7723a00f8c3094a27d99a4fbcfb2b2204487ee` | Mac: SiteNotifications imports BrowserCore [skip ci] | Pending |
+| `a2616b39101ba848d592b7088348429d83fb59ec` | Mac 1.2.1 release notes draft [skip ci] | Pending |
+| `684f39a10befa90fed4cdf994d6b9402c52d0042` | Mac 1.2.1 notes: 48 hours archive option [skip ci] | Pending |
+| `248238b594b0a8af99c0174a705b62b6ec35123e` | Mac: add a 48 hours option to Archive Today tabs after (#103) [skip ci] | Pending |
+| `0306f2d1fefe8aa04b5b8041edfb6b749a3a8f22` | Mac 1.2.1 notes: tab placement and sign-in windows (#102) [skip ci] | Pending |
+| `3881650d5179ac7dfb1178b4c9dafdd14d1c551a` | tools: notification test page [skip ci] | Pending |
+| `017485534e38d14d55563fb7076c9b0214a26dab` | Mac: keep the notifications handler pages started with | Pending |
+| `26afb7ba5950b260807d392df7a9d94f3d3c8770` | Mac: narrow sidebar keeps the window buttons in place; note pins stay on the page (#95) [skip ci] | Pending |
+| `3deba26b9582546a43141f1f8f3d8155e3f2d188` | Mac: Visit Anyway for untrusted certificates, and a local network setting (#98) [skip ci] | Pending |
+| `53eebb6fd5b97f403077adb0a509a384b4fe8ad0` | Mac: new tabs go back to their opener, sign-in popups open in a window, New tabs open setting (#102) [skip ci] | Pending |
+| `989e0c7119281a0297389728cd8bc189f54d1817` | Mac: Site Styles (opt-in per-site looks), starting with a tidier LinkedIn feed (#99) [skip ci] | Pending |
+| `198f9de27ad744eb1a3398a94264047b8fa016e1` | Mac: one-click Add for Claude Code, Codex, Cursor and VS Code (#100) [skip ci] | Pending |
+| `0668064cb39941e8f2d3d85c301f881683ff34de` | Mac: say when notifications are off for Browsa in System Settings | Pending |
+| `e45460383f3cc28dec1e732f3fd3b4e4679fd3a5` | Mac: Settings shows whether macOS allows Browsa's notifications | Pending |
+| `8cc69a723569858036b05fce13ab185225121f54` | Merge #97 (site notifications) with main: keep Visit Anyway, Site Styles and notifications | Pending |
+| `22a42edb2dbd3f41d2fb28e78f2e59493c8b2268` | Merge remote-tracking branch 'origin/claude/project-thread-m1rxpj' into claude/project-thread-l3weip | Pending |
+| `f25a75af1bb120f5973da0cfbddf3e23933adc39` | Mac 1.2.1: notification setting in notes, What's New entries [skip ci] | Pending |
+| `23802c8bbb2a222ecf3ee6501a77eed14bec4db3` | Mac 1.2.1 notes: Improvements section [skip ci] | Pending |
+| `6f1e6d2cc3a3a18fdc6be64d92cabb8d171c492f` | Release notes guide: Improvements section [skip ci] | Pending |
+| `f34b47e03fe3688097b5e733da2161ad4d37ab41` | Mac 1.2.1: site notifications (#97), release notes (#101), What's New (#104) [skip ci] | Pending |
+| `05163ec1fd691ae7ed07f9a1ffd5038cd2dbcb5f` | Mac extensions: Chrome's addresses and native messaging, Chrome 156 | Pending |
+| `d635c764932b09e8d9b401fe308e8ff1024196ff` | Merge main into claude/project-thread-himevy [skip ci] | Pending |
+| `d50c599e23290877bd4609d0b1f2758ea25460a3` | Mark HostPipe macOS 15.4-only so BrowserKit builds [skip ci] | Pending |
+| `b7d5f229874aba0a8ee32e12f41a1d9085502987` | Start native hosts in Browsa's process group, and throttle restarts [skip ci] | Pending |
+| `528bcd143e01d6190e0058b017b2f58c3db9207a` | Keep extension workers attached to native hosts with a 25 s beat [skip ci] | Pending |
+| `9849bbaf49b297828620738e79d125b0739d3ea4` | Keep the query in an extension's popup and side panel addresses; WebKitEngine tests [skip ci] | Pending |
+| `5d9e2701eef9f5281d3d467cf1f06c2cad84baec` | Compat: storage area onChanged, tabGroups, debugger, and Search's chrome accessors [skip ci] | Pending |
+| `5150b3c83fb7d0aadec46707a2e802c495942fa2` | Extension sign-in: identity.launchWebAuthFlow and chromiumapp.org redirects [skip ci] | Pending |
+| `803b3ddf481bb87678f2eead8b81db85233ddcfa` | Side panels: pages set with sidePanel.setOptions, and windows a panel opens [skip ci] | Pending |
+| `a55c720dbecfecb0b66c02cc7454e8b216d09b45` | Websites an extension lists can message it as chrome.runtime [skip ci] | Pending |
+| `8a3df66766e045d8a4fb4655729da63f77c559b2` | Relay the background's messages and storage changes to the extension's pages [skip ci] | Pending |
+| `a86a19ad884c247eb677e3af1396b233fed678e3` | Report side panel pages in runtime.getContexts [skip ci] | Pending |
+| `a9e2a61679b0a974fa32142aabf43ca43bc8a17b` | Mac: a profile per Space (separate cookies and logins) | Pending |
+| `a4de8f2cf9d98a0d633c05bb6762105175c16ba7` | Mac: folders for pinned tabs, nested, with drag in and out, and Arc import keeps them | Pending |
+| `b6f6f66c52795896f2b6747e791a148fbde2dbf6` | Claude's panel: runtime.ContextType, and extension fetches with the site's cookies [skip ci] | Pending |
+| `c81876f6f62b7bcae9e979152c7d059144659ed9` | Mac: Split View, two or three tabs side by side | Pending |
+| `55f59e1be4e4f5c70cec9048be2d2927689225dd` | Claude's panel: fall back to its own chat when claude.ai can't be framed [skip ci] | Pending |
+| `b7a312dce7aa9f05875dbf41a8d4fe9f43a36884` | Combine profiles per Space with pinned folders (keep both SpaceRecord fields) | Pending |
+| `2b772addf4e56a295a1c2d5140c72908bcc019f6` | Combine Split View: splits show as one row inside pinned folders, mates follow when pinned into a folder | Pending |
+| `bd783a37d28e4ae43f2d88d56997b4b1dc2bb0b4` | Relay never breaks sendMessage; hide side panels an extension has switched off [skip ci] | Pending |
+| `aac7ed9991fa39a44120c43bef3d85edfedd59cc` | Split View: wider steady divider, handle only near a pane's top; folders: quicker open, one icon with a bounce | Pending |
+| `24377a9db55c13d6844ab017b7ea25b6a5454b71` | Split View: one hover tracker for pane handles, glass control panel, box-in-box sidebar row | Pending |
+| `02b0b9dbdbd4273f96800c80a79e454b337e6db5` | Extension popups in Browsa's own popover, from the extension's configuration [skip ci] | Pending |
+| `e9e8c1c20cea5f59b4c733f1445e4d6922fef6fe` | Popup popover: the page fills it, registered as a tab, sized as Chrome sizes popups [skip ci] | Pending |
+| `9d52b8b4ff8f7d70abcad1e34f53abf9495b24d2` | Split View: calmer sidebar row, panel shrinks back into its pill, simpler actions | Pending |
+| `c7d5636d670f7063b799b4119b73c7cdc152676d` | Split View panel: softer edges, no section titles, one row of Swap / Separate / Close this tab | Pending |
+| `35266c54957217104702ce15a581716f9272fa2e` | Split View panel: one solid near-white fill for every button and the address, no borders | Pending |
+| `083a2354b92c24d684d7301fe9834b1dc252e296` | User agent: the installed Safari's version, for tabs and extension backgrounds [skip ci] | Pending |
+| `3cade1db310ffb9fc3501cc50f08fc54577c4ed7` | Autoplay: hold back sound only, as Safari does [skip ci] | Pending |
+| `4a8d7f71ebb1953335d3ac71979f85d257b7f8c1` | Keep window.webkit out of pages: call audio and notifications through a relay [skip ci] | Pending |
+| `29dacd0c3ff8060f2ab46f77bb8bedf82b054e62` | Privacy: click IDs off links, GPC header where WebKit has it, backspace stays [skip ci] | Pending |
+| `db67f0ae618a007487ac3a0b23adb282f1f86951` | Mac: Return in a profile's name field leaves the field, so the name visibly takes | Pending |
+| `2bf346e3b270bc77e2916a1fe447fd93edf084d5` | Mac: a new profile's name field takes focus with the name selected | Pending |
+| `562bee853d665407132e70443af3890f88d605fa` | Merge remote-tracking branch 'origin/claude/project-thread-vtzd51' into claude/project-thread-30qg5g | Pending |
+| `d987fd28221c5dd4ed483bde40f51a9a933a71ce` | Credentialed extension fetches only to sites the extension may reach [skip ci] | Pending |
+| `155cf7720d950998238b0527a53eb74e59041b85` | Release runbook: 1Password desktop-app onboarding is a blocker for shipping PR #105 [skip ci] | Pending |
+| `7627957dd8a09cdf0237faa08b651b11762ed91f` | Mac: Favourites open in the current Space, not their routed one [skip ci] | Pending |
+| `7a494d094c349da5ad5b6ca470e4d154635d7ae2` | Rename Site Styles to Boosts [skip ci] | Pending |
+| `85da646a13f2d262d451c518ddbd5608eb9c408c` | Mac: Always Open in app per site, glass open-in-app prompt [skip ci] | Pending |
+| `d60f7ee081ff4eb6b16ec7666de22ad5f68b696c` | Mac: Live Folders, pinned folders that fill themselves from a feed or a GitHub search | Pending |
+| `39eb4ad4a6fce8e49497071e3c5d86e26ec85e51` | Mac: picture in picture for any video | Pending |
+| `0ab8524378116a0416a46eecf8189dc6745fc398` | Rename Site Styles to Boosts (#110) [skip ci] | Pending |
+| `f18053dc3d648296ea0a370bd55213b85e598f33` | Tests: spell out allSatisfy closure so #expect compiles | Pending |
+| `95e984d88b5053ccdc89b9413dbc43da44c2d17f` | Combine video picture in picture (PR #112) into the Arc features test branch | Pending |
+| `f290465375c93cea89abf14cff2133576a350a69` | Combine Live Folders (PR #113) into the Arc features test branch | Pending |
+| `4aba34670ec0f2860889bd523c8f600b5120f967` | Combine Always open in app (PR #111) into the Arc features test branch | Pending |
+| `b858dfab60cb64c5832717dd31f44f29f82b711a` | Combine Favourites stay in current Space (PR #109) into the Arc features test branch | Pending |
+| `c3395378003da051a43fdc71b586ddcd57ea3a47` | Boosts you make yourself: font, tint, Zap, CSS and scripts per site [skip ci] | Pending |
+| `7013dc172e3a10c84100b250e24cffcd63164dee` | Mac: open-in-app buttons Open / Not Now / Always Open / Don't Open [skip ci] | Pending |
+| `19651fbebec3c5695271d5d6d1ad9c59394be7c7` | Merge earlier rename branch (already in main) [skip ci] | Pending |
+| `caba8d6498a92179038bb44de3e6c9daea7b64ba` | Update Always open in app (PR #111) in the Arc features test branch | Pending |
+| `482d5e9c763b66511b3a71e2af08217fdc13f5d9` | Combine user-made Boosts (PR #114, with main's Site Styles to Boosts rename) into the Arc features test branch | Pending |
+| `7f2d3de90c748cbd655ff115b1576381d65472f4` | Mac PiP: back-to-tab button works, plain shadowed media buttons | Pending |
+| `0b5b54c9e90b3b542145800104d31b3ed99b2f65` | Update video picture in picture (PR #112) in the Arc features test branch | Pending |
+| `26e7e48353f02187bb9631e2a3f90545efb3228d` | Live Folders: New Live Folder in the sidebar's right-click menu and every tab's menu | Pending |
+| `2d1966ba0706bb198a41d824a3573524a7d8c3ea` | Live Folders: GitHub read with the space's own github.com login, like Arc | Pending |
+| `969cd686447e31502a128eafbf4801b39d383ac9` | Update Live Folders (PR #113, round 2) in the Arc features test branch | Pending |
+| `cedf3c24ee9b8809f8469a1a289c7360bb973205` | Live Folders: GitHub folder appears on its own, Dia's timing | Pending |
+| `2a0b80492c2d35da162dbcf438fb73bee4c2954c` | Update Live Folders (PR #113) to cedf3c2 in the Arc features test branch | Pending |
+| `e24ced83cabe9cd7c8616ac8e4f64723b1c69c1e` | Live Folders: neutral count, no spinner, one auto GitHub folder per login | Pending |
+| `1ff9c9f158b2148c6d5c1147faddf951d8ef35b5` | Update Live Folders (PR #113) to e24ced8 in the Arc features test branch | Pending |
+| `653fcec48a304ab9c9dd983587fdf7399a03f0e5` | Live Folders: turn them on from the Library, follow sites from their page | Pending |
+| `9c84e671bf0315365fe9920012039866a13465c6` | Update Live Folders (PR #113) to 653fcec in the Arc features test branch | Pending |
+| `0305ea954da0c1e57f9f593459e28cda50ec258e` | Live Folders: one Library card with its own page | Pending |
+| `edb5151b744476d49f748998a0fd57363e1fa2be` | Update Live Folders (PR #113) to 0305ea9 in the Arc features test branch | Pending |
+| `c2977ebd31aa3fbd94e04b9bde5fdff18b448bb7` | Live Folders page: a switch per Space, filters as described toggles, no token | Pending |
+| `8cdfcd6855269dd897c2c22ed274b5607a775823` | Update Live Folders (PR #113) to c2977eb in the Arc features test branch | Pending |
+| `f14ce657e7b5f0cf3af9ff64d4b4648620f7ed1a` | Add a Performance panel: CPU and memory per tab, with a stuck-tab watchdog | Pending |
+| `2bece7ba881b8734a1805fa5fdfada1ff3e81760` | Performance: clear two ProcessSampler warnings | Pending |
+| `e70a68fbd51d93887fc0ee7c9825872b84355f1e` | Library: Boosts and Space Routing cards with their own pages | Pending |
+| `d43e934ea8d0f20f82cb2b20903ccbda0f787617` | Boosts open beside their site | Pending |
+| `e093c9f22b329faec1bd494ae15a524020d5571a` | Library: pages show what you'd turn on, greyed, while off | Pending |
+| `1fe7f41e2f5914fb1ec476af2cf1190f04bcb0be` | Library: move offNote into PluginDetail, where plugin and on live | Pending |
+| `a5d648988a8c704f70ff311a0ee1ecd5def81b79` | Boosts: Accent and Look instead of Tint | Pending |
+| `7da1d3a0531bb8602f52d387dbb0df4147707bfb` | Boost panel: don't force-unwrap the draft binding | Pending |
+| `98bf5ca89eea76031d020c5d821a730deb240d6b` | Boosts Accent: keep working as you pick one colour after another | Pending |
+| `d94ddd96d4c5990113824e052156fdc979ad5989` | Side panel: tools that don't fit go in a ••• menu | Pending |
+| `86a8925ccee543da65c9a836cd739b2bf1eca8f0` | Side panel keeps its corners when narrow | Pending |
+| `23184c0b9bdf68134665fa70960a6c056031b1e3` | Boosts: export and import | Pending |
+| `235f24ba0479e5fe5f9c40a17a492f6159d84ffc` | Performance: both figures per row, Sort by, a Metal status card, Simulate Stuck Tab | Pending |
+| `3d87df8d2b0b98284f740c3ac11da13ccc0ef732` | Performance: sort by memory by default, by CPU while busy or stuck | Pending |
+| `0cfdd08c3012bd347e81ffbce8f1dcba130c76da` | Merge Performance panel round 2 (w4aswg 235f24b) into Arc Features [skip ci] | Pending |
+| `a8f310f330fb26b4c89cf99c1329e2fbcfe33d1b` | Merge Performance panel 3d87df8 (w4aswg) into Arc Features [skip ci] | Pending |
+| `7f6e8d0bc703607c5d41043e556a7abeb6becb49` | Performance: isolate the status card's Animatable conformance to the main actor | Pending |
+| `ec87c532ab902d7d9dba6c711564942fb476631a` | Performance: isolate the status card's Animatable conformance to the main actor | Pending |
+| `830c5c55cb1e93a25c277ff665515eb105cafda9` | Performance: port the Velaris shader for the status card | Pending |
+| `5679c0597ebcb4f84f3dc4d85a2eb1de1bf8fbe4` | Merge Performance panel round 3 (w4aswg 830c5c5) into Arc Features [skip ci] | Pending |
+| `702a40796d4dbac275451d70b21d62a5b40f1935` | Performance: working Unload in the simulation, and a badge for stuck tabs | Pending |
+| `a82c119dce50a93e572fa9852aa3637350e4f4d2` | Merge Performance panel round 4 (w4aswg 702a407) into Arc Features [skip ci] | Pending |
+| `4994780bd25635a8ec1a5dc9ae274f9e586fddc4` | Performance: make the status glow fill the card and breathe | Pending |
+| `b69a0c2369bc36888d7c679f50306436eceb5255` | Merge Performance glow 4994780 (w4aswg) into Arc Features [skip ci] | Pending |
+| `cfc83cc9ee73ccdb7a1901f378bcb54f54ba29e5` | Performance: big sweeping shapes in the status glow, like Velaris | Pending |
+| `27093dd3a4ccfe1345daa890fe4de8852aeeaa7b` | Performance: dimmer, broader glow so the shapes sweep like the Velaris hero | Pending |
+| `515fc8ecd350d570b70ae3ba414782e6f65a158f` | Merge Performance glow 27093dd (w4aswg) into Arc Features [skip ci] | Pending |
+| `61c6759ff7078c72ca4ea78f47a0af8938b3fc15` | Performance: zoom the status glow in 20% | Pending |
+| `0c07f635a59b23dec85de66d1e3e11de64ebd149` | Merge Performance glow 61c6759 (w4aswg) into Arc Features [skip ci] | Pending |
+| `a8d5c5817f6b06cf4da07f7cf9d33d92120498bd` | Library front page: Agent Pack hero with a looping demo, filters, art cards, Add Extension | Pending |
+| `457fc69d7bb6fa7b3a3076dd991c684d4bf226fc` | Library: card loops for Radar, Notes and Agents, cropped to show the window's corner on its wallpaper | Pending |
+| `8379d54c3c9d63d6c7cddbdd7060e0a1ee7cd7cb` | Merge Library redesign (7dwe7c 457fc69) into Arc Features [skip ci] | Pending |
+| `e69e2b435175df59f1eebb4929aa5ec3ec065d21` | Welcome: rename its private LibraryHero to WelcomeLibraryHero | Pending |
+| `c1892d564aad3a4c9b101c57f13a5833b9e99a93` | Welcome: rename its private LibraryHero to WelcomeLibraryHero | Pending |
+| `b8f23bb405f1b39ee8779653636a402061163b12` | Library hero clip: use the real getjambora.com hero (dark page, App Store button, Jambora window with avatars) | Pending |
+| `f1c0cab912a046d1f89eda7e237a193d88cbf7dc` | Merge remote-tracking branch 'origin/claude/project-thread-30qg5g' into claude/project-thread-7dwe7c | Pending |
+| `bab9f83af66aab70ee8ac3ea3c43454ad0c3f1db` | Library: Privacy and Performance section with Site Optimisations and Performance Monitor, loops for Boosts, Live Folders and Space Routing, smoother scrolling | Pending |
+| `00ce7bac2d3e78e072348714b707cc0d7752f7ec` | Library: one player per clip, reused, with the file opened off the main thread | Pending |
+| `f7619ec1272743f0dea5bf26562313c0e089a2a4` | Merge remote-tracking branch 'origin/claude/project-thread-himevy' into claude/project-thread-h50a8d | Pending |
+| `1642b72ff49a17421b29ba3d56c70b5717a09b8c` | Extensions: every website only when asked for; browsa.fetch checks each redirect and uses the window's profile | Pending |
+| `18a9e73147a0d0a32d4e2f91b8a967dfaea92e25` | Private tabs keep open-in-app and camera answers in memory, not in saved settings | Pending |
+| `f27bcf16d64c98c8e11eb5bf53c9fa449e63fd93` | Boosts: one site only, and an imported script asks before it first runs | Pending |
+| `9703e82288d9cb41ee6b072b0700ec1cea54a468` | Live Folders: no GitHub token, cookie-less feeds with a size limit, cookies stay on their site | Pending |
+| `b9cb5102a909dc2e11090378c3850fdbc0490d6f` | Phone, FaceTime and Messages links ask first unless you clicked them | Pending |
+| `63bd758f3b73e22e8ac3a149e0b6b6c80b5f98c6` | Extensions stay out of private windows unless you allow them | Pending |
+| `166fa001905b98f42957ade325e18962a2cd4e36` | Skip YouTube ads instead of waiting on a blank player | Pending |
+| `5c22e24c06d244db8ee12c2d5a08993cddea548b` | Profiles: say that site permissions and Boosts are shared too | Pending |
+| `5ebc8c1bf1df0169d9f7b828a51794fe0a0c0136` | Engine: Boost, call audio and notification changes swap scripts only, not every rule list | Adapted for Ark call-audio setting; Mac build passed; runtime verification pending |
+| `4765482b73d11fc283eada2c6c5ad04f30ec8901` | Merge YouTube ad skipping (79dimq 166fa00) into Arc Features [skip ci] | Pending |
+| `03d0f82dc0393537e5a9f0cca96005bb6f06df2a` | Live Folders: a check that changes nothing isn't saved | Pending |
+| `85f6092a072347c472cc7e841ecbced7707e5ba5` | Video watcher: one report per burst of media events | Adapted; mock-DOM check and Mac build passed; live WebKit timing pending |
+| `307bd9950e3878a7050563dd8b611b7bef1f7fa7` | Performance panel: the status glow holds still while its window is in the background | Pending |
+| `66107dac87433c4dff937fc7335831a55b3b79d9` | Library: Performance Monitor with the main plugins and its own loop, Space Routing uses the What's New clip, loops start staggered, clips on detail pages | Pending |
+| `476317ead01493288b35877fa2e818f4808ad374` | Merge Library round 3 (7dwe7c 66107da) into Arc Features [skip ci] | Pending |
+| `5fb3996dc812a2ea82dad7969ef7ce221595f566` | Merge 1.3 security and performance fixes + extensions (h50a8d 307bd99) into Arc Features [skip ci] | Pending |
+| `d0536c8e02c364c47e61dfefd6156329da978b91` | Library clips: one shared wallpaper behind every loop (Josh's pick, Kirkjufell by Kamil Kalbarczyk on Unsplash) | Pending |
+| `19e610b419b6c6aecbc95498dd4b296cd2eea0ff` | Merge Library media update (7dwe7c d0536c8) into Arc Features [skip ci] | Pending |
+| `7cab120ce626305e2c8c976d5a6d441cc3d10a79` | Revert "Skip YouTube ads instead of waiting on a blank player" | Pending |
+| `5363edd26789f822966f3f4d2f8925859f2e8277` | Mac 1.3 features: Arc Features test build minus the YouTube ad skipper (#116) [skip ci] | Pending |
+| `e981df56c551fc83efc39efe1b7d61cd7abe3071` | Skip YouTube ads instead of a blank wait (#117) [skip ci] | Pending |
+
+### Search
+
+Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea1823c81c77a2be196e442dd54e36efa7`.
+
+| Commit | Change | Disposition |
+| --- | --- | --- |
+| `9336a8e4f78bb6d193fe352e2596decd3b3bd664` | Search › What's New… and the About window's What's New button (idea 968); the iPhone beta's waitlist in a few quiet places, for now | Pending |
+| `42ca1b9bf6f10aaefaed1893130841eb2fa035af` | iPhone beta prompts: hidden only once the iPhone beta was asked for, or Not now | Pending |
+| `2b44d44be86cf0181d8e7368216aba1d49a2a7de` | A live folder's post opens among the tabs, not in the front tab's group (idea 978) | Pending |
+| `20942bc01fe5a96f63b3490e5f9cf643f133b996` | Links with target=_blank in an extension's popup open a tab (idea 972) | Pending |
+| `344088842d4fb67b8340aba5e7b799589eb2a0b3` | Readwise Highlighter's worker starts again (idea 813) | Pending |
+| `c2c6d9281f60531e7eb0109b59f0f5a86d9575e2` | Set Up Like Arc turns on Arc's newer habits and is offered in the welcome and after an Arc import (idea 964) | Pending |
+| `f9d7a747a9802f21e174a4221a8e5c287169530f` | Extensions: chrome.i18n.getMessage("") answers "", so uBlock Origin's popup and its dashboard button work (idea 975) | Pending |
+| `f647b3160561512f22970bf101bcbd77f34cf00d` | Sheets: a sideways swipe never goes back where the page's root says overscroll-behavior-x: none (idea 990) | Pending |
+| `b666fb92e88e25f005f31929976a6d525efdf685` | CHANGELOG: Unreleased read through for 1.0.19 | Pending |
+| `cc3ee712f8e6b6e2ed5131fbfd904e0097d0b824` | Extensions: the store update check asks as Chrome's Update button does, so Bitwarden 2026.11.0 arrives (idea 992) | Pending |
+| `987da47510c80df6c7d3d648caae375aee4dc909` | Extensions: a failed store update check is retried in an hour, backing off to a day, instead of waiting 20 h (idea 992) | Pending |
+| `2f99ea479579582ff6eaf63f6596aef7ca78b26b` | Bench seam: a hidden probe's window told it is in full screen or out of sight, and a probe for Escape there (idea 582) | Pending |
+| `1c84b99d7127c7c26065c66653cac309f914ebe9` | The floating video's window watch goes when Search is left again (idea 470) | Pending |
+| `75eb6728a20e4f91a8465ce8bb2a91812058b4dc` | Settings › Show icons only on the bookmarks bar: every bookmark its icon alone, its name on hover; folders keep names (idea 980) | Pending |
+| `efed04f1e0539e0a7440c56a598b0600af3d99e0` | Settings › Passwords › Ask for Touch ID before filling: a saved password goes into a page only after Touch ID or the Mac's password, one yes for a minute (idea 993) | Pending |
+| `6376d84a4d259e1db1862caca0dd2264cce7f440` | Touch ID before filling: the Mac saying it can't ask is a yes only when it has no password set (idea 993) | Pending |
+| `faec5fc7ad1743c264e7bd0eb4d37d187dd8bfaa` | Touch ID before filling: a yes holds for its own site, private and ordinary tabs apart (idea 993) | Pending |
+| `86a67e118405aa09931c3d84d834c6dc6810817b` | Passwords and codes fill only the origin they're for, port included | Pending |
+| `c17c0fa9345c4ce9f27d7e50eb6b78156cc4bc49` | ⌘-click a bookmarks bar folder: open all of it, as Chrome does (idea 959) | Pending |
+| `8b5ca1bdfcf021cc6158255dcb6cb0bc37d0d9e3` | Keep tab icons tied to the document that declared them (#1453) | Pending |
+| `fad583956b551f38366193d86ec5407cb71a839a` | A full row of tabs still leaves somewhere to take the window by (#1454) | Pending |
+| `a3ad9c1bac338688e435475811dea4b6f70447de` | Rename left as it was gives a tab no name of its own (#1450) | Pending |
+| `cc1cae9a316f2b3fe6322ca682285b4c34bbf49f` | Return macOS picture in picture to its tab across spaces (#1424) | Pending |
+| `5896709f69b2e7e63c790ffd38f42a021bb4e6c3` | Optional unread counts on pinned tabs (#1434) | Pending |
+| `4746a7772c5b3edd612dd5c76c80ce5d174f12a3` | List and reset site permissions in Privacy settings (#1429) | Pending |
+| `61cc8e136b409227967c3749f0e250187836e66a` | chrome.management.getAll() lists installed extensions for one with "management" (#1431) | Pending |
+| `71992504d6e5ce9ab72032ce53c8b559b4aeb202` | Keys for profiles: Next Profile, Previous Profile, Profile 1–9 (#1437) | Pending |
+| `fe22040c014e4a0ebd7bf642434919a93b292c7b` | Native fields no longer run macOS's password-field guess over every view in the window (#1458) | Pending |
+| `ceaec9b8c7544df19745579d343551ce8cb51fef` | An agent's click lands where it aims on a zoomed page (#1464) | Pending |
+| `bb0d3160fd5a7e1972f6dcfdce9412aae5df6034` | The agents' page room goes back off screen when displays change (#1421) | Pending |
+| `663cb237b48c0c423d5727cd9d5567cf002f6ec6` | The hidden column stays out while its edge is dragged (#1462) | Pending |
+| `9d46c7b84978c7efecd4266e5bccb8b7e6332557` | SwiftUI popovers hang no further than their button's edge (#1460) | Pending |
+| `505780179d400715192c1e26b507c2d22fa21789` | Extensions' scripts run once where a site's /* covers their narrower paths (#1465) | Pending |
+| `041aed33c784a6c618c085c08357e210c74f051b` | Keep the column's insets and the fold door clear of the lights when narrowed (idea 1010) | Pending |
+| `dbc76b03ec27859976a9490683569545a586d953` | CHANGELOG: Unreleased checked against every commit since f647b316 for 1.0.19 | Pending |
+| `700d3561decb86e79a542e00f26258c32a34a2e6` | IconColumnTests: each test starts without the last one's session | Pending |
+| `d6025e750f7b595e127f94a820bfee86810480cc` | FollowFileTests: icons only on the bookmarks bar is read again too (idea 980) | Pending |
+| `d987ce404072f15f6f540f07548381b7364b2038` | NarrowColumnTests: the column on the left, whatever a test before left it | Pending |
+| `4dbc44ec9c64e454493a7fe66730c3b5d08d67c1` | Search 1.0.19 | Pending |
+| `b467bb244c30c85f8205e2326757c20bb02fe55a` | Space menu: Switch to Profile, not "Profile: Personal" (idea 983) | Pending |
+| `6a10b64c1a3c865b3d220c11caee05e7efa10e6b` | The field in the middle of the window has the keys (idea 1033) | Pending |
+| `d123cdc909f7a423e26cc89c6b664a26324c323b` | An extension's popup sends its window's sign-ins (idea 1045) | Pending |
+| `80f8f1364c6471131e88544a7cb7ea773af6cdfb` | Drag a finished download out of the Downloads list as its file (idea 566) | Pending |
+| `8755ef84d74f8e2f95a86aea4e66fd05d6198b49` | docs: ROADMAP: dragging a download out is done (idea 566) | Pending |
+| `39ab8c5db4af5d2c37838ae22ec121c9ccc352bd` | A peek can share the screen: asked over it, as a tab is | Pending |
+| `f2873fd0b51b8cf19c28e99dd848c81d20c18c46` | Typed vnc:// and other apps' addresses open in their app (#1473) | Pending |
+| `488b61c77de604b4c866d48e3ff2f3aa737ad028` | ⌘W no longer loops between a pin and a new tab (#1480) | Pending |
+| `0d1d80a2b7cb0772c40b9a6e162b21c1ebbab604` | Search's own pages have scroll bars (#1478) | Pending |
+| `b601de0e5ffd229d00c6bf857ba1f81fbdbf49dd` | End a closed tab's page process that keeps spinning (#1468) | Pending |
+| `283cd2d4069302e034f5eb4dba73624546a7dfcf` | Fade scroll bars when scrolling stops (#1490) | Pending |
+| `ed129504cdde3ee09da0967e12e48fb16d85ead8` | Go to a tab that has the page works without small windows too (#1485) | Pending |
+| `c502d18b67bd557c2a5267f723577e0acf93f427` | Send links to a space: a default space for links that match no site (#1484) | Pending |
+| `0c600c185cd253228ad58c445b184cd2f8129534` | Find on Page reads open shadow trees, and past soft hyphens (#1476) | Pending |
+| `2548fa504d33960d6a88751628dfdb5a8058e8b2` | Settings › Themes fits a narrow window (#1471) | Pending |
+| `270f82f7de7774354903d230eee6ce4a558f3b58` | Carrying a tab along the hidden sidebar no longer opens Split View (idea 1025) | Pending |
+| `4548b37320f77d2775487888b5533ad95da37fd5` | A long title in the sidebar runs as near the right as the icon the left (idea 1032) | Pending |
+| `b8cb0c20d3f14e046ee2cdeee6721009fea3168e` | The foot's space, bookmarks and downloads buttons hover alike (idea 1034) | Pending |
+| `ee719dca2604ba2bccfc7e18151e50bdad0c8ce5` | The space's colour picker previews the colour as the window wears it (idea 1040) | Pending |
+| `60248b85d41ab55b19c057fd68b47e56f6ad9949` | The Dock icon brings a browser window, and the first window is in the Window menu (idea 1047) | Pending |
+| `241966e70c3072a8eaac0360429acfae6bf9f404` | Each puzzle button has its own open state, so the hidden copy can't close the list (idea 1021) | Pending |
+| `ecb0d861e37416997002a3ecebc69704270e0707` | Passwords: a bare email box with its caption drawn beside it is a sign-in's name box (idea 1031) | Pending |
+| `2214b1263b6a04334a06f6152468336fb4cac526` | Extension popups size to their content on load and follow it both ways (idea 1022) | Pending |
+| `824664a4291b8d99fe00ecfb1857d1b2796fc4f3` | Closing a pin goes back to the tab before it, pins included (idea 1063) | Pending |
+| `cfeed018cfbea714abd831b58571b8c5c0340fa5` | Extension popups: bound the kept size when read, forget it on uninstall | Pending |
+| `cf21241b244cd4af9b77013ce7d453b93843df50` | Links from pinned tabs can open in a new tab (idea 1039) | Pending |
+| `bceedf3735165648d85e96663b60abf215f31db9` | AdGuard's rules are no longer compiled twice at every launch (idea 1030) | Pending |
+| `d0a1aa77cdc2403cbe4b89d98507dc919a1be1ae` | Hidden on This Site: a restored row leaves at once, and the panel moves (idea 1064) | Pending |
+| `8c1b9cab3ee25d6a33d6f6e1b4c4d16ee149a23f` | Extension pages without <head> keep their doctype (no quirks mode) | Pending |
+| `542276c69bac8ce927a23fa0b89d15ca28b4f530` | The page under a folded column hears no hover on its edge or as it slides in (idea 1048) | Pending |
+| `eba1ebf2efa6bb7f5204e70bd600ece7ae7360cd` | Leave an extension's own pages alone when a closed tab's process spins, and end only the same process (#1468) | Pending |
+| `7bfd3fb840934bd1adc4ce74e70d812a14d80002` | Bench paceframes: a space swipe and a column scroll timed frame by frame (idea 1051) | Pending |
+| `42bc7a4b025d4ef9b7b376f30987139564d6f239` | CHANGELOG: tidy Unreleased for 1.0.20 (period before a credit, idea 1059, stuck_process probe) | Pending |
+| `2b14540a7d2bc99f4861f02b0f4126dbdb16b726` | Probe: ⌘T or ⌘L over a page with single-key shortcuts, then typing (idea 1075) | Pending |
+| `695fac9b505b9d018a99fd96ab7db30d5139fdc6` | Shortcuts: ⌘ chords follow the layout's ⌘ keys on Dvorak – QWERTY ⌘ (idea 1077) | Pending |
+| `9a54ad2002b4e81506a074e8226eebe55115717e` | Space and arrow keys control a clicked video, off by default (idea 1079) | Pending |
+| `fdc43d312ed891a22b431105e92a77e13bcbb14d` | A failed load shows and copies the address that failed (idea 1080) | Pending |
+| `94dc33141605f0f949b3d7aa6d0455eb910b48fc` | "Update ready" in the window: a card at the column's foot, a pill by the tabs | Pending |
+| `2951fe38a208952c15431cb432413131fc01a5da` | A small window from the address field from any app comes up in front (#1494) | Pending |
+| `b81693586068a2daefca5d2440c33fadebbd1d37` | ⇧⌘B with the Bookmarks button hidden says what it did (#1496) | Pending |
+| `fa555191c98e47e44855dfe43e75aa0adcc6a804` | Pinned tabs get Site Information…, the card under the square (idea 1081) | Pending |
+| `f43a570bedf9d7a5e34490feed1a90bfe4f635c9` | Developer tools as optional packages, and Developer Tools Lite (#1451) | Pending |
+| `a48465be6cda93873982a6ff26402bcbd61d20e9` | Developer Tools Full, the second developer tools package (#1451) | Pending |
+| `ed8f05f085dc6c04ac4a0e75939d1a31646da01d` | Developer tools: with nothing picked, the package installed last is the one View › Developer uses | Pending |
+| `5e87d1924d2db681042b56ef8d69d8f74b1ee9ef` | Developer tools: a release build's test run reads its own feed's packages; publish.sh puts the packages on the site | Pending |
+| `3cb5f87c951c2b554e8920c5a2d1f91fdca9e9f0` | Developer Tools Full: the Network panel's HTML preview loads nothing and goes nowhere | Pending |
+| `c145ae6cfd3860406b977f9f796262ceb8245f94` | Developer tools: source maps, devtools.json and robots.txt are read with a cap and a time limit | Pending |
+| `1c9f3af2064fc7360017daf835e5a3a742543510` | Developer Tools Full: watch expressions added in a private tab are not saved | Pending |
+| `d2e6ece4469d69a6e8d88f551d597d9606b7f039` | Developer tools: a package's API version is read from its signed Info.plist | Pending |
+| `1fd49891eb229ef098b3b77b5ec8925c879a92e7` | Developer tools: a package ZIP with any hidden entry is refused | Pending |
+| `b9d22e937331d28a714df8eef672d3a92dbbbb7c` | Developer tools: a package download is cut off as soon as it passes the feed's size | Pending |
+| `073288758d09fd0d0343fb658c57946a2496f0f7` | Developer tools: Remove clears an interrupted install and the package's temporary files; media previews stay off the network and out of private tabs | Pending |
+| `ec6e9370717170224f6eb5d18966cb3a054b26bd` | Developer tools: the settings store used before (or without) the package's own is kept in memory | Pending |
+| `e11c3cac5ac00b37076465c6aab67e223989af6d` | build.sh: a release devtools build needs the Developer ID, and the feed names only packages built by this run | Pending |
+| `6f8ecd64ce7238d808804c35e78be5935e840919` | Developer Tools Full: closing the tools from Lighthouse or Recorder lets the tab sleep again | Pending |
+| `111cf442374f9b3b1be9ed3f463c0873d75550a6` | Tests: DevToolsFullTests skip, not fail, in a plain swift test | Pending |
+| `0750c1a7fcca55e81940b29177708f3055d95faf` | A custom engine can be given a suggestions address (#1502) | Pending |
+| `bd021c42d53821b7de472f0671a58384e778bb90` | Show the bookmarks bar only on new tabs, off by default (idea 1082) | Pending |
+| `a122961702e415c16994c1823500ad5c6104309d` | A click on the tab you're on can keep its name while the address bar is shown (idea 1076) | Pending |
+| `c0bb3bfcabc882002b420accdef49b572de28513` | CHANGELOG: period before a credit (Find on Page) | Pending |
+| `616abb9c7eea6a77d0c5e2fae999e4f5bd059729` | Tests: FollowFileTests names bookmarksNewTabOnly, read again since bd021c42 (idea 1082) | Pending |
+| `1284e4af67b0b6e299acd8e84c4c328d964bf242` | Tests: SidebarSplitDragTests waits for the press to open the tab before carrying it | Pending |
+| `3e1efc6a14c69f4810018db34f83c03d417355e5` | Move several picked tabs into a pin folder or a group at once, one ⌘Z back (idea 1092) | Pending |
+| `588df6f4f2c25f1bc92b77872fc4adc41be647f4` | Tests: FollowFileTests lists bookmarksNewTabOnly once | Pending |
+| `838d238c39bb807a386b4ffcf43b5b3a0271f857` | A pinned row's icon takes a wandered pin back to its page (idea 1076) | Pending |
+| `5c3dfece73dd9ae69efe265ab71d4ce310b1e2e3` | Settings: Sync and other devices, Closing and switching, and the two syncs told apart (idea 1094) | Pending |
+| `a2c0de4c98d08217b3749da8f1707bf76311df40` | Sync with iCloud carries tab groups with the open tabs (idea 1093) | Pending |
+| `48eb0c2a2013279a99b85d218223427276f3eaf1` | The coding agent's line becomes a card like "Update ready", Stop off the tab's row | Pending |
+| `4ed2789eb32f0758f93333fabb2de090e1c30835` | Tests: TabGroupDropTests reads the saved row wherever the window keeps it | Pending |
+| `e537e77ca55553418183a3d6a080b8356ae8a2c7` | Keep the window when its last tab closes, off by default (idea 1102) | Pending |
+| `893bba713a5ec88e3a9bd3ac788f1506acd9ddb9` | The ⌘T / ⌘L field keeps the keys when its open animation ends (idea 1099) | Pending |
+| `df8f3a4c9fa3a1ebf5f67fa20bdf4df8be62e3bf` | ⌘S: the page's card opens out with the column, edge to edge when folded, crisp | Pending |
+| `d8aaba27086332b477b71553cb9e725959c2d1e3` | ⌘S: the window's buttons ride the column's frames; the peeking column floats as a card | Pending |
+| `c48dd6aacbde1cee34b80943db425b522a96d540` | ⌘S: the side panel goes edge to edge with the folded page | Pending |
+| `33ec7aea1823c81c77a2be196e442dd54e36efa7` | ⌘S: the floating peek column's corners are round | Pending |
+

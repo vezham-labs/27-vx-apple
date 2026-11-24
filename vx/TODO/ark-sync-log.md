@@ -4,9 +4,17 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 ## Current Mac sync pass — November 24, 2026
 
+The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
+
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
 Before reviewing incoming commits, Ark added insertion positions and a visible insertion marker for dragging pins within a folder. The previous drag resolver only calculated individual positions among root pins. `ark:build-mac` passed; interactive verification of this new folder reorder path is still pending. Earlier SpikeArk checks established pinning, moving into a folder, and returning to Today, but did not establish reordering.
+
+Fetched upstream heads: Browsa `e981df56c551fc83efc39efe1b7d61cd7abe3071`; Search `33ec7aea1823c81c77a2be196e442dd54e36efa7`. These are review targets, not fully synced baselines. Neither reference checkout was switched or merged.
+
+Adapted Browsa `85f6092a072347c472cc7e841ecbced7707e5ba5` in Ark's `PageActivity.swift`: coalesce media events over 200 ms instead of rescanning media for every event. Ark additionally cancels the pending report on `pagehide` so an old timer cannot overwrite the inactive report. Input and submit reporting remain immediate. An in-memory Node check of the extracted script verified that 100 media events scheduled one scan and page hide cancelled the pending timer. This uses a mock DOM, not live WebKit, and does not establish a measured CPU improvement. Live timing verification remains pending.
+
+Next review candidates include upstream extension permission and redirect checks, private-window extension controls, and avoiding unchanged Live Folder writes. New upstream visual designs require comparison against Arc before adoption.
 
 ## Browsa
 
@@ -453,3 +461,5 @@ After the user opened SpikeArk from Finder with access, its local control port r
 The existing isolated `SnapshotTour` now captures the Mac Sync settings pane after selecting a temporary local folder and completing one sync. The fixture wrote one device snapshot file and reported `synced`; this verifies the Mac coordinator and settings state for one local client, not a real shared provider or cross-device convergence. It also captures the page-bound Notes panel as an adjacent-feature reference, with explicit labeling that Notes is not an Easel. The Mac build passed; no test files were added.
 
 The comparison now links the Sync settings and Notes panel screenshots, and the Passkeys row links the existing extension-library image. The DRM image remains ordinary playback only; Glance is labeled as generic rather than service-specific web-app preview; the extension-library images do not establish MV2 compatibility or built-in AI. Native passkeys, protected playback, physical drag, actual shared-folder selection, and two-client sync remain open.
+
+Adapted Browsa `5ebc8c1bf1df0169d9f7b828a51794fe0a0c0136` for Ark call-audio configuration: script refreshes leave installed content-blocking rule lists in place. Full rule replacement remains the default for page registration and blocking configuration changes. The combined media batching and script-refresh batch passed `ark:build-mac`; live runtime verification remains pending.

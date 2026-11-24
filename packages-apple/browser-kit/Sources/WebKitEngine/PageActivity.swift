@@ -79,10 +79,17 @@ enum PageActivity {
         return false;
       }
 
+      // Coalesce repeated media events so a feed is scanned once per burst.
+      var pending = 0;
+      function soon() {
+        if (pending) return;
+        pending = setTimeout(function () { pending = 0; report(); }, 200);
+      }
+
       ['play', 'playing', 'pause', 'ended', 'volumechange', 'emptied'].forEach(function (type) {
         document.addEventListener(type, function (e) {
           if (e.target instanceof HTMLMediaElement) media.add(e.target);
-          report();
+          soon();
         }, true);
       });
       document.addEventListener('input', function (e) {
@@ -96,7 +103,10 @@ enum PageActivity {
         fields.forEach(function (f) { if (e.target.contains(f)) fields.delete(f); });
         report();
       }, true);
-      window.addEventListener('pagehide', function () { last = ''; post(false, false); });
+      window.addEventListener('pagehide', function () {
+        if (pending) { clearTimeout(pending); pending = 0; }
+        last = ''; post(false, false);
+      });
       window.addEventListener('pageshow', function (e) { if (e.persisted) { last = '-'; report(); } });
     })();
     """

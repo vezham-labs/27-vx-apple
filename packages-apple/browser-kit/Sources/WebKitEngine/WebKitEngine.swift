@@ -38,7 +38,7 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
     /// processing, which lets echo through and over-boosts some audio interfaces. Applies to pages
     /// loaded after it changes.
     public var callAudioProcessing = true {
-        didSet { if callAudioProcessing != oldValue { for controller in allContentControllers { install(on: controller) } } }
+        didSet { if callAudioProcessing != oldValue { for controller in allContentControllers { install(on: controller, rules: false) } } }
     }
     /// Settings › Audio. Pages read it about once a second while a call runs, so changes apply live;
     /// switching processing to the system's applies to pages loaded after.
@@ -278,9 +278,13 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
             .filter { seen.insert(ObjectIdentifier($0)).inserted }
     }
 
-    private func install(on controller: WKUserContentController) {
-        controller.removeAllContentRuleLists()
-        ruleLists.forEach(controller.add)
+    private func install(on controller: WKUserContentController, rules: Bool = true) {
+        // Audio script changes do not change blocking rules. Avoid sending
+        // the same compiled lists back to every page process in that case.
+        if rules {
+            controller.removeAllContentRuleLists()
+            ruleLists.forEach(controller.add)
+        }
         controller.removeAllUserScripts()
         controller.removeScriptMessageHandler(forName: CookieBannerHandler.messageName, contentWorld: CookieBannerHandler.world)
         let cookieScripts = blocking.declineCookieBanners ? CookieBannerHandler.scripts(skipping: blocking.allowlist) : []

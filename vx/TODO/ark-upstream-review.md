@@ -183,7 +183,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | --- | --- | --- |
 | `9336a8e4f78bb6d193fe352e2596decd3b3bd664` | Search › What's New… and the About window's What's New button (idea 968); the iPhone beta's waitlist in a few quiet places, for now | Pending |
 | `42ca1b9bf6f10aaefaed1893130841eb2fa035af` | iPhone beta prompts: hidden only once the iPhone beta was asked for, or Not now | Pending |
-| `2b44d44be86cf0181d8e7368216aba1d49a2a7de` | A live folder's post opens among the tabs, not in the front tab's group (idea 978) | Pending |
+| `2b44d44be86cf0181d8e7368216aba1d49a2a7de` | A live folder's post opens among the tabs, not in the front tab's group (idea 978) | Already covered by Ark's model: live-folder articles open as Today tabs in their owning Space; Ark pinned folders do not act as tab groups. |
 | `20942bc01fe5a96f63b3490e5f9cf643f133b996` | Links with target=_blank in an extension's popup open a tab (idea 972) | Pending |
 | `344088842d4fb67b8340aba5e7b799589eb2a0b3` | Readwise Highlighter's worker starts again (idea 813) | Pending |
 | `c2c6d9281f60531e7eb0109b59f0f5a86d9575e2` | Set Up Like Arc turns on Arc's newer habits and is offered in the welcome and after an Arc import (idea 964) | Pending |
@@ -207,7 +207,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `5896709f69b2e7e63c790ffd38f42a021bb4e6c3` | Optional unread counts on pinned tabs (#1434) | Pending |
 | `4746a7772c5b3edd612dd5c76c80ce5d174f12a3` | List and reset site permissions in Privacy settings (#1429) | Partially adapted: Ark already lists permissions by host and can forget all answers for one host. Privacy settings now search hosts and reset one saved answer at a time while retaining Forget-all. Ark stores these answers by hostname rather than full origin/port. Mac build passed; runtime UI and reset behavior remain open. |
 | `61cc8e136b409227967c3749f0e250187836e66a` | chrome.management.getAll() lists installed extensions for one with "management" (#1431) | Pending |
-| `71992504d6e5ce9ab72032ce53c8b559b4aeb202` | Keys for profiles: Next Profile, Previous Profile, Profile 1–9 (#1437) | Pending |
+| `71992504d6e5ce9ab72032ce53c8b559b4aeb202` | Keys for profiles: Next Profile, Previous Profile, Profile 1–9 (#1437) | Partially adapted: Ark now offers customizable Next/Previous Profile actions for profiles assigned to regular Spaces. Profile 1–9 was not copied because Ark already assigns number shortcuts to tabs and Spaces; Ark's profiles are scoped through Spaces. Mac build passed; runtime menu and key checks remain open. |
 | `fe22040c014e4a0ebd7bf642434919a93b292c7b` | Native fields no longer run macOS's password-field guess over every view in the window (#1458) | Adapted: Ark disables AppKit's native-field heuristic through a volatile UserDefaults registration; browser-page password handling remains in WebKit. Mac build passed. Ark focus-latency and CPU measurements remain open; Search reported up to 100% CPU for tens of seconds in a full window. |
 | `ceaec9b8c7544df19745579d343551ce8cb51fef` | An agent's click lands where it aims on a zoomed page (#1464) | Reviewed, no matching path: Search's bench sends CSS-pixel coordinates as native mouse events. Ark's `page_click` targets a DOM element by reference or selector and calls `.click()`, so the coordinate/zoom conversion bug does not exist in Ark. |
 | `bb0d3160fd5a7e1972f6dcfdce9412aae5df6034` | The agents' page room goes back off screen when displays change (#1421) | Pending |

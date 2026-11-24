@@ -332,6 +332,8 @@ extension Browser {
         case .archive: isArchivePresented = true
         case .nextSpace: selectAdjacentSpace(1)
         case .previousSpace: selectAdjacentSpace(-1)
+        case .nextProfile: selectAdjacentWebsiteProfile(1)
+        case .previousProfile: selectAdjacentWebsiteProfile(-1)
         case .sidebar: toggleSidebar()
         case .panel: togglePanel()
         case .notes: showPanel("notes", toggles: true)

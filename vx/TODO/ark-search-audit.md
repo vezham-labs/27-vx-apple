@@ -50,6 +50,8 @@ Current order: complete the Mac audit first. Mobile implementation and device ve
 | Hidden-column drag | `Fold.swift` keeps a floating auto-hide column open while its edge is dragged. | Ark's sidebar floats on edge hover and is resizable only while docked, so there is no matching hidden-column drag path. No code change. |
 | Agent click at page zoom | `PageHands.swift` scales CSS-pixel points before sending native mouse events. | Ark's `page_click` resolves a DOM reference or CSS selector and calls `.click()`; there is no coordinate click path affected by zoom. |
 | Open all pinned-folder pages | `Browser.openAll(_:)` opens direct bookmarks behind the current tab; ⌘-click on a folder invokes it. | Mac Ark's folder context menu now opens the folder's pinned pages, recursively including nested folders, in sidebar order and keeps the current tab selected. Live-feed articles are excluded. Mac build passed; runtime behavior remains open. |
+| Profile shortcuts | `Profiles.step` and `Profiles.go` add customizable Next/Previous Profile and Profile 1–9 actions, offered only when multiple profiles exist. | Ark adds customizable Next/Previous Profile actions for website profiles assigned to regular Spaces. Profile 1–9 is omitted because Ark reserves number shortcuts for tabs and Spaces. Mac build passed; runtime menu and key verification remain open. |
+| Live-folder post placement | `LiveFolders.openFeedItem` opens a post as a loose tab instead of inheriting the active tab's group. | Ark opens a post into the feed's owning Space as a Today tab; pinned folders are not tab groups. Existing behavior already keeps the post out of the pinned folder. |
 
 ## Compatibility and migration
 

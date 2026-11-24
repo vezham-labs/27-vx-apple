@@ -399,6 +399,20 @@ final class Browser {
         if spaces.indices.contains(n - 1) { selectSpace(spaces[n - 1]) }
     }
 
+    /// Cycles through website profiles that are assigned to regular Spaces.
+    func selectAdjacentWebsiteProfile(_ delta: Int) {
+        var profileIDs: [UUID?] = []
+        if regularSpaces.contains(where: { $0.websiteProfileID == nil }) { profileIDs.append(nil) }
+        profileIDs.append(contentsOf: library.settings.websiteProfiles
+            .map(\.id)
+            .filter { id in regularSpaces.contains(where: { $0.websiteProfileID == id }) })
+        guard profileIDs.count > 1,
+              let index = profileIDs.firstIndex(where: { $0 == currentSpace.websiteProfileID }) else { return }
+        let next = profileIDs[(index + delta + profileIDs.count) % profileIDs.count]
+        guard let space = regularSpaces.first(where: { $0.websiteProfileID == next }) else { return }
+        selectSpace(space)
+    }
+
     /// The spaces the switcher shows: the Agent space only while it's in use (or you're in it).
     var shownSpaces: [Space] {
         spaces.filter { $0.id == selectedSpaceID || library.agents.showsInSidebar($0) }

@@ -221,6 +221,15 @@ struct BrowserCommands: Commands {
                 .disabled(library.privateSpace == nil)
         }
 
+        if Set(library.regularSpaces.map(\.websiteProfileID)).count > 1 {
+            CommandMenu("Profiles") {
+                Button("Next Profile") { browser?.selectAdjacentWebsiteProfile(1) }
+                    .keyboardShortcut(keys.shortcut(.nextProfile))
+                Button("Previous Profile") { browser?.selectAdjacentWebsiteProfile(-1) }
+                    .keyboardShortcut(keys.shortcut(.previousProfile))
+            }
+        }
+
         CommandGroup(replacing: .help) {
             Button("Welcome to Ark") { browser?.openWelcome(playingIntro: true) }
                 .disabled(browser == nil)

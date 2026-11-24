@@ -125,6 +125,7 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Sendable {
     case pin, favourite, archive
     // Spaces and window
     case nextSpace = "next-space", previousSpace = "previous-space"
+    case nextProfile = "next-profile", previousProfile = "previous-profile"
     case sidebar, panel, notes, downloads
     // Page
     case back, forward, reload, hardReload = "hard-reload", stop
@@ -135,7 +136,7 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 
     enum Group: String, CaseIterable, Identifiable {
-        case tabs = "Tabs", spaces = "Spaces and Window", page = "Page"
+        case tabs = "Tabs", spaces = "Spaces and Window", profiles = "Profiles", page = "Page"
         var id: String { rawValue }
     }
 
@@ -144,6 +145,7 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Sendable {
         case .newTab, .openLocation, .commands, .newWindow, .privateTab, .close, .reopen, .closeOthers,
              .clearToday, .nextTab, .previousTab, .lastUsedTab, .recentTabs, .pin, .favourite, .archive: .tabs
         case .nextSpace, .previousSpace, .sidebar, .panel, .notes, .downloads: .spaces
+        case .nextProfile, .previousProfile: .profiles
         default: .page
         }
     }
@@ -168,6 +170,8 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Sendable {
         case .archive: "Archived Tabs"
         case .nextSpace: "Next Space"
         case .previousSpace: "Previous Space"
+        case .nextProfile: "Next Profile"
+        case .previousProfile: "Previous Profile"
         case .sidebar: "Show or Hide Sidebar"
         case .panel: "Show or Hide Panel"
         case .notes: "Notes"
@@ -222,6 +226,7 @@ enum ShortcutAction: String, CaseIterable, Identifiable, Sendable {
         case (.nextSpace, _): return [k("right", optCmd)]
         case (.previousSpace, .chrome): return [k("left", ctrlCmd)]
         case (.previousSpace, _): return [k("left", optCmd)]
+        case (.nextProfile, _), (.previousProfile, _): return []
         case (.sidebar, .safari): return [k("l", shiftCmd)]
         case (.sidebar, _): return [k("s")]
         case (.panel, _): return [k("s", optCmd)]

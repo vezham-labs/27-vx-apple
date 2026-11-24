@@ -504,6 +504,10 @@ Reviewed Search `ceaec9b8c7544df19745579d343551ce8cb51fef`: its bench sends page
 
 Adapted Search `c17c0fa9345c4ce9f27d7e50eb6b78156cc4bc49` to Ark's nested pinned folders: a Mac folder context menu now offers **Open All Tabs in Folder**. It opens pinned pages from the folder and nested folders in sidebar order, behind the current tab, while leaving live-feed articles out. The Mac build passed. Runtime checks for order, selected-tab stability, and nested folders remain open; mobile still has no action.
 
+Partially adapted Search `71992504d6e5ce9ab72032ce53c8b559b4aeb202`: Ark's shortcut settings and Profiles menu now expose customizable Next/Previous Profile actions when at least two website profiles are assigned to regular Spaces. Cycling follows the configured profile order and selects the first Space assigned to the target. Profile 1–9 is omitted because Ark already uses number shortcuts for tabs and Spaces, and its profiles are Space-scoped. The Mac build passed; menu and keyboard runtime checks remain open.
+
+Reviewed Search `2b44d44be86cf0181d8e7368216aba1d49a2a7de`: Ark already opens a live-folder article as a Today tab in the Space that owns the folder. Ark pinned folders do not form tab groups, so the Search-specific `loose` placement behavior has no separate equivalent to port.
+
 ### Browsa extension host-permission scope — Mac
 
 Adapted the permission-scope portion of Browsa `1642b72ff49a17421b29ba3d56c70b5717a09b8c`: `WebKitExtensions` no longer grants `<all_urls>` to every extension. Broad host access is granted only when an extension's requested match patterns include `<all_urls>` or a wildcard host; otherwise Ark grants its declared patterns. This closes an overbroad WebKit permission grant without changing the extension UI. Browsa's redirect-checked, profile-aware `browsa.fetch` path was not copied because Ark does not expose that API. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. A runtime check with narrow-host and all-host extensions remains open. The comparison's Chrome extensions rating stays Partial pending compatibility and permission-flow verification.

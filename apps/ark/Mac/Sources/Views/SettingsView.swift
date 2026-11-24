@@ -901,7 +901,9 @@ private struct AgentSettings: View {
 
 /// Settings › Shortcuts: a preset (Arc's keys, Chrome's or Safari's), then any key you like.
 private struct ShortcutSettings: View {
+    @Environment(Library.self) private var library
     private var shortcuts: Shortcuts { Shortcuts.shared }
+    private var hasMultipleAssignedProfiles: Bool { Set(library.regularSpaces.map(\.websiteProfileID)).count > 1 }
     /// What the last recording did to another action ("Taken from Pin Tab").
     @State private var notes: [ShortcutAction: String] = [:]
 
@@ -931,7 +933,7 @@ private struct ShortcutSettings: View {
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
             }
-            ForEach(ShortcutAction.Group.allCases) { group in
+            ForEach(ShortcutAction.Group.allCases.filter { $0 != .profiles || hasMultipleAssignedProfiles }) { group in
                 Section(group.rawValue) {
                     ForEach(ShortcutAction.allCases.filter { $0.group == group }) { action in
                         row(action)

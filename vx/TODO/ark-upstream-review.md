@@ -19,7 +19,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 43 of 263 commits assessed (16.3%); 220 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 44 of 263 commits assessed (16.7%); 219 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -251,7 +251,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `bceedf3735165648d85e96663b60abf215f31db9` | AdGuard's rules are no longer compiled twice at every launch (idea 1030) | Reviewed; no Ark code path to adapt. This Search fix targets extension `declarativeNetRequest.updateSessionRules`; Ark does not expose that API. Ark's own WebKit content blocker already retrieves compiled lists from `WKContentRuleListStore` by stable identifiers. No change to the Bloat rating or performance claim. |
 | `d0a1aa77cdc2403cbe4b89d98507dc919a1be1ae` | Hidden on This Site: a restored row leaves at once, and the panel moves (idea 1064) | Reviewed; Ark's `SiteStyleEditor` removes a restored row from local state immediately after the persisted restore succeeds. Search's draggable floating panel does not match Ark's editor UI or the Arc visual reference, so it was not copied. No code change. |
 | `8c1b9cab3ee25d6a33d6f6e1b4c4d16ee149a23f` | Extension pages without <head> keep their doctype (no quirks mode) | Adapted in Ark's unpacked-extension preparation: injects the prelude after the doctype and `<html>` tag for headless pages, avoids matching `<header>`, handles `.htm`, and preserves UTF-8 BOMs. Mac build passed; live extension-page rendering and `document.compatMode` remain unverified. |
-| `542276c69bac8ce927a23fa0b89d15ca28b4f530` | The page under a folded column hears no hover on its edge or as it slides in (idea 1048) | Pending |
+| `542276c69bac8ce927a23fa0b89d15ca28b4f530` | The page under a folded column hears no hover on its edge or as it slides in (idea 1048) | Reviewed; Search's custom `PageView` consumes events under its folded-column geometry. Ark uses a different overlay/sidebar structure; `PageArea.pageUnderPointer` only forwards hover to the view returned by AppKit hit-testing, while the peek edge and sidebar are overlays. Source suggests covered hover is already blocked, but active WebKit hover during the animation remains runtime-unverified; no code change. |
 | `eba1ebf2efa6bb7f5204e70bd600ece7ae7360cd` | Leave an extension's own pages alone when a closed tab's process spins, and end only the same process (#1468) | Pending |
 | `7bfd3fb840934bd1adc4ce74e70d812a14d80002` | Bench paceframes: a space swipe and a column scroll timed frame by frame (idea 1051) | Pending |
 | `42bc7a4b025d4ef9b7b376f30987139564d6f239` | CHANGELOG: tidy Unreleased for 1.0.20 (period before a credit, idea 1059, stuck_process probe) | Pending |

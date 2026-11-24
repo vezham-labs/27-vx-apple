@@ -60,6 +60,29 @@ extension BrowserState {
         scheduleSave()
     }
 
+    public func renameWebsiteProfile(_ id: UUID, to name: String) {
+        guard let index = settings.websiteProfiles.firstIndex(where: { $0.id == id }) else { return }
+        var profile = settings.websiteProfiles[index]
+        guard profile.rename(to: name) else { return }
+        settings.websiteProfiles[index] = profile
+    }
+
+    public func deleteWebsiteProfile(_ id: UUID) async {
+        guard settings.websiteProfiles.contains(where: { $0.id == id }) else { return }
+        let affectedSpaces = regularSpaces.filter { $0.websiteProfileID == id }
+        let affectedTabs = affectedSpaces.flatMap(\.allTabs)
+        for space in affectedSpaces { assignWebsiteProfile(nil, to: space) }
+        for tab in affectedTabs {
+            tab.interactionState = nil
+            tab.websiteSessionProfileID = nil
+        }
+        removeWebsiteProfileReferences(id)
+        settings.websiteProfiles.removeAll { $0.id == id }
+        await pool.deleteWebsiteDataStore(for: id)
+        await profileHistory.deleteProfile(id)
+        scheduleSave()
+    }
+
     public func addSpace() {
         let used = Set(spaces.map(\.colorIndex))
         let color = (0..<6).first { !used.contains($0) } ?? spaces.count

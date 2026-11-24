@@ -306,6 +306,9 @@ private struct SpaceEditorRow: View {
     @Bindable var space: Space
     @State private var profileName = ""
     @State private var creatingProfile = false
+    @State private var editingProfileID: UUID?
+    @State private var deletingProfileID: UUID?
+    @State private var confirmingProfileDeletion = false
 
     private let symbols = ["house.fill", "briefcase.fill", "book.fill", "gamecontroller.fill",
                            "cart.fill", "airplane", "paintpalette.fill", "hammer.fill"]
@@ -335,17 +338,32 @@ private struct SpaceEditorRow: View {
             }
             profileMenu
         }
-        .alert("New Website Profile", isPresented: $creatingProfile) {
+        .alert(editingProfileID == nil ? "New Website Profile" : "Rename Website Profile", isPresented: $creatingProfile) {
             TextField("Profile Name", text: $profileName)
-            Button("Cancel", role: .cancel) {}
-            Button("Create") {
-                guard let profile = WebsiteProfile(name: profileName) else { return }
-                browser.settings.websiteProfiles.append(profile)
-                browser.assignWebsiteProfile(profile.id, to: space)
+            Button("Cancel", role: .cancel) { editingProfileID = nil }
+            Button(editingProfileID == nil ? "Create" : "Save") {
+                if let id = editingProfileID {
+                    browser.renameWebsiteProfile(id, to: profileName)
+                    editingProfileID = nil
+                } else {
+                    guard let profile = WebsiteProfile(name: profileName) else { return }
+                    browser.settings.websiteProfiles.append(profile)
+                    browser.assignWebsiteProfile(profile.id, to: space)
+                }
             }
             .disabled(profileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         } message: {
             Text("A profile keeps website sign-ins and storage separate. Changing profiles reloads the Space’s tabs.")
+        }
+        .confirmationDialog("Delete Website Profile?", isPresented: $confirmingProfileDeletion, titleVisibility: .visible) {
+            Button("Delete Profile", role: .destructive) {
+                guard let id = deletingProfileID else { return }
+                Task { await browser.deleteWebsiteProfile(id) }
+                deletingProfileID = nil
+            }
+            Button("Cancel", role: .cancel) { deletingProfileID = nil }
+        } message: {
+            Text("Spaces using this profile return to Default. Its sign-ins, site data, history, and favorites will be deleted from this device.")
         }
         .swipeActions {
             if browser.regularSpaces.count > 1 {
@@ -369,7 +387,19 @@ private struct SpaceEditorRow: View {
             Divider()
             Button("New Website Profile…") {
                 profileName = ""
+                editingProfileID = nil
                 creatingProfile = true
+            }
+            if let selected {
+                Button("Rename \(selected.name)…") {
+                    profileName = selected.name
+                    editingProfileID = selected.id
+                    creatingProfile = true
+                }
+                Button("Delete \(selected.name)…", role: .destructive) {
+                    deletingProfileID = selected.id
+                    confirmingProfileDeletion = true
+                }
             }
         } label: {
             Image(systemName: "person.crop.circle")

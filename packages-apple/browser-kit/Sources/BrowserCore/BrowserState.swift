@@ -15,6 +15,13 @@ public final class BrowserState {
         get { profileFavorites[FavoriteProfileKey.key(for: currentSpace.websiteProfileID)] ?? [] }
         set { profileFavorites[FavoriteProfileKey.key(for: currentSpace.websiteProfileID)] = newValue }
     }
+
+    func removeWebsiteProfileReferences(_ profileID: UUID) {
+        profileFavorites.removeValue(forKey: FavoriteProfileKey.key(for: profileID))
+        archive.removeAll { $0.websiteSessionProfileID == profileID }
+        recentlyClosed.removeAll { $0.websiteSessionProfileID == profileID }
+    }
+
     public var archive: [BrowserTab] = []
     /// Saved sites, newest first.
     public var saved: [SavedSite] = []

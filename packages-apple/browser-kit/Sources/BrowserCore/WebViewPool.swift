@@ -71,6 +71,12 @@ final class WebViewPool {
         return configuration
     }
 
+    func deleteWebsiteDataStore(for profileID: UUID) async {
+        let store = namedConfigurations.removeValue(forKey: profileID)?.websiteDataStore
+            ?? WKWebsiteDataStore(forIdentifier: profileID)
+        await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
+    }
+
     /// Runs `load` once the content rule lists are installed, so a tab restored at launch can't
     /// slip through unblocked while they're still being looked up.
     func afterContentRules(_ load: @escaping () -> Void) {

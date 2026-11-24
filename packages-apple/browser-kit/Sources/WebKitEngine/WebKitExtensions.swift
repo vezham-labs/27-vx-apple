@@ -81,7 +81,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
                 // The same address every launch, so restored tabs showing the extension's pages still work.
                 context.baseURL = Self.stableBaseURL(for: id)
                 context.isInspectable = true
-                grantEverything(context)
+                grantRequestedPermissions(context)
                 try controller.load(context)
                 contexts[id] = context
                 startKeepAlive(context, folder: url)
@@ -110,7 +110,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
                 // deletes the extension's local storage and IndexedDB, so its settings and sign-ins go.
                 context.baseURL = Self.stableBaseURL(for: id)
                 context.isInspectable = true
-                grantEverything(context)
+                grantRequestedPermissions(context)
                 try controller.load(context)
                 contexts[id] = context
                 loaded.append(describe(ext, context: context, id: id))
@@ -215,13 +215,17 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
         return URL(string: "webkit-extension://\(uuid.uuidString.lowercased())/")!
     }
 
-    private func grantEverything(_ context: WKWebExtensionContext) {
+    private func grantRequestedPermissions(_ context: WKWebExtensionContext) {
         let ext = context.webExtension
         for p in ext.requestedPermissions.union(ext.optionalPermissions) {
             context.setPermissionStatus(.grantedExplicitly, for: p)
         }
         for m in ext.allRequestedMatchPatterns { context.setPermissionStatus(.grantedExplicitly, for: m) }
-        context.setPermissionStatus(.grantedExplicitly, for: WKWebExtension.MatchPattern.allURLs())
+        // Keep broad host access opt-in at the manifest level; otherwise an extension that lists a
+        // few sites would still receive access to every page through WebKit's all-URLs grant.
+        if ext.allRequestedMatchPatterns.contains(where: { $0.matchesAllURLs || $0.matchesAllHosts }) {
+            context.setPermissionStatus(.grantedExplicitly, for: WKWebExtension.MatchPattern.allURLs())
+        }
     }
 
     func unloadAll() {

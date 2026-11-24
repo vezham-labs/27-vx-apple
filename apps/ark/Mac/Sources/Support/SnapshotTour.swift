@@ -226,13 +226,13 @@ struct SnapshotTour {
 
         guard let host = browser.editableSiteStyleHost else { note("site style unavailable"); return }
         let css = "h1 { color: #a33df5; }\nmain { border-inline-start: 6px solid #a33df5; }"
-        do { try browser.saveSiteStyle(css, for: host) }
+        do { try browser.saveSiteStyle(css, font: .serif, for: host) }
         catch { note("site style could not save"); return }
         await pause(0.5)
         let world = "ark.preview"
-        let check = "return getComputedStyle(document.querySelector('h1')).color;"
-        if let color = try? await browser.currentController?.page.evaluate(check, inWorld: world) as? String {
-            note("styled heading: \(color)")
+        let check = "const h1 = document.querySelector('h1'); const style = getComputedStyle(h1); return JSON.stringify({ color: style.color, font: style.fontFamily });"
+        if let style = try? await browser.currentController?.page.evaluate(check, inWorld: world) as? String {
+            note("Boost heading after selecting Serif: \(style)")
         }
         browser.run(command: "edit-site-style")
         await pause(0.6)
@@ -241,8 +241,8 @@ struct SnapshotTour {
         await pause(0.6)
         browser.reload()
         await pause(1.5)
-        if let color = try? await browser.currentController?.page.evaluate(check, inWorld: world) as? String {
-            note("heading after reload: \(color)")
+        if let style = try? await browser.currentController?.page.evaluate(check, inWorld: world) as? String {
+            note("Boost font and CSS after reload: \(style)")
         }
         saveVisible("site-style-applied", in: window)
 

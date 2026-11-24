@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists 149 Browsa and 123 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Browsa's clean worktree matches `origin/main` at `e981df56`. Search's clean worktree is at `33ec7aea`, with nine additional commits available on `origin/main` at `659f74dc`; those diffs were assessed without changing the upstream checkout. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 110/272 incoming commits assessed (40.4%); 162 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 114/272 incoming commits assessed (41.9%); 158 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -704,7 +704,7 @@ Search [`c502d18b67bd557c2a5267f723577e0acf93f427`](https://github.com/dricerola
 
 Search [`488b61c77de604b4c866d48e3ff2f3aa737ad028`](https://github.com/driceroland/Search/commit/488b61c77de604b4c866d48e3ff2f3aa737ad028) fixes ⌘W cycling between a blank tab and a just-parked pin. Ark's close path unloads the active pin and clears the window's selection; it does not create a blank tab that automatically wakes the pin. No equivalent loop was found, so no code change was made. The existing behavior of ⌘W with no selected tab was not runtime-checked.
 
-These reviews do not change comparison ratings. Combined Browsa/Search incoming commits reviewed so far: 110/272 (40.4%); Mac matrix remains 21/42 Yes (50%).
+These reviews do not change comparison ratings. Combined Browsa/Search incoming commits reviewed so far: 114/272 (41.9%); Mac matrix remains 21/42 Yes (50%).
 
 ### Chrome extension management API — Mac
 
@@ -739,6 +739,14 @@ Reviewed Search [`270f82f7de7774354903d230eee6ce4a558f3b58`](https://github.com/
 Adapted Search [`4548b37320f77d2775487888b5533ad95da37fd5`](https://github.com/driceroland/Search/commit/4548b37320f77d2775487888b5533ad95da37fd5) in Ark commit [`d29ee99c`](../../commit/d29ee99c): a tab row's title now takes the remaining width directly, avoiding the implicit HStack gap before a trailing Spacer while retaining Ark's call/note badges and close control. `NX_ISOLATE_PLUGINS=false pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. The first sandbox attempt could not access existing SwiftPM/Clang caches; the authorized retry completed successfully. The running Debug app has not reloaded, so visual truncation against Arc remains unverified. No simulator or new test file was used; the Pinned tabs and folders rating is unchanged.
 
 Reviewed Search [`b8cb0c20d3f14e046ee2cdeee6721009fea3168e`](https://github.com/driceroland/Search/commit/b8cb0c20d3f14e046ee2cdeee6721009fea3168e). Ark's footer has Downloads, the Space switcher, and a general menu, not Search's Bookmarks door. The Search fix changes hover ink and backgrounds across its custom greys palette; adopting it without checking Arc's corresponding footer treatment could move Ark away from its visual target. Defer until Arc hover states are compared; no code or matrix rating changed.
+
+Reviewed Search [`ee719dca2604ba2bccfc7e18151e50bdad0c8ce5`](https://github.com/driceroland/Search/commit/ee719dca2604ba2bccfc7e18151e50bdad0c8ce5): Ark's preset and hue bindings update `SpacePalette.surface` in the live browser window while the Space theme editor remains open. The window itself previews the selected color and shade, unlike Search's separate mismatched preview card. No code or rating change.
+
+Adapted Search [`60248b85d41ab55b19c057fd68b47e56f6ad9949`](https://github.com/driceroland/Search/commit/60248b85d41ab55b19c057fd68b47e56f6ad9949) in Ark commit [`8948a8fa`](../../commit/8948a8fa). The AppKit reopen delegate now bases Dock behavior on registered Ark browser windows, so an auxiliary Mini Player or Link Preview cannot make the Dock click appear satisfied while every browser window is minimized or out of sight. It restores an existing browser window or requests a new WindowGroup window when none remains. Ark browser windows are also included in the Window menu. The Mac build passed; live Dock and Window-menu checks remain open. This behavior is outside the 42 comparison rows.
+
+Reviewed Search [`241966e70c3072a8eaac0360429acfae6bf9f404`](https://github.com/driceroland/Search/commit/241966e70c3072a8eaac0360429acfae6bf9f404): Ark has one extension-action menu in the address pill, with no duplicated hidden puzzle-button row at the sidebar footer. Search's shared-open-state bug has no corresponding Ark path; no code or matrix change.
+
+Reviewed Search [`cfeed018cfbea714abd831b58571b8c5c0340fa5`](https://github.com/driceroland/Search/commit/cfeed018cfbea714abd831b58571b8c5c0340fa5): Ark presents extension popups through WebKit's native `WKWebExtension.Action.popupPopover` and does not persist popup dimensions. Search's custom size cache and uninstall cleanup have no Ark counterpart; no code or matrix change.
 
 ### Search Find and theme layout review — Mac
 

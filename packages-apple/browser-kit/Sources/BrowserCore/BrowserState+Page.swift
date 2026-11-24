@@ -87,6 +87,47 @@ extension BrowserState {
         scheduleSave()
     }
 
+    @discardableResult
+    public func moveTodayTabToPinned(_ id: UUID, in space: Space, into folderID: UUID? = nil,
+                                    relativeTo targetID: UUID? = nil, after: Bool = false) -> Bool {
+        guard !space.isPrivate, regularSpaces.contains(where: { $0 === space }),
+              let sourceIndex = space.today.firstIndex(where: { $0.id == id }) else { return false }
+        if let folderID {
+            guard space.pinFolders.contains(where: { $0.id == folderID && $0.feed == nil }) else { return false }
+        }
+        if let targetID {
+            guard let target = space.pinned.first(where: { $0.id == targetID }), target.pinFolderID == folderID else { return false }
+        }
+
+        let tab = space.today.remove(at: sourceIndex)
+        tab.isPinned = true
+        tab.pinFolderID = folderID
+        let insertion: Int
+        if let targetID, let targetIndex = space.pinned.firstIndex(where: { $0.id == targetID }) {
+            insertion = targetIndex + (after ? 1 : 0)
+        } else if let lastInFolder = space.pinned.lastIndex(where: { $0.pinFolderID == folderID }) {
+            insertion = lastInFolder + 1
+        } else {
+            insertion = space.pinned.endIndex
+        }
+        space.pinned.insert(tab, at: insertion)
+        scheduleSave()
+        return true
+    }
+
+    @discardableResult
+    public func movePinnedTabToToday(_ id: UUID, in space: Space, before targetID: UUID) -> Bool {
+        guard !space.isPrivate, regularSpaces.contains(where: { $0 === space }),
+              let sourceIndex = space.pinned.firstIndex(where: { $0.id == id }),
+              let targetIndex = space.today.firstIndex(where: { $0.id == targetID }) else { return false }
+        let tab = space.pinned.remove(at: sourceIndex)
+        tab.pinFolderID = nil
+        tab.isPinned = false
+        space.today.insert(tab, at: targetIndex)
+        scheduleSave()
+        return true
+    }
+
     /// Call on launch and when returning to the foreground.
     public func archiveStaleTabs(now: Date = .now) {
         for space in spaces where !space.isPrivate {

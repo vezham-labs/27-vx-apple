@@ -33,13 +33,16 @@ struct SidebarView: View {
     private func spaceTabs(_ space: Space) -> some View {
         let rootPins = space.rootPins
         return VStack(alignment: .leading, spacing: 12) {
-            PinFolderList(space: space, save: browser.scheduleSave, openArticle: { browser.newTab(url: $0, in: space, source: .link) }) { tab in
+            PinFolderList(space: space, save: browser.scheduleSave,
+                          openArticle: { browser.newTab(url: $0, in: space, source: .link) },
+                          moveTodayTab: { browser.moveTodayTabToPinned($0, in: space, into: $1, relativeTo: $2, after: $3) }) { tab in
                 TabRow(tab: tab, selected: tab.id == space.selectedTabID)
             }
             if !rootPins.isEmpty {
                 LazyVGrid(columns: pinnedColumns, spacing: 8) {
                     ForEach(Array(rootPins.enumerated()), id: \.element.id) { i, tab in
                         pinnedTile(tab, selected: tab.id == space.selectedTabID)
+                            .pinnedTabDragDrop(tab, in: space, browser: browser, save: browser.scheduleSave)
                             .spaceCascade(index: i, distance: Self.cascadeDistance, spaceSwitch: browser.lastSpaceSwitch)
                     }
                 }
@@ -59,6 +62,14 @@ struct SidebarView: View {
             List {
                 ForEach(space.today) { tab in
                     TabRow(tab: tab, selected: tab.id == space.selectedTabID)
+                        .draggable(tab.id.uuidString) {
+                            TabThumbnail(tab: tab, image: browser.thumbnails[tab.id], cornerRadius: 10)
+                        }
+                        .dropDestination(for: String.self) { items, _ in
+                            guard let pinID = items.first.flatMap(PinFolderDragItem.pinID),
+                                  browser.movePinnedTabToToday(pinID, in: space, before: tab.id) else { return false }
+                            return true
+                        }
                         .spaceCascade(index: (space.today.firstIndex { $0.id == tab.id } ?? 0) + space.pinned.count,
                                       distance: Self.cascadeDistance, spaceSwitch: browser.lastSpaceSwitch)
                         .listRowInsets(.init(top: 1, leading: 0, bottom: 1, trailing: 0))

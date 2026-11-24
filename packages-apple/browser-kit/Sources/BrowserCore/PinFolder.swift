@@ -181,8 +181,39 @@ extension Space {
 
     public func setPinFolder(_ id: UUID?, for tab: BrowserTab) {
         guard id == nil || (!isPrivate && pinned.contains(where: { $0 === tab })
-                            && pinFolders.contains(where: { $0.id == id })) else { return }
+                            && pinFolders.contains(where: { $0.id == id && $0.feed == nil })) else { return }
         tab.pinFolderID = id
+    }
+
+    /// Moves a pinned tab into a folder and optionally places it beside another pinned tab.
+    @discardableResult
+    public func movePinnedTab(_ id: UUID, into folderID: UUID?, relativeTo targetID: UUID? = nil,
+                              after: Bool = false) -> Bool {
+        guard !isPrivate, let sourceIndex = pinned.firstIndex(where: { $0.id == id }), id != targetID else { return false }
+        if let folderID {
+            guard pinFolders.contains(where: { $0.id == folderID && $0.feed == nil }) else { return false }
+        }
+        if let targetID {
+            guard let target = pinned.first(where: { $0.id == targetID }), target.pinFolderID == folderID else { return false }
+        }
+
+        let originalOrder = pinned.map(\.id)
+        let originalFolder = pinned[sourceIndex].pinFolderID
+        var updated = pinned
+        let tab = updated.remove(at: sourceIndex)
+        let insertion: Int
+        if let targetID, let targetIndex = updated.firstIndex(where: { $0.id == targetID }) {
+            insertion = targetIndex + (after ? 1 : 0)
+        } else if let lastInFolder = updated.lastIndex(where: { $0.pinFolderID == folderID }) {
+            insertion = lastInFolder + 1
+        } else {
+            insertion = updated.endIndex
+        }
+        updated.insert(tab, at: insertion)
+        guard updated.map(\.id) != originalOrder || originalFolder != folderID else { return false }
+        tab.pinFolderID = folderID
+        pinned = updated
+        return true
     }
 
     public func restorePinFolders(_ records: [PinFolder]) {

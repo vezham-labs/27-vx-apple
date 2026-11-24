@@ -1,5 +1,20 @@
 import SwiftUI
 
+public enum PinFolderDragItem {
+    public static func pin(_ id: UUID) -> String { "pin:\(id.uuidString)" }
+    public static func folder(_ id: UUID) -> String { "folder:\(id.uuidString)" }
+
+    public static func pinID(_ value: String) -> UUID? {
+        guard value.hasPrefix("pin:") else { return nil }
+        return UUID(uuidString: String(value.dropFirst(4)))
+    }
+
+    public static func folderID(_ value: String) -> UUID? {
+        guard value.hasPrefix("folder:") else { return nil }
+        return UUID(uuidString: String(value.dropFirst(7)))
+    }
+}
+
 public struct PinFolderList<TabRow: View>: View {
     private let space: Space
     private let save: () -> Void
@@ -7,6 +22,7 @@ public struct PinFolderList<TabRow: View>: View {
     private let folderLayout: ((UUID, CGRect?) -> Void)?
     private let coordinateSpace: String?
     private let openArticle: ((URL) -> Void)?
+    private let moveTodayTab: ((UUID, UUID?, UUID?, Bool) -> Bool)?
     private let allowsCollectionSharing: Bool
     private let tabRow: (BrowserTab) -> TabRow
     @State private var parentID: UUID?
@@ -19,12 +35,14 @@ public struct PinFolderList<TabRow: View>: View {
     @State private var feedError: String?
     @State private var folderDropTarget: UUID?
     @State private var folderRowHeights: [UUID: CGFloat] = [:]
+    @State private var pinRowHeights: [UUID: CGFloat] = [:]
 
     public init(
         space: Space, save: @escaping () -> Void,
         dropTarget: UUID? = nil, coordinateSpace: String? = nil,
         folderLayout: ((UUID, CGRect?) -> Void)? = nil,
         openArticle: ((URL) -> Void)? = nil,
+        moveTodayTab: ((UUID, UUID?, UUID?, Bool) -> Bool)? = nil,
         allowsCollectionSharing: Bool = true,
         @ViewBuilder tabRow: @escaping (BrowserTab) -> TabRow
     ) {
@@ -34,6 +52,7 @@ public struct PinFolderList<TabRow: View>: View {
         self.coordinateSpace = coordinateSpace
         self.folderLayout = folderLayout
         self.openArticle = openArticle
+        self.moveTodayTab = moveTodayTab
         self.allowsCollectionSharing = allowsCollectionSharing
         self.tabRow = tabRow
     }
@@ -81,14 +100,7 @@ public struct PinFolderList<TabRow: View>: View {
                     case .folder(let folder, let depth):
                         measuredFolderRow(folder).padding(.leading, CGFloat(depth) * 12)
                     case .tab(let tab, let depth):
-                        tabRow(tab)
-                            .padding(.leading, CGFloat(depth) * 12)
-                            .dropDestination(for: String.self) { items, _ in
-                                guard let id = items.first.flatMap(UUID.init(uuidString:)),
-                                      space.movePinFolder(id, into: tab.pinFolderID) else { return false }
-                                save()
-                                return true
-                            }
+                        pinnedTabRow(tab, depth: depth)
                     case .article(_, let article, let depth):
                         Button { openArticle?(article.url) } label: {
                             Label(article.title, systemImage: "doc.text")
@@ -112,8 +124,19 @@ public struct PinFolderList<TabRow: View>: View {
                 }
                 .buttonStyle(.plain)
                 .dropDestination(for: String.self) { items, _ in
-                    guard let id = items.first.flatMap(UUID.init(uuidString:)),
-                          space.movePinFolder(id, into: nil) else { return false }
+                    guard let value = items.first else { return false }
+                    if let pinID = PinFolderDragItem.pinID(value) {
+                        guard space.movePinnedTab(pinID, into: nil) else { return false }
+                    } else {
+                        if let folderID = PinFolderDragItem.folderID(value) {
+                            guard space.movePinFolder(folderID, into: nil) else { return false }
+                        } else if let tabID = UUID(uuidString: value),
+                                  moveTodayTab?(tabID, nil, nil, false) == true {
+                            // A Today tab joined the top-level pinned rows.
+                        } else {
+                            return false
+                        }
+                    }
                     save()
                     return true
                 }
@@ -177,6 +200,30 @@ public struct PinFolderList<TabRow: View>: View {
         }
     }
 
+    @ViewBuilder private func pinnedTabRow(_ tab: BrowserTab, depth: Int) -> some View {
+        let row = tabRow(tab).padding(.leading, CGFloat(depth) * 12)
+        row
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pinRowHeights[tab.id] = $0 }
+            .draggable(PinFolderDragItem.pin(tab.id)) { tabRow(tab) }
+            .dropDestination(for: String.self) { items, location in
+                guard let value = items.first else { return false }
+                if let folderID = PinFolderDragItem.folderID(value) {
+                    guard space.movePinFolder(folderID, into: tab.pinFolderID) else { return false }
+                } else if let pinID = PinFolderDragItem.pinID(value) {
+                    guard space.movePinnedTab(pinID, into: tab.pinFolderID, relativeTo: tab.id,
+                                              after: location.y >= (pinRowHeights[tab.id] ?? 44) / 2) else { return false }
+                } else if let todayID = UUID(uuidString: value),
+                          moveTodayTab?(todayID, tab.pinFolderID, tab.id,
+                                        location.y >= (pinRowHeights[tab.id] ?? 44) / 2) == true {
+                    // The dragged Today tab was inserted beside this pin.
+                } else {
+                    return false
+                }
+                save()
+                return true
+            }
+    }
+
     @ViewBuilder private func measuredFolderRow(_ folder: PinFolder) -> some View {
         if let coordinateSpace, let folderLayout {
             folderRow(folder)
@@ -215,15 +262,24 @@ public struct PinFolderList<TabRow: View>: View {
         .buttonStyle(.plain)
         .accessibilityValue(folder.isCollapsed ? "Collapsed" : "Expanded")
         .accessibilityHint("Drag above or below another folder to reorder, or to the center of a folder to nest.")
-        .draggable(folder.id.uuidString) {
+        .draggable(PinFolderDragItem.folder(folder.id)) {
             Label(folder.name, systemImage: "folder")
                 .padding(10)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
         }
         .dropDestination(for: String.self, action: { items, location in
-            guard let id = items.first.flatMap(UUID.init(uuidString:)) else { return false }
-            let fraction = location.y / max(folderRowHeights[folder.id] ?? 32, 1)
-            let moved = space.movePinFolder(id, relativeTo: folder.id, verticalFraction: fraction)
+            guard let value = items.first else { return false }
+            let moved: Bool
+            if let pinID = PinFolderDragItem.pinID(value) {
+                moved = space.movePinnedTab(pinID, into: folder.id)
+            } else if let id = PinFolderDragItem.folderID(value) {
+                let fraction = location.y / max(folderRowHeights[folder.id] ?? 32, 1)
+                moved = space.movePinFolder(id, relativeTo: folder.id, verticalFraction: fraction)
+            } else if let todayID = UUID(uuidString: value) {
+                moved = moveTodayTab?(todayID, folder.id, nil, false) ?? false
+            } else {
+                moved = false
+            }
             if moved { save() }
             return moved
         }, isTargeted: { targeted in
@@ -306,10 +362,10 @@ public struct MovePinMenu: View {
     }
 
     public var body: some View {
-        if tab.isPinned, !space.pinFolders.isEmpty {
+        if tab.isPinned, space.pinFolders.contains(where: { $0.feed == nil }) {
             Menu("Move to Folder", systemImage: "folder") {
                 Button("Top Level") { move(to: nil) }.disabled(tab.pinFolderID == nil)
-                ForEach(space.pinFolders) { folder in
+                ForEach(space.pinFolders.filter { $0.feed == nil }) { folder in
                     Button(space.pinFolderName(folder)) { move(to: folder.id) }
                         .disabled(tab.pinFolderID == folder.id)
                 }

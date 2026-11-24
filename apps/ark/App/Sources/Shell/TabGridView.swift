@@ -221,13 +221,17 @@ struct TabGridOverlay: View {
                     PinFolderList(space: space, save: browser.scheduleSave, openArticle: { url in
                         browser.newTab(url: url, in: space, source: .link)
                         browser.isTabSwitcherPresented = false
-                    }) { tab in
+                    }, moveTodayTab: { browser.moveTodayTabToPinned($0, in: space, into: $1, relativeTo: $2, after: $3) }) { tab in
                         pinnedChip(tab)
                     }
                     .padding(.horizontal, 16)
                     if !rootPins.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 10) { ForEach(rootPins) { pinnedChip($0) } }
+                            HStack(spacing: 10) {
+                                ForEach(rootPins) { tab in
+                                    pinnedChip(tab).pinnedTabDragDrop(tab, in: space, browser: browser, save: browser.scheduleSave)
+                                }
+                            }
                                 .padding(.horizontal, 16)
                         }
                     }
@@ -285,7 +289,13 @@ struct TabGridOverlay: View {
                     .frame(width: 140, height: 140 / aspect)
             }
             .dropDestination(for: String.self) { items, _ in
-                guard let raw = items.first, let id = UUID(uuidString: raw), let moved = self.tab(id) else { return false }
+                guard let raw = items.first else { return false }
+                if let pinID = PinFolderDragItem.pinID(raw) {
+                    return withAnimation(Motion.snappy) {
+                        browser.movePinnedTabToToday(pinID, in: browser.currentSpace, before: tab.id)
+                    }
+                }
+                guard let id = UUID(uuidString: raw), let moved = self.tab(id) else { return false }
                 withAnimation(Motion.snappy) { browser.moveTab(moved, before: tab) }
                 return true
             }

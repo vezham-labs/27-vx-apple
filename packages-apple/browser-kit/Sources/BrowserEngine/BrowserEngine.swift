@@ -469,11 +469,13 @@ public struct NavigationRequest: Sendable {
     public let wantsNewTab: Bool
     /// Shift was held too, so the new tab should come to the front.
     public let wantsForeground: Bool
+    /// Any standard mouse modifier was held, including Shift/Option-only link actions.
+    public let hasModifiers: Bool
     /// The configured modified click on a link: the user wants a quick look (Glance) without leaving the page.
     public let wantsGlance: Bool
 
     public init(url: URL, kind: Kind, isMainFrame: Bool, method: String, wantsNewTab: Bool = false, wantsForeground: Bool = false,
-                wantsGlance: Bool = false) {
+                wantsGlance: Bool = false, hasModifiers: Bool = false) {
         self.url = url
         self.kind = kind
         self.isMainFrame = isMainFrame
@@ -481,6 +483,7 @@ public struct NavigationRequest: Sendable {
         self.wantsNewTab = wantsNewTab
         self.wantsForeground = wantsForeground
         self.wantsGlance = wantsGlance
+        self.hasModifiers = hasModifiers
     }
 }
 

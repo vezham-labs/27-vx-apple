@@ -19,7 +19,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 38 of 263 commits assessed (14.4%); 225 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 40 of 263 commits assessed (15.2%); 223 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -247,8 +247,8 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `2214b1263b6a04334a06f6152468336fb4cac526` | Extension popups size to their content on load and follow it both ways (idea 1022) | Pending |
 | `824664a4291b8d99fe00ecfb1857d1b2796fc4f3` | Closing a pin goes back to the tab before it, pins included (idea 1063) | Pending |
 | `cfeed018cfbea714abd831b58571b8c5c0340fa5` | Extension popups: bound the kept size when read, forget it on uninstall | Pending |
-| `cf21241b244cd4af9b77013ce7d453b93843df50` | Links from pinned tabs can open in a new tab (idea 1039) | Pending |
-| `bceedf3735165648d85e96663b60abf215f31db9` | AdGuard's rules are no longer compiled twice at every launch (idea 1030) | Pending |
+| `cf21241b244cd4af9b77013ce7d453b93843df50` | Links from pinned tabs can open in a new tab (idea 1039) | Adapted as an off-by-default Mac setting for plain, unmodified main-frame link clicks; same-page fragments and common sign-in routes stay in the pin. Mac build passed. Runtime verification is blocked by a SwiftUI `BrowserWindow.body` crash before SnapshotTour reaches the interaction. |
+| `bceedf3735165648d85e96663b60abf215f31db9` | AdGuard's rules are no longer compiled twice at every launch (idea 1030) | Reviewed; no Ark code path to adapt. This Search fix targets extension `declarativeNetRequest.updateSessionRules`; Ark does not expose that API. Ark's own WebKit content blocker already retrieves compiled lists from `WKContentRuleListStore` by stable identifiers. No change to the Bloat rating or performance claim. |
 | `d0a1aa77cdc2403cbe4b89d98507dc919a1be1ae` | Hidden on This Site: a restored row leaves at once, and the panel moves (idea 1064) | Pending |
 | `8c1b9cab3ee25d6a33d6f6e1b4c4d16ee149a23f` | Extension pages without <head> keep their doctype (no quirks mode) | Pending |
 | `542276c69bac8ce927a23fa0b89d15ca28b4f530` | The page under a folded column hears no hover on its edge or as it slides in (idea 1048) | Pending |

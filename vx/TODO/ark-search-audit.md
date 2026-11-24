@@ -36,6 +36,14 @@ Current order: complete the Mac audit first. Mobile implementation and device ve
 
 ## Privacy
 
+## Pinned-link behavior
+
+| Feature | Search implementation | Ark implementation and finding |
+| --- | --- | --- |
+| Links from pinned tabs open in a new tab | Search commit [`cf21241b244cd4af9b77013ce7d453b93843df50`](https://github.com/driceroland/Search/commit/cf21241b244cd4af9b77013ce7d453b93843df50) adds an off-by-default setting. Plain unmodified link clicks that leave the current page open as loose tabs; fragments, redirects, forms, and sign-in routes remain in the pin. | Ark adds the equivalent off-by-default Mac setting and routes eligible clicks to Today tabs. The Mac build passed. Runtime verification is blocked because the isolated app crashes in SwiftUI `BrowserWindow.body` before the existing SnapshotTour check runs. The 42-row Pinned tabs and folders rating remains Partial. |
+
+## Privacy
+
 | Feature | Search implementation | Ark implementation and finding |
 | --- | --- | --- |
 | Site permissions | `CaptureChoices.saved(in:)` lists saved allow and refuse answers by permission and origin; Privacy settings can search, filter by permission, and reset one answer. | Ark already lists answers by host and can forget all permissions for a host. Settings → Privacy now searches hosts and resets a single saved answer while preserving the others. Ark's stored boundary is hostname rather than origin and port. Mac build passed; runtime interaction remains open. |

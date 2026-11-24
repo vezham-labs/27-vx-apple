@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 36/263 incoming commits assessed (13.7%); 227 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 40/263 incoming commits assessed (15.2%); 223 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -23,6 +23,12 @@ Ark implementation checkpoints: [`d6c96345`](../../commit/d6c96345) adapts Searc
 Review-only dispositions: Search `2f99ea479579582ff6eaf63f6596aef7ca78b26b` adds hidden test-bench seams, not browser behavior; `75eb6728a20e4f91a8465ce8bb2a91812058b4dc` adds a bookmarks-bar icon-only preference that does not match Arc's sidebar. Search `20942bc01fe5a96f63b3490e5f9cf643f133b996` fixes links in Search's custom extension popup; Ark instead uses WebKit's native extension-action popover, so reproducing the Raindrop sign-in case in Ark remains open before a port decision.
 
 Search `344088842d4fb67b8340aba5e7b799589eb2a0b3` changes a worker `window` shim that Ark does not have: Ark leaves `window` undefined in extension workers, allowing Readwise to define it as `globalThis`. No port is needed unless Ark reproduces a failure.
+
+### Search pinned-link behavior — Mac
+
+Reviewed Search [`cf21241b244cd4af9b77013ce7d453b93843df50`](https://github.com/driceroland/Search/commit/cf21241b244cd4af9b77013ce7d453b93843df50). Ark adds an off-by-default General setting that opens a plain, unmodified main-frame HTTP(S) link from a pinned page in a Today tab while keeping the pin at its current page. Same-page fragment changes, common sign-in routes, forms, modified clicks, and non-link navigations stay on the pinned page. This keeps the Search behavior but places the control in Ark's settings and uses Ark's Today-tab model. The Mac build passed. The isolated launch crashed in SwiftUI while evaluating `BrowserWindow.body` before SnapshotTour reached this check; the new interaction is not runtime-verified. This does not change the Pinned tabs and folders row from Partial. No simulator or test file was added.
+
+Reviewed Search [`bceedf3735165648d85e96663b60abf215f31db9`](https://github.com/driceroland/Search/commit/bceedf3735165648d85e96663b60abf215f31db9), which keeps AdGuard extension `declarativeNetRequest.updateSessionRules` from compiling the same session rules twice during startup. Ark does not expose this extension API. Ark's separate WebKit content blocker asks `WKContentRuleListStore` for stable compiled identifiers before compiling. No code change was justified, and no Ark startup-performance gain is claimed. The Bloat matrix evidence now records this disposition; Ark remains unscored.
 
 Ark commit [`b357c402`](../../commit/b357c402) adapts Browsa `5150b3c83fb7d0aadec46707a2e802c495942fa2` with Ark's `ark.identity` bridge. Only extensions declaring the `identity` permission can start a Chrome Web Store OAuth flow. Interactive sign-in opens a tab; quiet sign-in uses a hidden WebKit view with the active profile's website data store. Matching redirects are returned to the extension and never loaded from `chromiumapp.org`; redirects from flow-owned popups close with the flow. BrowserKit tests and `ark:build-mac` passed. Provider sign-in, callback behavior, and direct extension-tab redirect observation remain unverified; Ark does not use Search's private `loadSimulatedRequest` API.
 

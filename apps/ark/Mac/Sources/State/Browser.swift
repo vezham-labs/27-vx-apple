@@ -636,6 +636,11 @@ enum Preferences {
     static var externalLinksInPreview: Bool { d.bool(forKey: externalLinksInPreviewKey) }
     static let automaticVideoPiPKey = "automaticVideoPiP"
     static var automaticVideoPiP: Bool { d.bool(forKey: automaticVideoPiPKey) }
+    static let pinnedLinksOpenInNewTabKey = "pinnedLinksOpenInNewTab"
+    static var pinnedLinksOpenInNewTab: Bool {
+        get { d.bool(forKey: pinnedLinksOpenInNewTabKey) }
+        set { d.set(newValue, forKey: pinnedLinksOpenInNewTabKey) }
+    }
     static var linkPreviewModifier: LinkPreviewModifier {
         get { d.string(forKey: "linkPreviewModifier").flatMap(LinkPreviewModifier.init(rawValue:)) ?? .option }
         set { d.set(newValue.rawValue, forKey: "linkPreviewModifier") }

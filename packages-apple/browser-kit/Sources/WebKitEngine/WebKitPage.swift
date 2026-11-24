@@ -316,7 +316,8 @@ extension WebKitPage: WKNavigationDelegate {
         let request = NavigationRequest(url: url, kind: kind,
                                         isMainFrame: navigationAction.targetFrame?.isMainFrame ?? true,
                                         method: navigationAction.request.httpMethod ?? "GET",
-                                        wantsNewTab: newTab, wantsForeground: newTab && (flags.contains(.shift) || fromExtension))
+                                        wantsNewTab: newTab, wantsForeground: newTab && (flags.contains(.shift) || fromExtension),
+                                        hasModifiers: !flags.intersection([.shift, .command, .option, .control]).isEmpty)
         guard let delegate else { return (.allow, preferences) }
         switch await delegate.page(self, decide: request) {
         case .allow:

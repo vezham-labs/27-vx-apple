@@ -141,6 +141,10 @@ final class TabController: EnginePageDelegate {
             Task { await openInApp(request) }
             return .cancel
         }
+        if linkPreview == nil, window != nil, shouldOpenPinnedLinkInNewTab(request, currentURL: page.state.url ?? tab.url) {
+            window?.newTab(url: request.url, source: .link)
+            return .cancel
+        }
         // A call site (or leaving one) moves the tab to the engine it runs on.
         if linkPreview == nil, request.isMainFrame, request.method == "GET", library.needsEngineSwap(self, to: request.url) {
             library.swapEngine(of: tab, to: request.url)
@@ -150,6 +154,30 @@ final class TabController: EnginePageDelegate {
             return .redirect(clean)
         }
         return .allow
+    }
+
+    /// Search's optional pin-link behavior, scoped to plain main-frame HTTP(S) clicks. Redirects,
+    /// forms, modified clicks, same-document fragments, and common authentication routes stay put.
+    private func shouldOpenPinnedLinkInNewTab(_ request: NavigationRequest, currentURL: URL?) -> Bool {
+        guard Preferences.pinnedLinksOpenInNewTab, tab.isPinned, request.kind == .link,
+              request.isMainFrame, request.method == "GET", !request.wantsNewTab, !request.hasModifiers,
+              let scheme = request.url.scheme?.lowercased(), ["http", "https"].contains(scheme),
+              let host = request.url.host()?.lowercased() else { return false }
+        if let currentURL,
+           var current = URLComponents(url: currentURL, resolvingAgainstBaseURL: false),
+           var target = URLComponents(url: request.url, resolvingAgainstBaseURL: false) {
+            current.fragment = nil
+            target.fragment = nil
+            if current.url == target.url { return false }
+        }
+        let authentication = ["login", "log-in", "log_in", "logon", "signin", "sign-in", "sign_in", "signon",
+                             "logout", "log-out", "signout", "sign-out", "auth", "oauth", "oauth2", "sso", "saml", "authorize"]
+        let firstHostPart = host.split(separator: ".").first.map(String.init) ?? ""
+        if authentication.contains(firstHostPart) || ["accounts", "account", "id", "idp"].contains(firstHostPart) { return false }
+        let pathParts = request.url.path.lowercased().split(separator: "/").map(String.init)
+        return !pathParts.contains { part in
+            authentication.contains(part) || authentication.contains { part.hasPrefix($0 + ".") }
+        }
     }
 
     /// Hands a link to the app that opens it, asking first, as Safari and Chrome do: a page could

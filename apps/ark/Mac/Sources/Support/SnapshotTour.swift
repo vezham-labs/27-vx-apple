@@ -166,16 +166,23 @@ struct SnapshotTour {
             await miniPlayerPreview(browser, base: base)
             return
         }
-        await namedProfileCheck()
-        await spaceProfileCheck(browser)
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
+        if ProcessInfo.processInfo.environment["ARK_PIN_LINK_CHECK_ONLY"] == "1" {
+            browser.newTab(url: second)
+            await pause(1)
+            await pinnedLinkNavigationCheck(browser, sourceURL: second, targetURL: first)
+            return
+        }
+        await namedProfileCheck()
+        await spaceProfileCheck(browser)
         browser.newTab(url: first)
         await pause(1)
         browser.newTab(url: second)
         await pause(1)
         saveVisible("sidebar-and-tabs", in: window)
         guard browser.lastUsedTab?.url == first else { note("last-used tab mismatch"); return }
+        await pinnedLinkNavigationCheck(browser, sourceURL: second, targetURL: first)
         await commandPreview(browser, query: "last used tab", file: "last-used-tab")
         browser.run(command: "last-used-tab")
         guard browser.currentTab?.url == first else { note("last-used tab did not switch"); return }
@@ -274,6 +281,43 @@ struct SnapshotTour {
         }
         await baselinePreviews(browser, window: window, atlas: atlas, otherPage: second)
         await settingsPreviews(browser, window: window)
+    }
+
+    /// Exercises the optional pinned-link behavior against the same local fixture used by this tour.
+    /// Restores both the preference and tab state afterward.
+    private func pinnedLinkNavigationCheck(_ browser: Browser, sourceURL: URL, targetURL: URL) async {
+        guard let source = browser.currentTab, source.url == sourceURL,
+              let page = browser.currentController?.page else {
+            note("pinned-link check: fixture tab unavailable")
+            return
+        }
+        let originalSetting = UserDefaults.standard.object(forKey: Preferences.pinnedLinksOpenInNewTabKey)
+        let wasPinned = source.isPinned
+        defer {
+            if let originalSetting {
+                UserDefaults.standard.set(originalSetting, forKey: Preferences.pinnedLinksOpenInNewTabKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: Preferences.pinnedLinksOpenInNewTabKey)
+            }
+            if let opened = browser.currentTab, opened.id != source.id, !opened.isPinned { browser.close(opened) }
+            browser.select(source)
+            if !wasPinned, source.isPinned { browser.togglePinned(source) }
+        }
+        if !wasPinned { browser.togglePinned(source) }
+        Preferences.pinnedLinksOpenInNewTab = true
+        guard let targetData = try? JSONSerialization.data(withJSONObject: targetURL.absoluteString),
+              let target = String(data: targetData, encoding: .utf8) else {
+            note("pinned-link check: could not encode target URL")
+            return
+        }
+        _ = try? await page.evaluate("""
+        const link = document.createElement('a'); link.href = \(target); link.textContent = 'Ark pinned-link fixture';
+        document.body.append(link); link.click(); return true;
+        """, inWorld: "page")
+        await pause(1.5)
+        let opened = browser.currentTab
+        let passed = opened?.id != source.id && opened?.url == targetURL && source.isPinned && source.url == sourceURL
+        note("pinned-link check: \(passed ? "opened Today tab and kept pin at source" : "did not meet expected tab/pin state")")
     }
 
     private func miniPlayerPreview(_ browser: Browser, base: URL) async {

@@ -19,7 +19,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 37 of 263 commits assessed (14.1%); 226 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 38 of 263 commits assessed (14.4%); 225 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -55,7 +55,7 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 | `b7d5f229874aba0a8ee32e12f41a1d9085502987` | Start native hosts in Browsa's process group, and throttle restarts [skip ci] | Pending |
 | `528bcd143e01d6190e0058b017b2f58c3db9207a` | Keep extension workers attached to native hosts with a 25 s beat [skip ci] | Pending |
 | `9849bbaf49b297828620738e79d125b0739d3ea4` | Keep the query in an extension's popup and side panel addresses; WebKitEngine tests [skip ci] | Pending |
-| `5d9e2701eef9f5281d3d467cf1f06c2cad84baec` | Compat: storage area onChanged, tabGroups, debugger, and Search's chrome accessors [skip ci] | Pending |
+| `5d9e2701eef9f5281d3d467cf1f06c2cad84baec` | Compat: storage area onChanged, tabGroups, debugger, and Search's chrome accessors [skip ci] | Partially adapted: Ark adds per-area storage change events, idle callback and disposal-symbol fallbacks, and explicit empty/unsupported tabGroups and debugger APIs. Search/Browsa's global chrome/browser accessors were not adopted without a reproducing extension case. Existing BrowserKit suite and one-off shim checks passed; a real extension startup check remains open. |
 | `5150b3c83fb7d0aadec46707a2e802c495942fa2` | Extension sign-in: identity.launchWebAuthFlow and chromiumapp.org redirects [skip ci] | Partially adapted: Ark adds permission-gated `chrome.identity.launchWebAuthFlow` for Chrome Web Store extensions, with interactive tabs, quiet hidden WebKit views, and network-blocked redirect capture. BrowserKit tests and Mac build passed; live OAuth and direct tab-watched redirects remain unverified or unsupported. |
 | `803b3ddf481bb87678f2eead8b81db85233ddcfa` | Side panels: pages set with sidePanel.setOptions, and windows a panel opens [skip ci] | Pending |
 | `a55c720dbecfecb0b66c02cc7454e8b216d09b45` | Websites an extension lists can message it as chrome.runtime [skip ci] | Pending |

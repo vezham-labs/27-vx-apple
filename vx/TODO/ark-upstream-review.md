@@ -19,7 +19,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 58 of 263 commits assessed (22.1%); 205 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 61 of 263 commits assessed (23.2%); 202 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -267,9 +267,9 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `a48465be6cda93873982a6ff26402bcbd61d20e9` | Developer Tools Full, the second developer tools package (#1451) | Reviewed; adds a roughly 70k-line Web Inspector replacement/package with Sources, Console, Elements, Network, Performance, Memory, and debugging panels. Ark uses WebKit's native inspector. Adopting it requires owning a signed package system and inspector bridge/runtime; no code or rating change. |
 | `ed8f05f085dc6c04ac4a0e75939d1a31646da01d` | Developer tools: with nothing picked, the package installed last is the one View › Developer uses | Reviewed; defines default selection among Search's separately installed developer-tools packages. Ark has one built-in Web Inspector and no package selection state; no corresponding code or rating change. |
 | `5e87d1924d2db681042b56ef8d69d8f74b1ee9ef` | Developer tools: a release build's test run reads its own feed's packages; publish.sh puts the packages on the site | Reviewed; permits HTTP only for Search's overridden package-feed tests and adds Search-specific package publishing. Ark already has a centralized `vx/tools/release-apple` publisher reading app release settings from `vx.deploy.yaml`; the HTTP exception and package upload have no Ark target. No code or rating change. |
-| `3cb5f87c951c2b554e8920c5a2d1f91fdca9e9f0` | Developer Tools Full: the Network panel's HTML preview loads nothing and goes nowhere | Pending |
-| `c145ae6cfd3860406b977f9f796262ceb8245f94` | Developer tools: source maps, devtools.json and robots.txt are read with a cap and a time limit | Pending |
-| `1c9f3af2064fc7360017daf835e5a3a742543510` | Developer Tools Full: watch expressions added in a private tab are not saved | Pending |
+| `3cb5f87c951c2b554e8920c5a2d1f91fdca9e9f0` | Developer Tools Full: the Network panel's HTML preview loads nothing and goes nowhere | Reviewed; hardens Search's optional DevTools network-response preview with a restrictive CSP and navigation delegate, keeping the HTML display local. Ark has no network-response preview panel; Web Inspector is supplied by WebKit. No Ark code or matrix change. |
+| `c145ae6cfd3860406b977f9f796262ceb8245f94` | Developer tools: source maps, devtools.json and robots.txt are read with a cap and a time limit | Reviewed; adds a 64 MiB response cap and 60-second resource limit to Search's optional devtools resource fetcher. Ark has no source-map/robots fetcher or optional DevTools host, so there is no corresponding network path to harden. No code or rating change. |
+| `1c9f3af2064fc7360017daf835e5a3a742543510` | Developer Tools Full: watch expressions added in a private tab are not saved | Reviewed; keeps Search's optional inspector watch expressions in memory only for private tabs. Ark has no persisted inspector watch expressions; private website data and browsing records already use separate ephemeral handling. No code or matrix change. |
 | `d2e6ece4469d69a6e8d88f551d597d9606b7f039` | Developer tools: a package's API version is read from its signed Info.plist | Pending |
 | `1fd49891eb229ef098b3b77b5ec8925c879a92e7` | Developer tools: a package ZIP with any hidden entry is refused | Pending |
 | `b9d22e937331d28a714df8eef672d3a92dbbbb7c` | Developer tools: a package download is cut off as soon as it passes the feed's size | Pending |

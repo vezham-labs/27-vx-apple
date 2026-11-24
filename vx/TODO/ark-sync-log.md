@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 58/263 incoming commits assessed (22.1%); 205 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 61/263 incoming commits assessed (23.2%); 202 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -67,6 +67,12 @@ Reviewed Search [`a48465be6cda93873982a6ff26402bcbd61d20e9`](https://github.com/
 Reviewed Search [`ed8f05f085dc6c04ac4a0e75939d1a31646da01d`](https://github.com/driceroland/Search/commit/ed8f05f085dc6c04ac4a0e75939d1a31646da01d), which selects the latest installed optional developer-tools package when the user has not selected one. Ark has one built-in Web Inspector and no package-selection state; no corresponding code or matrix change.
 
 Reviewed Search [`5e87d1924d2db681042b56ef8d69d8f74b1ee9ef`](https://github.com/driceroland/Search/commit/5e87d1924d2db681042b56ef8d69d8f74b1ee9ef). It allows insecure HTTP only for Search's explicitly overridden developer-tools package feed during test runs and adds a publisher for those packages. Ark's release publisher already reads app-specific Sparkle settings from `vx.deploy.yaml`; there is no Ark optional package feed or matching upload. No code or matrix change.
+
+Reviewed Search [`3cb5f87c951c2b554e8920c5a2d1f91fdca9e9f0`](https://github.com/driceroland/Search/commit/3cb5f87c951c2b554e8920c5a2d1f91fdca9e9f0). It constrains the optional DevTools Network HTML preview with a restrictive Content Security Policy and cancels navigation away from the preview document. Ark has no Network response preview; its inspector is WebKit's native implementation. No Ark code or matrix change.
+
+Reviewed Search [`c145ae6cfd3860406b977f9f796262ceb8245f94`](https://github.com/driceroland/Search/commit/c145ae6cfd3860406b977f9f796262ceb8245f94). It caps optional DevTools resource responses at 64 MiB and 60 seconds. Ark has no source-map, `devtools.json`, or `robots.txt` fetcher and no optional DevTools host, so there is no matching network path to harden. No code or matrix change.
+
+Reviewed Search [`1c9f3af2064fc7360017daf835e5a3a742543510`](https://github.com/driceroland/Search/commit/1c9f3af2064fc7360017daf835e5a3a742543510). It keeps optional inspector watch expressions ephemeral for private tabs. Ark has no persisted inspector watch state; private browsing data already uses separate ephemeral handling. No code or matrix change.
 
 Ark commit [`b357c402`](../../commit/b357c402) adapts Browsa `5150b3c83fb7d0aadec46707a2e802c495942fa2` with Ark's `ark.identity` bridge. Only extensions declaring the `identity` permission can start a Chrome Web Store OAuth flow. Interactive sign-in opens a tab; quiet sign-in uses a hidden WebKit view with the active profile's website data store. Matching redirects are returned to the extension and never loaded from `chromiumapp.org`; redirects from flow-owned popups close with the flow. BrowserKit tests and `ark:build-mac` passed. Provider sign-in, callback behavior, and direct extension-tab redirect observation remain unverified; Ark does not use Search's private `loadSimulatedRequest` API.
 

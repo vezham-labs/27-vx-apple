@@ -8,18 +8,17 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 ## Work order
 
-1. Complete the pending media batching and script-only refresh batch; verify lifecycle behavior.
-2. Review extension permissions, private access, redirect handling, and native messaging fixes before expanding extension compatibility claims.
-3. Compare folder ordering, split groups, live feeds, profile isolation, and sync against Ark’s existing models; preserve current data migrations.
-4. Match the whole Mac sidebar to local Arc, then verify keyboard, pointer, and drag paths in the actual updated build and capture previews.
-5. Review remaining browser behavior and performance changes, update all affected matrix rows, and retain explicit evidence gaps.
-6. Resume deferred mobile verification after the Mac pass. Retain Easels, service-specific previews, and externally blocked DRM/passkeys checks in the full goal.
+1. Work through the 42 comparison rows, prioritizing Mac behavior and the Arc-style sidebar while the Debug app launch issue is unresolved.
+2. For each row, compare Ark with the pinned Search and Browsa references, adapt only compatible improvements, and keep non-applicable or risky changes documented.
+3. Verify each change with the existing app build and appropriate existing checks; no new test files. Builds do not count as runtime parity.
+4. Keep the four platform columns current. Once Mac coverage is closed or has a concrete blocker, finish iPhone, iPad, and Duo runtime checks, one simulator at a time.
+5. Measure performance only when a repeatable before/after path is available. Retain Easels, service-specific previews, and externally blocked DRM/passkeys as explicit gaps until resolved.
 
 ## Commit inventory
 
 This inventory records the pulled heads on November 25, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 96 of 272 commits assessed (35.3%); 176 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 97 of 272 commits assessed (35.7%); 175 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -228,7 +227,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `659f74dc35
 | `80f8f1364c6471131e88544a7cb7ea773af6cdfb` | Drag a finished download out of the Downloads list as its file (idea 566) | Pending |
 | `8755ef84d74f8e2f95a86aea4e66fd05d6198b49` | docs: ROADMAP: dragging a download out is done (idea 566) | Pending |
 | `39ab8c5db4af5d2c37838ae22ec121c9ccc352bd` | A peek can share the screen: asked over it, as a tab is | Adapted: Ark's visible Glance now asks through its explicit screen-sharing permission sheet; close, navigation, and promotion cancel pending requests. Mac build passed; live WebKit screen-share request remains unverified. |
-| `f2873fd0b51b8cf19c28e99dd848c81d20c18c46` | Typed vnc:// and other apps' addresses open in their app (#1473) | Pending |
+| `f2873fd0b51b8cf19c28e99dd848c81d20c18c46` | Typed vnc:// and other apps' addresses open in their app (#1473) | Adapted in Ark `9f2c7587`: explicitly typed custom schemes hand off only when Launch Services resolves a different installed app; unsafe and WebKit schemes are excluded. Mac build passed; live handoff remains unverified due to Debug Launch Services failure. |
 | `488b61c77de604b4c866d48e3ff2f3aa737ad028` | ⌘W no longer loops between a pin and a new tab (#1480) | Pending |
 | `0d1d80a2b7cb0772c40b9a6e162b21c1ebbab604` | Search's own pages have scroll bars (#1478) | Pending |
 | `b601de0e5ffd229d00c6bf857ba1f81fbdbf49dd` | End a closed tab's page process that keeps spinning (#1468) | Pending |

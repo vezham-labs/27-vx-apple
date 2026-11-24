@@ -71,6 +71,25 @@ struct PinFolderTests {
         #expect(space.pinFolders.filter { $0.parentID == nil }.map(\.name) == ["Third", "First", "Second"])
     }
 
+    @Test @MainActor func draggedPinsReorderWithinAndAcrossFolders() throws {
+        let first = BrowserTab(url: nil, title: "First", isPinned: true)
+        let second = BrowserTab(url: nil, title: "Second", isPinned: true)
+        let third = BrowserTab(url: nil, title: "Third", isPinned: true)
+        let space = Space(name: "Work", pinned: [first, second, third])
+        let folder = try #require(space.addPinFolder(named: "Reading"))
+        space.setPinFolder(folder.id, for: first)
+        space.setPinFolder(folder.id, for: second)
+
+        #expect(space.movePinnedTab(first.id, into: folder.id, relativeTo: second.id, after: true))
+        #expect(space.pinned.filter { $0.pinFolderID == folder.id }.map(\.id) == [second.id, first.id])
+
+        #expect(space.movePinnedTab(third.id, into: folder.id, relativeTo: first.id))
+        #expect(space.pinned.filter { $0.pinFolderID == folder.id }.map(\.id) == [second.id, third.id, first.id])
+        #expect(space.movePinnedTab(third.id, into: nil))
+        #expect(space.rootPins.map(\.id) == [third.id])
+        #expect(space.pinned.filter { $0.pinFolderID == folder.id }.map(\.id) == [second.id, first.id])
+    }
+
     @Test @MainActor func portableLinksRecreateFoldersWithFreshIDs() throws {
         let url = try #require(URL(string: "https://example.com/reference"))
         let tab = BrowserTab(url: url, isPinned: true)

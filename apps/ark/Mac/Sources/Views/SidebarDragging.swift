@@ -61,20 +61,23 @@ final class SidebarDragging {
     private var favouritesAllowed = false
 
     // Layout, reported by the views in the sidebar's coordinate space.
-    var rowFrames: [UUID: CGRect] = [:]
+    // Geometry is input to the drag callbacks, not view state. Keeping these
+    // caches unobserved avoids invalidating the sidebar as every row reports
+    // its frame during layout and autoscroll.
+    @ObservationIgnored var rowFrames: [UUID: CGRect] = [:]
     @ObservationIgnored var folderFrames: [UUID: CGRect] = [:]
     @ObservationIgnored var listFrame: CGRect = .zero
-    var newTabFrame: CGRect = .zero
-    var gapFrame: CGRect = .zero
+    @ObservationIgnored var newTabFrame: CGRect = .zero
+    @ObservationIgnored var gapFrame: CGRect = .zero
     /// The favourites grid, or the zone standing in for an empty one. Zero while neither shows.
-    var favouritesFrame: CGRect = .zero
-    var tileFrames: [UUID: CGRect] = [:]
+    @ObservationIgnored var favouritesFrame: CGRect = .zero
+    @ObservationIgnored var tileFrames: [UUID: CGRect] = [:]
     /// The switcher's dots, by space.
-    var spaceFrames: [UUID: CGRect] = [:]
+    @ObservationIgnored var spaceFrames: [UUID: CGRect] = [:]
     /// The "Drop here to pin" zone, while it shows.
-    var pinZoneFrame: CGRect = .zero
+    @ObservationIgnored var pinZoneFrame: CGRect = .zero
     /// The sidebar's top-left corner in the window, for tools that think in window points.
-    var originInWindow: CGPoint = .zero
+    @ObservationIgnored var originInWindow: CGPoint = .zero
 
     #if SPIKE
     /// The most recently shown sidebar, for SpikeArk's drag hook.

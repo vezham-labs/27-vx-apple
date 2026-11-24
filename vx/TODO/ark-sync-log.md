@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists 149 Browsa and 123 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Browsa's clean worktree matches `origin/main` at `e981df56`. Search's clean worktree is at `33ec7aea`, with nine additional commits available on `origin/main` at `659f74dc`; those diffs were assessed without changing the upstream checkout. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 105/272 incoming commits assessed (38.6%); 167 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 110/272 incoming commits assessed (40.4%); 162 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -704,7 +704,7 @@ Search [`c502d18b67bd557c2a5267f723577e0acf93f427`](https://github.com/dricerola
 
 Search [`488b61c77de604b4c866d48e3ff2f3aa737ad028`](https://github.com/driceroland/Search/commit/488b61c77de604b4c866d48e3ff2f3aa737ad028) fixes ⌘W cycling between a blank tab and a just-parked pin. Ark's close path unloads the active pin and clears the window's selection; it does not create a blank tab that automatically wakes the pin. No equivalent loop was found, so no code change was made. The existing behavior of ⌘W with no selected tab was not runtime-checked.
 
-These reviews do not change comparison ratings. Combined Browsa/Search incoming commits reviewed so far: 105/272 (38.6%); Mac matrix remains 21/42 Yes (50%).
+These reviews do not change comparison ratings. Combined Browsa/Search incoming commits reviewed so far: 110/272 (40.4%); Mac matrix remains 21/42 Yes (50%).
 
 ### Chrome extension management API — Mac
 
@@ -727,3 +727,21 @@ Adapted Search [`ed129504cdde3ee09da0967e12e48fb16d85ead8`](https://github.com/d
 Reviewed Search [`b601de0e5ffd229d00c6bf857ba1f81fbdbf49dd`](https://github.com/driceroland/Search/commit/b601de0e5ffd229d00c6bf857ba1f81fbdbf49dd). Its reaper waits ten seconds after a view unloads, measures process CPU, confirms a WebKit WebContent executable, and checks that no other Search view shares the PID before sending SIGKILL. The report attributes the stuck loop to Accessibility tree updates and notes Safari is affected too.
 
 Ark has no equivalent incident or reproduction. Do not port the private `_webProcessIdentifier` lookup and force-kill path without an Ark-specific reproduction and a way to prove the process has no other WebKit clients. No runtime performance claim or matrix rating changes; Ark's CPU/RAM baseline remains unmeasured.
+
+### Search Find, themes, and sidebar review — Mac
+
+Reviewed Search [`0c600c185cd253228ad58c445b184cd2f8129534`](https://github.com/driceroland/Search/commit/0c600c185cd253228ad58c445b184cd2f8129534). Its open-shadow-tree and soft-hyphen support is part of a replacement custom Find engine with mapped ranges, selection navigation, and native fallback when its DOM walk reaches the page budget. Ark delegates selection, navigation, and scrolling to WebKit; copying only Search's counting/highlight traversal would report matches Ark cannot navigate to. Keep Ark's current native behavior and track shadow-DOM/invisible-character matching as a limitation for a dedicated Find redesign. This is outside the 42 Arc rows; no code or matrix rating changed.
+
+Reviewed Search [`2548fa504d33960d6a88751628dfdb5a8058e8b2`](https://github.com/driceroland/Search/commit/2548fa504d33960d6a88751628dfdb5a8058e8b2). It makes Search's New Tab Themes page fit narrow windows through a menu picker and wrapping grid. Ark's Theme picker row describes Space colors in the Arc-style sidebar, not new-tab backgrounds; Ark has no corresponding page or matching layout defect. No code or matrix rating changed.
+
+Reviewed Search [`270f82f7de7774354903d230eee6ce4a558f3b58`](https://github.com/driceroland/Search/commit/270f82f7de7774354903d230eee6ce4a558f3b58). Search prevents its stage marker from treating a folded, overlaying tab strip as the page's split-drop target. Ark's sidebar drag resolver only produces tab-order, folder, favourite, and Space targets; it has no drag-to-split target. The reported drop cannot occur in Ark's current drag flow; no code or matrix change.
+
+Adapted Search [`4548b37320f77d2775487888b5533ad95da37fd5`](https://github.com/driceroland/Search/commit/4548b37320f77d2775487888b5533ad95da37fd5) in Ark `COMMIT`: a tab row's title now takes the remaining width directly, avoiding the implicit HStack gap before a trailing Spacer while retaining Ark's call/note badges and close control. `NX_ISOLATE_PLUGINS=false pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. The first sandbox attempt could not access existing SwiftPM/Clang caches; the authorized retry completed successfully. The running Debug app has not reloaded, so visual truncation against Arc remains unverified. No simulator or new test file was used; the Pinned tabs and folders rating is unchanged.
+
+Reviewed Search [`b8cb0c20d3f14e046ee2cdeee6721009fea3168e`](https://github.com/driceroland/Search/commit/b8cb0c20d3f14e046ee2cdeee6721009fea3168e). Ark's footer has Downloads, the Space switcher, and a general menu, not Search's Bookmarks door. The Search fix changes hover ink and backgrounds across its custom greys palette; adopting it without checking Arc's corresponding footer treatment could move Ark away from its visual target. Defer until Arc hover states are compared; no code or matrix rating changed.
+
+### Search Find and theme layout review — Mac
+
+Reviewed Search [`0c600c185cd253228ad58c445b184cd2f8129534`](https://github.com/driceroland/Search/commit/0c600c185cd253228ad58c445b184cd2f8129534). Its open-shadow-tree and soft-hyphen support is part of a replacement custom Find engine with mapped ranges, selection navigation, and native fallback when its DOM walk reaches the page budget. Ark delegates selection, navigation, and scrolling to WebKit; copying only Search's counting/highlight traversal would report matches Ark cannot navigate to. Keep Ark's current native behavior and track shadow-DOM/invisible-character matching as a limitation for a dedicated Find redesign. This is outside the 42 Arc rows; no code or matrix rating changed.
+
+Reviewed Search [`2548fa504d33960d6a88751628dfdb5a8058e8b2`](https://github.com/driceroland/Search/commit/2548fa504d33960d6a88751628dfdb5a8058e8b2). It makes Search's New Tab Themes page fit narrow windows through a menu picker and wrapping grid. Ark's Theme picker row describes Space colors in the Arc-style sidebar, not new-tab backgrounds; Ark has no corresponding page or matching layout defect. No code or matrix rating changed.

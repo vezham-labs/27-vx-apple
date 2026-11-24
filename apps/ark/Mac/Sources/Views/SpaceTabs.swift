@@ -349,22 +349,26 @@ struct TabRow: View {
                 }
             }
             .frame(width: 16, height: 16)
-            if draft != nil {
-                TextField("Tab Name", text: Binding(get: { draft ?? "" }, set: { draft = $0 }),
-                          prompt: Text(tab.title.isEmpty ? "Tab Name" : tab.title))
-                    .textFieldStyle(.plain)
-                    .focused($nameFocused)
-                    .onSubmit(commitRename)
-                    .onExitCommand { draft = nil }
-                    .onChange(of: nameFocused) { if !nameFocused { commitRename() } }
-                    // Renaming a tab that isn't the selected one: switching to any tab keeps the name too.
-                    .onChange(of: browser.currentTab?.id) { commitRename() }
-            } else {
-                Text(tab.displayTitle)
-                    .lineLimit(1)
-                    .foregroundStyle(.primary)
+            Group {
+                if draft != nil {
+                    TextField("Tab Name", text: Binding(get: { draft ?? "" }, set: { draft = $0 }),
+                              prompt: Text(tab.title.isEmpty ? "Tab Name" : tab.title))
+                        .textFieldStyle(.plain)
+                        .focused($nameFocused)
+                        .onSubmit(commitRename)
+                        .onExitCommand { draft = nil }
+                        .onChange(of: nameFocused) { if !nameFocused { commitRename() } }
+                        // Renaming a tab that isn't the selected one: switching to any tab keeps the name too.
+                        .onChange(of: browser.currentTab?.id) { commitRename() }
+                } else {
+                    Text(tab.displayTitle)
+                        .lineLimit(1)
+                        .foregroundStyle(.primary)
+                }
             }
-            Spacer(minLength: 0)
+            // Give the title the row's remaining width directly. A Spacer adds an HStack gap
+            // before itself, which needlessly shortens long titles before trailing badges/buttons.
+            .frame(maxWidth: .infinity, alignment: .leading)
             if let call = tab.call {
                 CallBadge(call: call)
                     .transition(.scale.combined(with: .opacity))

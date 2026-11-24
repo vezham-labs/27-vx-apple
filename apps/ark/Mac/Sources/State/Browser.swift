@@ -425,6 +425,23 @@ final class Browser {
         return tab
     }
 
+    /// Opens the pinned pages in a folder and its nested folders behind the current tab, in sidebar order.
+    func openAllPinnedTabs(in folder: PinFolder, space: Space) {
+        guard space.pinFolders.contains(where: { $0.id == folder.id && $0.feed == nil }) else { return }
+        let children = Dictionary(grouping: space.pinFolders, by: \.parentID)
+        var urls: [URL] = []
+        var visited: Set<UUID> = []
+        func collect(_ folderID: UUID) {
+            guard visited.insert(folderID).inserted else { return }
+            for child in children[folderID] ?? [] { collect(child.id) }
+            urls.append(contentsOf: space.pinned.filter { $0.pinFolderID == folderID }.compactMap(\.url))
+        }
+        collect(folder.id)
+        for url in urls.reversed() {
+            newTab(url: url, in: space, source: .bookmark, select: false)
+        }
+    }
+
     /// Says where a routed tab went. The first time a site moves, with a way to keep it where you were.
     private func announceRoute(_ match: SpaceRouter.Match, tab: BrowserTab, from: Space, quiet: Bool) {
         let first = SpaceRouter.shared.shouldAnnounce(match.pattern)

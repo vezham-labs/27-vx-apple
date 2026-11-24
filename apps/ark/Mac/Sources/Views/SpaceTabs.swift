@@ -70,6 +70,7 @@ struct SpaceTabs: View {
                         coordinateSpace: SidebarDragging.coordinateSpace,
                         folderLayout: { dragging.folderFrames[$0] = $1 },
                         openArticle: { _ = browser.newTab(url: $0, in: space, source: .link) },
+                        openAllFolderTabs: { browser.openAllPinnedTabs(in: $0, space: space) },
                         allowsCollectionSharing: space.id != Preferences.agentSpaceID
                     ) { tab in
                         DraggableTabRow(tab: tab, space: space, collapsed: dragging.isLifted(tab.id))

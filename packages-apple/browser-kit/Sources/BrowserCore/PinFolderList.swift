@@ -22,6 +22,7 @@ public struct PinFolderList<TabRow: View>: View {
     private let folderLayout: ((UUID, CGRect?) -> Void)?
     private let coordinateSpace: String?
     private let openArticle: ((URL) -> Void)?
+    private let openAllFolderTabs: ((PinFolder) -> Void)?
     private let moveTodayTab: ((UUID, UUID?, UUID?, Bool) -> Bool)?
     private let allowsCollectionSharing: Bool
     private let tabRow: (BrowserTab) -> TabRow
@@ -42,6 +43,7 @@ public struct PinFolderList<TabRow: View>: View {
         dropTarget: UUID? = nil, coordinateSpace: String? = nil,
         folderLayout: ((UUID, CGRect?) -> Void)? = nil,
         openArticle: ((URL) -> Void)? = nil,
+        openAllFolderTabs: ((PinFolder) -> Void)? = nil,
         moveTodayTab: ((UUID, UUID?, UUID?, Bool) -> Bool)? = nil,
         allowsCollectionSharing: Bool = true,
         @ViewBuilder tabRow: @escaping (BrowserTab) -> TabRow
@@ -52,6 +54,7 @@ public struct PinFolderList<TabRow: View>: View {
         self.coordinateSpace = coordinateSpace
         self.folderLayout = folderLayout
         self.openArticle = openArticle
+        self.openAllFolderTabs = openAllFolderTabs
         self.moveTodayTab = moveTodayTab
         self.allowsCollectionSharing = allowsCollectionSharing
         self.tabRow = tabRow
@@ -291,6 +294,9 @@ public struct PinFolderList<TabRow: View>: View {
             if folderRowHeights[folder.id] != height { folderRowHeights[folder.id] = height }
         }
         .contextMenu {
+            if folder.feed == nil, let openAllFolderTabs {
+                Button("Open All Tabs in Folder", systemImage: "square.stack") { openAllFolderTabs(folder) }
+            }
             Button("Rename Folder…", systemImage: "pencil") { edit(folder) }
             if allowsCollectionSharing, let archive = SpaceLinkArchive(space: space, folderID: folder.id) {
                 ShareLink(item: archive, preview: SharePreview(archive.name)) {

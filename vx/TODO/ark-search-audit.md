@@ -49,6 +49,7 @@ Current order: complete the Mac audit first. Mobile implementation and device ve
 | Document-declared tab icons | `Icons.swift` reads the current document's declared icons and discards results if navigation changed before the probe returns. | Ark uses a host favicon provider and has no document-icon probe. The race fix is not directly portable; any switch to page-declared icons needs a separate source and privacy design. |
 | Hidden-column drag | `Fold.swift` keeps a floating auto-hide column open while its edge is dragged. | Ark's sidebar floats on edge hover and is resizable only while docked, so there is no matching hidden-column drag path. No code change. |
 | Agent click at page zoom | `PageHands.swift` scales CSS-pixel points before sending native mouse events. | Ark's `page_click` resolves a DOM reference or CSS selector and calls `.click()`; there is no coordinate click path affected by zoom. |
+| Open all pinned-folder pages | `Browser.openAll(_:)` opens direct bookmarks behind the current tab; ⌘-click on a folder invokes it. | Mac Ark's folder context menu now opens the folder's pinned pages, recursively including nested folders, in sidebar order and keeps the current tab selected. Live-feed articles are excluded. Mac build passed; runtime behavior remains open. |
 
 ## Compatibility and migration
 

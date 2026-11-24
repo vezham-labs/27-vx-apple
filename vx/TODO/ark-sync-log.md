@@ -502,6 +502,8 @@ Reviewed Search `663cb237b48c0c423d5727cd9d5567cf002f6ec6`: it keeps Search's hi
 
 Reviewed Search `ceaec9b8c7544df19745579d343551ce8cb51fef`: its bench sends page CSS coordinates as native mouse events, so page zoom must scale the point. Ark's `page_click` resolves a DOM reference or selector and invokes `.click()` directly; it has no coordinate click path to fix.
 
+Adapted Search `c17c0fa9345c4ce9f27d7e50eb6b78156cc4bc49` to Ark's nested pinned folders: a Mac folder context menu now offers **Open All Tabs in Folder**. It opens pinned pages from the folder and nested folders in sidebar order, behind the current tab, while leaving live-feed articles out. The Mac build passed. Runtime checks for order, selected-tab stability, and nested folders remain open; mobile still has no action.
+
 ### Browsa extension host-permission scope — Mac
 
 Adapted the permission-scope portion of Browsa `1642b72ff49a17421b29ba3d56c70b5717a09b8c`: `WebKitExtensions` no longer grants `<all_urls>` to every extension. Broad host access is granted only when an extension's requested match patterns include `<all_urls>` or a wildcard host; otherwise Ark grants its declared patterns. This closes an overbroad WebKit permission grant without changing the extension UI. Browsa's redirect-checked, profile-aware `browsa.fetch` path was not copied because Ark does not expose that API. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. A runtime check with narrow-host and all-host extensions remains open. The comparison's Chrome extensions rating stays Partial pending compatibility and permission-flow verification.

@@ -30,6 +30,26 @@ extension Browser {
         }
     }
 
+    /// A deliberately typed URL for another installed app (for example `vnc://` or `ssh://`).
+    /// Keep unknown schemes as web searches unless Launch Services identifies a different app.
+    /// Page initiated handoffs use the separate permission flow in `Browser.handOff`.
+    func handOffTypedAppAddress(_ typed: String) -> Bool {
+        let text = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, !text.contains(where: \.isWhitespace),
+              let delimiter = text.range(of: "://") else { return false }
+        let scheme = String(text[..<delimiter.lowerBound]).lowercased()
+        let webKitSchemes: Set<String> = ["http", "https", "file", "about", "data", "ark"]
+        guard !webKitSchemes.contains(scheme), !["javascript", "blob"].contains(scheme),
+              scheme.first?.isLetter == true,
+              scheme.allSatisfy({ $0.isLetter || $0.isNumber || "+-.".contains($0) }),
+              let url = URL(string: text), url.scheme?.lowercased() == scheme,
+              let appURL = NSWorkspace.shared.urlForApplication(toOpen: url),
+              Bundle(url: appURL)?.bundleIdentifier != Bundle.main.bundleIdentifier,
+              NSWorkspace.shared.open(url) else { return false }
+        commandBar = nil
+        return true
+    }
+
     func navigate(to url: URL, replacing: Bool, source: Frecency.VisitSource) {
         if LibraryPage.isLibrary(url) { openLibrary(LibraryPage.target(url)); return }
         if replacing, let tab = currentTab {

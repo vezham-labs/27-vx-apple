@@ -346,6 +346,8 @@ struct CommandBar: View {
     }
 
     private func submit(_ text: String) {
+        if mode != .commands, model?.highlighted == nil, model?.toolHighlighted == nil,
+           browser.handOffTypedAppAddress(text) { return }
         if let t = model?.toolHighlighted, mode == .newTab {
             let favourites = browser.sortedFavorites
             close()

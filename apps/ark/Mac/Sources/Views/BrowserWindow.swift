@@ -189,6 +189,9 @@ struct BrowserWindow: View {
     private func configure(_ window: NSWindow) {
         if browser.nsWindow !== window {
             browser.nsWindow = window
+            // SwiftUI may exclude a WindowGroup's first window from the Window menu and Dock
+            // window list. Every Ark browser window should be discoverable there.
+            if window.isExcludedFromWindowsMenu { window.isExcludedFromWindowsMenu = false }
             // Each window keeps its own place; SwiftUI restores the frames.
             window.tabbingMode = .disallowed
             // Closing the window is what archives its tabs. SwiftUI's onDisappear can come late or

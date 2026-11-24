@@ -311,6 +311,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
+    /// A Dock click should restore an Ark browser window even when a Mini Player or Link Preview
+    /// is the only visible app window. AppKit's `hasVisibleWindows` includes those auxiliary
+    /// windows, so choose based on Ark's registered browser windows instead.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows _: Bool) -> Bool {
+        if library.windows.compactMap(\.nsWindow).contains(where: {
+            $0.isVisible && !$0.isMiniaturized && $0.occlusionState.contains(.visible)
+        }) {
+            // AppKit can bring the visible browser forward with the app.
+            return true
+        }
+        if let window = library.windows.compactMap(\.nsWindow).first {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            // The app remains alive after its last browser window closes; the first WindowRoot
+            // leaves this SwiftUI action installed for reopening the WindowGroup.
+            library.openWindow()
+        }
+        return true
+    }
+
     /// Links from other apps, when Ark is the default browser. Handled here so they open as
     /// tabs in the window in use rather than in a new window.
     func application(_ application: NSApplication, open urls: [URL]) {

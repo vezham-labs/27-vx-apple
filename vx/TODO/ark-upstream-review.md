@@ -18,7 +18,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 25, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 114 of 272 commits assessed (41.9%); 158 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 115 of 272 commits assessed (42.3%); 157 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -187,7 +187,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `659f74dc35
 | `2b44d44be86cf0181d8e7368216aba1d49a2a7de` | A live folder's post opens among the tabs, not in the front tab's group (idea 978) | Already covered by Ark's model: live-folder articles open as Today tabs in their owning Space; Ark pinned folders do not act as tab groups. |
 | `20942bc01fe5a96f63b3490e5f9cf643f133b996` | Links with target=_blank in an extension's popup open a tab (idea 972) | Assessed; Ark uses WebKit's native extension-action popover rather than Search's custom popup view, so there is no direct callback to port. Reproduce the Raindrop sign-in issue in Ark before deciding whether a host-level navigation fix is needed. |
 | `344088842d4fb67b8340aba5e7b799589eb2a0b3` | Readwise Highlighter's worker starts again (idea 813) | Not applicable to Ark's current shim: Ark does not add a `window` property to extension workers, so `typeof window` remains undefined and the Readwise workaround can set its own `window = globalThis`. Verify with the extension if a runtime report appears. |
-| `c2c6d9281f60531e7eb0109b59f0f5a86d9575e2` | Set Up Like Arc turns on Arc's newer habits and is offered in the welcome and after an Arc import (idea 964) | Pending |
+| `c2c6d9281f60531e7eb0109b59f0f5a86d9575e2` | Set Up Like Arc turns on Arc's newer habits and is offered in the welcome and after an Arc import (idea 964) | Reviewed; Ark already imports Arc from Welcome and Settings, archives Today tabs after 12 hours by default, and exposes automatic video PiP, pinned-link destination, and link-preview modifier as separate choices. Search's addition is a bundled preference preset with shared Undo and extra prompts, not a missing Arc comparison feature. Defer the preset to a dedicated Ark migration/onboarding decision; no code or 42-row rating change. |
 | `f9d7a747a9802f21e174a4221a8e5c287169530f` | Extensions: chrome.i18n.getMessage("") answers "", so uBlock Origin's popup and its dashboard button work (idea 975) | Adapted: Ark's extension compatibility prelude now returns an empty string for `i18n.getMessage("")`, preserving WebKit's behavior for other arguments. JavaScript syntax check and Mac build passed; uBlock popup runtime check remains open. |
 | `f647b3160561512f22970bf101bcbd77f34cf00d` | Sheets: a sideways swipe never goes back where the page's root says overscroll-behavior-x: none (idea 990) | Pending |
 | `b666fb92e88e25f005f31929976a6d525efdf685` | CHANGELOG: Unreleased read through for 1.0.19 | Pending |

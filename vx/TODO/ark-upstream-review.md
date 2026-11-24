@@ -290,7 +290,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `48eb0c2a2013279a99b85d218223427276f3eaf1` | The coding agent's line becomes a card like "Update ready", Stop off the tab's row | Pending |
 | `4ed2789eb32f0758f93333fabb2de090e1c30835` | Tests: TabGroupDropTests reads the saved row wherever the window keeps it | Pending |
 | `e537e77ca55553418183a3d6a080b8356ae8a2c7` | Keep the window when its last tab closes, off by default (idea 1102) | Pending |
-| `893bba713a5ec88e3a9bd3ac788f1506acd9ddb9` | The ⌘T / ⌘L field keeps the keys when its open animation ends (idea 1099) | Pending |
+| `893bba713a5ec88e3a9bd3ac788f1506acd9ddb9` | The ⌘T / ⌘L field keeps the keys when its open animation ends (idea 1099) | Reviewed: Ark uses a SwiftUI overlay field rather than Search's reparented `NSViewRepresentable`; no matching transition identified. Verify Ark ⌘T/⌘L typing on macOS 27 before deciding whether an adaptation is needed. |
 | `df8f3a4c9fa3a1ebf5f67fa20bdf4df8be62e3bf` | ⌘S: the page's card opens out with the column, edge to edge when folded, crisp | Pending |
 | `d8aaba27086332b477b71553cb9e725959c2d1e3` | ⌘S: the window's buttons ride the column's frames; the peeking column floats as a card | Pending |
 | `c48dd6aacbde1cee34b80943db425b522a96d540` | ⌘S: the side panel goes edge to edge with the folded page | Pending |

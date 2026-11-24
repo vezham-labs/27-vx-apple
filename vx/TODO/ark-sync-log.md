@@ -546,6 +546,10 @@ Adapted Search `1c84b99d7127c7c26065c66653cac309f914ebe9`: automatic PiP no long
 
 Adapted Search `f9d7a747a9802f21e174a4221a8e5c287169530f` in Ark's extension compatibility prelude: `i18n.getMessage("")` now answers `""` while other names and substitutions still call through to WebKit. This addresses a WebKit/Chrome API difference that can abort extension popup initialization. JavaScript syntax and Mac build passed; a uBlock popup runtime check remains open.
 
+### SpikeArk pin-reorder retry — Mac
+
+The isolated SpikeArk app was relaunched and its control API responded with mock state. Its window still reported `isKey: false`; synthetic drags across the two pinned rows did not change their order. This is inconclusive input evidence and does not change the Mac comparison rating. The actual reorder interaction still needs a pointer-driven check in the visible app. No simulator was started; installed Ark data was not accessed.
+
 ### Browsa extension host-permission scope — Mac
 
 Adapted the permission-scope portion of Browsa `1642b72ff49a17421b29ba3d56c70b5717a09b8c`: `WebKitExtensions` no longer grants `<all_urls>` to every extension. Broad host access is granted only when an extension's requested match patterns include `<all_urls>` or a wildcard host; otherwise Ark grants its declared patterns. This closes an overbroad WebKit permission grant without changing the extension UI. Browsa's redirect-checked, profile-aware `browsa.fetch` path was not copied because Ark does not expose that API. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. A runtime check with narrow-host and all-host extensions remains open. The comparison's Chrome extensions rating stays Partial pending compatibility and permission-flow verification.

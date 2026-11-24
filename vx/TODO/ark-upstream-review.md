@@ -19,7 +19,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 28 of 263 commits assessed (10.6%); 235 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 31 of 263 commits assessed (11.8%); 232 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -186,7 +186,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `9336a8e4f78bb6d193fe352e2596decd3b3bd664` | Search › What's New… and the About window's What's New button (idea 968); the iPhone beta's waitlist in a few quiet places, for now | Pending |
 | `42ca1b9bf6f10aaefaed1893130841eb2fa035af` | iPhone beta prompts: hidden only once the iPhone beta was asked for, or Not now | Pending |
 | `2b44d44be86cf0181d8e7368216aba1d49a2a7de` | A live folder's post opens among the tabs, not in the front tab's group (idea 978) | Already covered by Ark's model: live-folder articles open as Today tabs in their owning Space; Ark pinned folders do not act as tab groups. |
-| `20942bc01fe5a96f63b3490e5f9cf643f133b996` | Links with target=_blank in an extension's popup open a tab (idea 972) | Pending |
+| `20942bc01fe5a96f63b3490e5f9cf643f133b996` | Links with target=_blank in an extension's popup open a tab (idea 972) | Assessed; Ark uses WebKit's native extension-action popover rather than Search's custom popup view, so there is no direct callback to port. Reproduce the Raindrop sign-in issue in Ark before deciding whether a host-level navigation fix is needed. |
 | `344088842d4fb67b8340aba5e7b799589eb2a0b3` | Readwise Highlighter's worker starts again (idea 813) | Pending |
 | `c2c6d9281f60531e7eb0109b59f0f5a86d9575e2` | Set Up Like Arc turns on Arc's newer habits and is offered in the welcome and after an Arc import (idea 964) | Pending |
 | `f9d7a747a9802f21e174a4221a8e5c287169530f` | Extensions: chrome.i18n.getMessage("") answers "", so uBlock Origin's popup and its dashboard button work (idea 975) | Adapted: Ark's extension compatibility prelude now returns an empty string for `i18n.getMessage("")`, preserving WebKit's behavior for other arguments. JavaScript syntax check and Mac build passed; uBlock popup runtime check remains open. |
@@ -194,9 +194,9 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `b666fb92e88e25f005f31929976a6d525efdf685` | CHANGELOG: Unreleased read through for 1.0.19 | Pending |
 | `cc3ee712f8e6b6e2ed5131fbfd904e0097d0b824` | Extensions: the store update check asks as Chrome's Update button does, so Bitwarden 2026.11.0 arrives (idea 992) | Adapted: Ark now sends installed version, Chrome product/platform fields, and foreground update headers for Chrome Web Store updates. Existing BrowserKit Swift tests and the Mac build passed; live staged-rollout behavior remains unverified. |
 | `987da47510c80df6c7d3d648caae375aee4dc909` | Extensions: a failed store update check is retried in an hour, backing off to a day, instead of waiting 20 h (idea 992) | Adapted: Ark persists per-extension retry timing with 1/2/4/8/16-hour backoff capped at 20 hours; manual checks bypass the delay. Existing BrowserKit tests and Mac build passed; live outage/recovery timing remains unverified. |
-| `2f99ea479579582ff6eaf63f6596aef7ca78b26b` | Bench seam: a hidden probe's window told it is in full screen or out of sight, and a probe for Escape there (idea 582) | Pending |
+| `2f99ea479579582ff6eaf63f6596aef7ca78b26b` | Bench seam: a hidden probe's window told it is in full screen or out of sight, and a probe for Escape there (idea 582) | Reviewed; not ported: this only adds Search's hidden test-bench hooks and test harness. Ark's PiP and Escape paths have their own runtime evidence; no product implementation applies. |
 | `1c84b99d7127c7c26065c66653cac309f914ebe9` | The floating video's window watch goes when Search is left again (idea 470) | Adapted: Ark now waits for a visible window to become occluded before starting automatic PiP; windows on another display stay inline, and returning to Ark cancels the watch. Mac build passed; visibility-change runtime checks remain open. |
-| `75eb6728a20e4f91a8465ce8bb2a91812058b4dc` | Settings › Show icons only on the bookmarks bar: every bookmark its icon alone, its name on hover; folders keep names (idea 980) | Pending |
+| `75eb6728a20e4f91a8465ce8bb2a91812058b4dc` | Settings › Show icons only on the bookmarks bar: every bookmark its icon alone, its name on hover; folders keep names (idea 980) | Reviewed; not adopted: this Search-only bookmarks-bar preference has no direct row in the Arc comparison, and Arc's sidebar remains the UI reference. |
 | `efed04f1e0539e0a7440c56a598b0600af3d99e0` | Settings › Passwords › Ask for Touch ID before filling: a saved password goes into a page only after Touch ID or the Mac's password, one yes for a minute (idea 993) | Pending |
 | `6376d84a4d259e1db1862caca0dd2264cce7f440` | Touch ID before filling: the Mac saying it can't ask is a yes only when it has no password set (idea 993) | Pending |
 | `faec5fc7ad1743c264e7bd0eb4d37d187dd8bfaa` | Touch ID before filling: a yes holds for its own site, private and ordinary tabs apart (idea 993) | Pending |

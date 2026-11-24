@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 28/263 incoming commits assessed (10.6%); 235 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 31/263 incoming commits assessed (11.8%); 232 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -19,6 +19,8 @@ Adapted Browsa `85f6092a072347c472cc7e841ecbced7707e5ba5` in Ark's `PageActivity
 Adapted Search `cc3ee712f8e6b6e2ed5131fbfd904e0097d0b824` in BrowserKit's Chrome Web Store updater. Installed extensions now send their current version, Chrome platform/product fields, and foreground update headers; first-time downloads keep their existing discovery request. The existing BrowserKit Swift test target and `ark:build-mac` passed. A live staged-rollout update remains unverified. Arc's Chrome extensions row and its compatibility evidence are unchanged.
 
 Ark implementation checkpoints: [`d6c96345`](../../commit/d6c96345) adapts Search `cc3ee712f8e6b6e2ed5131fbfd904e0097d0b824` by sending Chrome-compatible foreground update requests. [`f4d83a07`](../../commit/f4d83a07) adapts Search `987da47510c80df6c7d3d648caae375aee4dc909` by persisting retry timing per extension (1, 2, 4, 8, 16 hours, capped at 20 hours) while allowing manual checks to bypass it. BrowserKit tests and the Mac build passed. A live staged rollout and simulated outage/recovery remain unverified.
+
+Review-only dispositions: Search `2f99ea479579582ff6eaf63f6596aef7ca78b26b` adds hidden test-bench seams, not browser behavior; `75eb6728a20e4f91a8465ce8bb2a91812058b4dc` adds a bookmarks-bar icon-only preference that does not match Arc's sidebar. Search `20942bc01fe5a96f63b3490e5f9cf643f133b996` fixes links in Search's custom extension popup; Ark instead uses WebKit's native extension-action popover, so reproducing the Raindrop sign-in case in Ark remains open before a port decision.
 
 Next review candidates include upstream extension permission and redirect checks, private-window extension controls, and avoiding unchanged Live Folder writes. New upstream visual designs require comparison against Arc before adoption.
 

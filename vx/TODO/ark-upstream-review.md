@@ -19,6 +19,8 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 24, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
+**Review progress:** 23 of 263 commits assessed (8.7%); 240 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+
 ### Browsa
 
 Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c551fc83efc39efe1b7d61cd7abe3071`.

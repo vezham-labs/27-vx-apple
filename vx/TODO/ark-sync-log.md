@@ -6,6 +6,8 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists all 149 Browsa and 114 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Both source checkouts are clean and match their remote-tracking heads. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
+Current review progress: 23/263 incoming commits assessed (8.7%); 240 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
 Before reviewing incoming commits, Ark added insertion positions and a visible insertion marker for dragging pins within a folder. The previous drag resolver only calculated individual positions among root pins. `ark:build-mac` passed; interactive verification of this new folder reorder path is still pending. Earlier SpikeArk checks established pinning, moving into a folder, and returning to Today, but did not establish reordering.

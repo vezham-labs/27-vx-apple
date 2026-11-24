@@ -640,6 +640,8 @@ enum Preferences {
     static var externalLinksInPreview: Bool { d.bool(forKey: externalLinksInPreviewKey) }
     static let automaticVideoPiPKey = "automaticVideoPiP"
     static var automaticVideoPiP: Bool { d.bool(forKey: automaticVideoPiPKey) }
+    static let videoKeyControlsKey = "videoKeyControls"
+    static var videoKeyControls: Bool { d.bool(forKey: videoKeyControlsKey) }
     static let pinnedLinksOpenInNewTabKey = "pinnedLinksOpenInNewTab"
     static var pinnedLinksOpenInNewTab: Bool {
         get { d.bool(forKey: pinnedLinksOpenInNewTabKey) }

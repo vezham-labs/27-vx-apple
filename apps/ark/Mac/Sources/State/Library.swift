@@ -2,6 +2,7 @@ import AppKit
 import Observation
 import BrowserCore
 import BrowserEngine
+import WebKitEngine
 import Suggest
 import Extensibility
 import os
@@ -126,6 +127,7 @@ final class Library {
         developerTools = Preferences.developerTools
         useSafariExtensions = Preferences.useSafariExtensions
         callAudio = Preferences.callAudio
+        (engine as? WebKitEngine)?.videoKeyControls = Preferences.videoKeyControls
         let support = snapshotURL?.deletingLastPathComponent()
         siteStyles = SiteStyles(fileURL: support?.appending(path: "site-styles.json"))
         extensionCatalog = ExtensionCatalog(fileURL: support?.appending(path: "extensions.json"))

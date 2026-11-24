@@ -40,6 +40,17 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
     public var callAudioProcessing = true {
         didSet { if callAudioProcessing != oldValue { for controller in allContentControllers { install(on: controller, rules: false) } } }
     }
+    /// Settings › General. Native media controls accept Space and arrow keys when enabled.
+    public var videoKeyControls = false {
+        didSet {
+            guard videoKeyControls != oldValue else { return }
+            for controller in allContentControllers { install(on: controller, rules: false) }
+            let script = videoKeyControls ? VideoKeyControls.source : VideoKeyControls.off
+            for page in livePages.values.compactMap(\.page) {
+                Task { _ = try? await page.evaluate(script, inWorld: VideoKeyControls.worldName) }
+            }
+        }
+    }
     /// Settings › Audio. Pages read it about once a second while a call runs, so changes apply live;
     /// switching processing to the system's applies to pages loaded after.
     public var callAudio = CallAudioTuning() {
@@ -312,6 +323,7 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
         controller.add(PageActivity.Handler { [weak self] webView, report in
             self?.page(for: webView)?.activityChanged(report)
         }, contentWorld: PageActivity.world, name: PageActivity.messageName)
+        if videoKeyControls { controller.addUserScript(VideoKeyControls.script) }
         controller.removeScriptMessageHandler(forName: CallAudioHandler.name, contentWorld: .page)
         if callAudioProcessing, let script = Self.callAudioScript {
             controller.addUserScript(script)
@@ -325,6 +337,7 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
                                                   forMainFrameOnly: false, in: .page))
         }
     }
+
 
     /// Global Privacy Control: sites that honour it treat the visitor as opted out of the sale or
     /// sharing of their data. Defined on the page's own Navigator so the page's scripts see it.

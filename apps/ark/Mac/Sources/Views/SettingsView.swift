@@ -3,6 +3,7 @@ import CoreAudio
 import AppKit
 import BrowserCore
 import BrowserEngine
+import WebKitEngine
 import Suggest
 import Extensibility
 import UniformTypeIdentifiers
@@ -123,6 +124,7 @@ private struct GeneralSettings: View {
     @AppStorage(ArkAppearance.key) private var appearance = ""
     @AppStorage(Preferences.externalLinksInPreviewKey) private var externalLinksInPreview = false
     @AppStorage(Preferences.automaticVideoPiPKey) private var automaticVideoPiP = false
+    @AppStorage(Preferences.videoKeyControlsKey) private var videoKeyControls = false
     @AppStorage(Preferences.pinnedLinksOpenInNewTabKey) private var pinnedLinksOpenInNewTab = false
     @AppStorage(Preferences.closeTabGoesBackKey) private var closeTabGoesBack = false
     @AppStorage("linkPreviewModifier") private var linkPreviewModifier = LinkPreviewModifier.option.rawValue
@@ -148,6 +150,12 @@ private struct GeneralSettings: View {
                 Text("When off, Ark selects the tab beside the one you closed.")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Float videos when switching tabs or apps", isOn: $automaticVideoPiP)
+                Toggle("Space and arrow keys control videos", isOn: $videoKeyControls)
+                    .onChange(of: videoKeyControls) { _, enabled in
+                        (browser.engine as? WebKitEngine)?.videoKeyControls = enabled
+                    }
+                Text("For native video controls after you click a video. Site controls and keys the page handles stay unchanged.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Swipe to snap and dock Mini Player", isOn: $miniPlayerFlicks)
                 Picker("Peek at a link with", selection: $linkPreviewModifier) {
                     ForEach(LinkPreviewModifier.allCases) { modifier in

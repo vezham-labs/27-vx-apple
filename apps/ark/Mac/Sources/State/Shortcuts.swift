@@ -31,10 +31,15 @@ struct KeyCombo: Codable, Hashable, Sendable {
         if flags.contains(.shift) { m.insert(.shift) }
         if flags.contains(.option) { m.insert(.option) }
         if flags.contains(.control) { m.insert(.control) }
+        let shortcutCharacters = KeyLayout.shortcut(
+            event.keyCode, flags: flags, shift: flags.contains(.shift),
+            typed: event.characters(byApplyingModifiers: [])
+        ).lowercased()
         if let named = Self.namedKeyCodes[event.keyCode] {
             key = named
-        } else if let c = event.characters(byApplyingModifiers: [])?.lowercased(), let ch = c.first,
-                  c.count == 1, !ch.isWhitespace, !ch.isNewline, ch.unicodeScalars.first.map({ $0.value < 0xF700 }) == true {
+        } else if let ch = shortcutCharacters.first,
+                  shortcutCharacters.count == 1, !ch.isWhitespace, !ch.isNewline,
+                  ch.unicodeScalars.first.map({ $0.value < 0xF700 }) == true {
             key = String(ch)
         } else {
             return nil

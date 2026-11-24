@@ -470,6 +470,14 @@ Adapted Browsa `ed71db69e6bd0647652563ee91a573b0e593dd2b`: Ark now validates the
 
 Adapted Browsa `18a9e73147a0d0a32d4e2f91b8a967dfaea92e25`: Ark now resolves camera and microphone answers and the site's **Open in App** choices through one site-permission helper. Private tabs see saved answers plus private overrides; prompt answers and site-menu overrides go to the in-memory private cache, which the existing `closePrivateSpace` path clears. This fixes direct site-menu writes that previously bypassed Ark's existing private-only media-prompt cache. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. Runtime checks that private answers never persist and regular-tab choices still do remain pending.
 
+### Browsa Boost import safety — Mac review
+
+Reviewed Browsa `f27bcf16d64c98c8e11eb5bf53c9fa449e63fd93`. Ark's site styles and hidden-element rules use exact-host keys and check `location.hostname` before applying; Ark does not import `.browsa` Boost files or execute user-supplied site scripts. The imported-script review prompt and shared-file domain validation therefore have no matching Ark flow to adapt. No code change; the Boosts comparison remains based on Ark's existing CSS and element controls.
+
+### Search native-field focus cost — Mac
+
+Adapted Search `fe22040c014e4a0ebd7bf642434919a93b292c7b`: Ark registers `NSAutoFillHeuristicsEnabled = false` before constructing its windows, so AppKit does not walk Ark's full native/SwiftUI view tree to guess whether Ark-owned fields are password fields. Browser-page credential behavior stays in WebKit. The default is registration-only, so an explicit user's persistent preference still overrides it. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. Search reports the original full-window scan can hold its main thread at 100% CPU for tens of seconds; Ark has not yet had a before/after latency or CPU measurement, so no Ark performance delta is claimed.
+
 ### Browsa extension host-permission scope — Mac
 
 Adapted the permission-scope portion of Browsa `1642b72ff49a17421b29ba3d56c70b5717a09b8c`: `WebKitExtensions` no longer grants `<all_urls>` to every extension. Broad host access is granted only when an extension's requested match patterns include `<all_urls>` or a wildcard host; otherwise Ark grants its declared patterns. This closes an overbroad WebKit permission grant without changing the extension UI. Browsa's redirect-checked, profile-aware `browsa.fetch` path was not copied because Ark does not expose that API. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. A runtime check with narrow-host and all-host extensions remains open. The comparison's Chrome extensions rating stays Partial pending compatibility and permission-flow verification.

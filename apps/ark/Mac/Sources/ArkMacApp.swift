@@ -8,6 +8,10 @@ struct ArkMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
+        // AppKit may scan the window's entire native view tree to guess whether Ark's own fields are
+        // password fields. Browser-page password handling belongs to WebKit, so keep that guess off
+        // for Ark's native controls; registration is in-memory and a user's explicit default wins.
+        UserDefaults.standard.register(defaults: ["NSAutoFillHeuristicsEnabled": false])
         // (Ark's own WebKit, if any, was taken up before main(): PatchedWebKitStart.c.)
         // Before anything opens a store: bring data over from the old sandbox container, once.
         SandboxMigration.runIfNeeded()

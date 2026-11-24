@@ -155,7 +155,7 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 | `f7619ec1272743f0dea5bf26562313c0e089a2a4` | Merge remote-tracking branch 'origin/claude/project-thread-himevy' into claude/project-thread-h50a8d | Pending |
 | `1642b72ff49a17421b29ba3d56c70b5717a09b8c` | Extensions: every website only when asked for; browsa.fetch checks each redirect and uses the window's profile | Partially adapted: Ark grants all-URL host access only when the manifest requests all URLs or all hosts. Redirect-checked, profile-aware `browsa.fetch` is not applicable because Ark does not expose that API. Mac build passed; permission behavior needs runtime verification. |
 | `18a9e73147a0d0a32d4e2f91b8a967dfaea92e25` | Private tabs keep open-in-app and camera answers in memory, not in saved settings | Adapted: Ark routes private prompt and site-menu answers for camera, microphone, and Open in App into the existing private-only permission cache; closing Private clears it. Mac build passed; runtime privacy checks remain pending. |
-| `f27bcf16d64c98c8e11eb5bf53c9fa449e63fd93` | Boosts: one site only, and an imported script asks before it first runs | Pending |
+| `f27bcf16d64c98c8e11eb5bf53c9fa449e63fd93` | Boosts: one site only, and an imported script asks before it first runs | Reviewed: Ark's site styles are keyed to and checked against the exact hostname; Ark does not import Browsa Boost files or execute user-supplied site scripts, so the imported-script consent flow does not apply. No code change. |
 | `9703e82288d9cb41ee6b072b0700ec1cea54a468` | Live Folders: no GitHub token, cookie-less feeds with a size limit, cookies stay on their site | Pending |
 | `b9cb5102a909dc2e11090378c3850fdbc0490d6f` | Phone, FaceTime and Messages links ask first unless you clicked them | Pending |
 | `63bd758f3b73e22e8ac3a149e0b6b6c80b5f98c6` | Extensions stay out of private windows unless you allow them | Pending |
@@ -208,7 +208,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `33ec7aea18
 | `4746a7772c5b3edd612dd5c76c80ce5d174f12a3` | List and reset site permissions in Privacy settings (#1429) | Pending |
 | `61cc8e136b409227967c3749f0e250187836e66a` | chrome.management.getAll() lists installed extensions for one with "management" (#1431) | Pending |
 | `71992504d6e5ce9ab72032ce53c8b559b4aeb202` | Keys for profiles: Next Profile, Previous Profile, Profile 1–9 (#1437) | Pending |
-| `fe22040c014e4a0ebd7bf642434919a93b292c7b` | Native fields no longer run macOS's password-field guess over every view in the window (#1458) | Pending |
+| `fe22040c014e4a0ebd7bf642434919a93b292c7b` | Native fields no longer run macOS's password-field guess over every view in the window (#1458) | Adapted: Ark disables AppKit's native-field heuristic through a volatile UserDefaults registration; browser-page password handling remains in WebKit. Mac build passed. Ark focus-latency and CPU measurements remain open; Search reported up to 100% CPU for tens of seconds in a full window. |
 | `ceaec9b8c7544df19745579d343551ce8cb51fef` | An agent's click lands where it aims on a zoomed page (#1464) | Pending |
 | `bb0d3160fd5a7e1972f6dcfdce9412aae5df6034` | The agents' page room goes back off screen when displays change (#1421) | Pending |
 | `663cb237b48c0c423d5727cd9d5567cf002f6ec6` | The hidden column stays out while its edge is dragged (#1462) | Pending |

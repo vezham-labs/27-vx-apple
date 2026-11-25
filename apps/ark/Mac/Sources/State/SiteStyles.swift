@@ -115,7 +115,8 @@ extension Browser {
                 guard let selection else { showToast("Couldn’t hide this element"); return }
                 do {
                     try library.siteStyles.hide(HiddenSiteElement(selector: selection.selector, label: selection.label,
-                                                                  note: selection.note), for: host)
+                                                                  note: selection.note, fingerprint: selection.fingerprint,
+                                                                  family: selection.family), for: host)
                     applySiteStyle(for: host)
                     showToast("Hidden: \(selection.label)", actions: [ToastAction(title: "Undo") { [weak self] in
                         do { try self?.restoreSiteElement(selection.selector, for: host) }

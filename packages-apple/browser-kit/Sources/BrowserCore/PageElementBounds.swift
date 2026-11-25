@@ -4,11 +4,15 @@ public struct PageElementSelection: Equatable, Sendable {
     public let selector: String
     public let label: String
     public let note: String
+    public let fingerprint: String?
+    public let family: String?
 
-    public init(selector: String, label: String, note: String) {
+    public init(selector: String, label: String, note: String, fingerprint: String? = nil, family: String? = nil) {
         self.selector = selector
         self.label = label
         self.note = note
+        self.fingerprint = fingerprint
+        self.family = family
     }
 }
 
@@ -66,6 +70,18 @@ extension PageCaptureImage {
             const unique = selector => {
                 try { return document.querySelectorAll(selector).length === 1; } catch { return false; }
             };
+            const fingerprint = element => {
+                const media = /^(IMG|VIDEO|IFRAME)$/.test(element.tagName) ? element : element.querySelector('img,video,iframe');
+                const source = media ? (media.getAttribute('src') || '').split('?')[0].slice(0, 200) : '';
+                const text = (element.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 160);
+                return element.tagName.toLowerCase() + '\\n' + source + '\\n' + text;
+            };
+            const family = element => {
+                const classes = (typeof element.className === 'string' ? element.className : '').trim().split(/\\s+/)
+                    .filter(name => /^[a-zA-Z][\\w-]{2,29}$/.test(name) && !/\\d{3,}/.test(name) &&
+                        !/^(css|sc|jsx|emotion|svelte|styles?)-/.test(name)).slice(0, 2);
+                return classes.length ? element.tagName.toLowerCase() + '.' + classes.map(CSS.escape).join('.') : '';
+            };
             const clip = (text, limit) => text.length > limit ? text.slice(0, limit) + '…' : text;
             const known = {
                 nav: 'Navigation', header: 'Header', footer: 'Footer', aside: 'Sidebar', form: 'Form',
@@ -82,7 +98,10 @@ extension PageCaptureImage {
             const side = centerX < innerWidth / 3 ? 'left' : centerX > innerWidth * 2 / 3 ? 'right' : 'centre';
             const band = centerY < innerHeight / 3 ? 'top' : centerY > innerHeight * 2 / 3 ? 'bottom' : 'middle';
             const note = Math.round(rect.width) + '×' + Math.round(rect.height) + ' · ' + band + ' ' + side;
-            const finish = selector => selector && unique(selector) ? { selector, label: clip(label, 40), note } : null;
+            const finish = (selector, guarded = false) => selector && unique(selector) ? {
+                selector, label: clip(label, 40), note,
+                fingerprint: guarded ? fingerprint(element) : '', family: guarded ? family(element) : ''
+            } : null;
             if (element.id) {
                 const selector = '#' + CSS.escape(element.id);
                 if (unique(selector)) return finish(selector);
@@ -91,7 +110,7 @@ extension PageCaptureImage {
                 const value = element.getAttribute(attribute);
                 if (!value) continue;
                 const selector = element.tagName.toLowerCase() + '[' + attribute + '="' + CSS.escape(value) + '"]';
-                if (unique(selector)) return finish(selector);
+                if (unique(selector)) return finish(selector, true);
             }
             const classes = (typeof element.className === 'string' ? element.className : '')
                 .trim().split(/\\s+/).filter(name => /^[a-zA-Z][\\w-]{2,29}$/.test(name) && !/\\d{3,}/.test(name) &&
@@ -114,11 +133,12 @@ extension PageCaptureImage {
                 parts.unshift(siblings.length > 1 ? name + ':nth-of-type(' + (siblings.indexOf(node) + 1) + ')' : name);
                 node = parent;
             }
-            return finish(parts.join(' > '));
+            return finish(parts.join(' > '), true);
             """, arguments: ["x": point.x, "y": point.y, "originX": origin.x, "originY": origin.y,
                              "pageZoom": webView.pageZoom], in: nil, contentWorld: .world(name: "Ark Page Capture"))
         guard let value = result as? [String: String], let selector = value["selector"], !selector.isEmpty,
               let label = value["label"], let note = value["note"] else { return nil }
-        return PageElementSelection(selector: selector, label: label, note: note)
+        return PageElementSelection(selector: selector, label: label, note: note,
+                                    fingerprint: value["fingerprint"], family: value["family"])
     }
 }

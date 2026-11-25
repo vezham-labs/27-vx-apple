@@ -5,15 +5,33 @@ public struct HiddenSiteElement: Codable, Identifiable, Equatable, Sendable {
     public var selector: String
     public var label: String
     public var note: String?
+    /// A small description of an element selected by position.  When a page
+    /// rearranges its content, Ark checks this before hiding that position.
+    /// Older Boosts deliberately leave this nil and retain their CSS behavior.
+    public var fingerprint: String?
+    /// A stable class-based place to look when the original path moved.
+    public var family: String?
     public var date: Date
 
     public var id: String { selector }
 
-    public init(selector: String, label: String, note: String? = nil, date: Date = .now) {
+    public init(selector: String, label: String, note: String? = nil, fingerprint: String? = nil,
+                family: String? = nil, date: Date = .now) {
         self.selector = selector
         self.label = label
         self.note = note
+        self.fingerprint = fingerprint
+        self.family = family
         self.date = date
+    }
+
+    /// A deterministic, CSS-safe marker for a guarded page element.
+    public var guardKey: String {
+        var hash: UInt32 = 2_166_136_261
+        for byte in (selector + "\n" + (fingerprint ?? "")).utf8 {
+            hash = (hash ^ UInt32(byte)) &* 16_777_619
+        }
+        return "ark-" + String(hash, radix: 36)
     }
 }
 
@@ -243,7 +261,13 @@ public final class SiteStyles {
             .compactMap { $0 }.joined(separator: "\n")
         revision += 1
         let applyRevision = revision
-        let selectors = hiddenSelectors(for: host).filter { $0 != selectorToShow }
+        let hiddenElements = hiddenElements(for: host).filter { $0.selector != selectorToShow }
+        let selectors = hiddenElements.compactMap { $0.fingerprint == nil ? $0.selector : nil }
+        let guarded = hiddenElements.compactMap { element -> [String: String]? in
+            guard let fingerprint = element.fingerprint, !fingerprint.isEmpty else { return nil }
+            return ["key": element.guardKey, "selector": element.selector, "fingerprint": fingerprint,
+                    "family": element.family ?? ""]
+        }
         // WebKit can expose different wrappers for an adopted sheet on later calls.
         // Identify our sheet by its final rule and keep the save revision in the isolated world.
         _ = try? await webView.callAsyncJavaScript("""
@@ -256,8 +280,10 @@ public final class SiteStyles {
                 return rule?.selectorText === ':root' && rule.style.getPropertyValue(marker).trim() === '1';
             };
             let sheet = document.adoptedStyleSheets.find(isArkSheet);
-            if (!css && hidden.length === 0) {
+            const guardState = globalThis.arkHiddenElementGuard;
+            if (!css && hidden.length === 0 && guarded.length === 0) {
                 if (sheet) document.adoptedStyleSheets = document.adoptedStyleSheets.filter(item => !isArkSheet(item));
+                guardState?.update([]);
                 globalThis.arkSiteStyle = { revision };
                 return;
             }
@@ -268,17 +294,64 @@ public final class SiteStyles {
                 for (const selector of hidden) {
                     try { sheet.insertRule(`${selector} { display: none !important; }`, sheet.cssRules.length); } catch {}
                 }
+                for (const item of guarded) {
+                    try { sheet.insertRule(`[data-ark-hidden~="${item.key}"] { display: none !important; }`, sheet.cssRules.length); } catch {}
+                }
                 if (showing) {
                     try { sheet.insertRule(`:is(${showing}):not(#ark-preview):not(#ark-preview):not(#ark-preview) { outline: 2px solid rgba(23, 23, 23, .9) !important; outline-offset: 2px !important; }`, sheet.cssRules.length); } catch {}
                 }
                 sheet.insertRule(':root { --ark-site-style: 1; }', sheet.cssRules.length);
             }
             if (!installed) document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+            if (!globalThis.arkHiddenElementGuard) {
+                const fingerprint = element => {
+                    const media = /^(IMG|VIDEO|IFRAME)$/.test(element.tagName) ? element : element.querySelector('img,video,iframe');
+                    const source = media ? (media.getAttribute('src') || '').split('?')[0].slice(0, 200) : '';
+                    const text = (element.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 160);
+                    return element.tagName.toLowerCase() + '\\n' + source + '\\n' + text;
+                };
+                const setMarker = (element, key, enabled) => {
+                    const values = (element.getAttribute('data-ark-hidden') || '').split(' ')
+                        .filter(value => value && value !== key);
+                    if (enabled) values.push(key);
+                    if (values.length) element.setAttribute('data-ark-hidden', values.join(' '));
+                    else element.removeAttribute('data-ark-hidden');
+                };
+                let items = [], observer;
+                const applyGuards = () => {
+                    for (const item of items) {
+                        let matches = [];
+                        try { matches = [...document.querySelectorAll(item.selector)].filter(element => fingerprint(element) === item.fingerprint); } catch {}
+                        if (!matches.length && item.family) {
+                            try { matches = [...document.querySelectorAll(item.family)].filter(element => fingerprint(element) === item.fingerprint); } catch {}
+                        }
+                        if (matches.length !== 1) matches = [];
+                        document.querySelectorAll(`[data-ark-hidden~="${item.key}"]`).forEach(element => {
+                            if (!matches.includes(element)) setMarker(element, item.key, false);
+                        });
+                        matches.forEach(element => setMarker(element, item.key, true));
+                    }
+                };
+                globalThis.arkHiddenElementGuard = {
+                    update(next) {
+                        items = next;
+                        if (!observer && next.length) {
+                            observer = new MutationObserver(applyGuards);
+                            observer.observe(document, { childList: true, subtree: true, characterData: true,
+                                attributes: true, attributeFilter: ['src', 'class', 'id'] });
+                        }
+                        if (!next.length) document.querySelectorAll('[data-ark-hidden]').forEach(element => element.removeAttribute('data-ark-hidden'));
+                        applyGuards();
+                    }
+                };
+            }
+            globalThis.arkHiddenElementGuard.update(guarded);
             globalThis.arkSiteStyle = { revision };
             if (showing) {
                 try { document.querySelector(showing)?.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {}
             }
-            """, arguments: ["host": host, "css": css, "hidden": selectors, "showing": selectorToShow as Any? ?? NSNull(),
+            """, arguments: ["host": host, "css": css, "hidden": selectors, "guarded": guarded,
+                             "showing": selectorToShow as Any? ?? NSNull(),
                              "revision": applyRevision], in: nil,
             contentWorld: .world(name: "ark.site-style"))
     }

@@ -29,4 +29,17 @@ struct SiteStylesTests {
         #expect(SiteStyles.host(of: URL(string: "file:///tmp/local.html")) == nil)
         #expect(SiteStyles.host(of: URL(string: "data:text/html,hello")) == nil)
     }
+
+    @Test @MainActor func persistsGuardedHiddenElementsAndKeepsTheirMarkerStable() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appending(path: "site-styles.json")
+        let element = HiddenSiteElement(selector: "main > article:nth-of-type(2)", label: "Plan",
+                                        fingerprint: "article\\n\\nPlan a dinner", family: "article.card")
+        let styles = SiteStyles(fileURL: file)
+        try styles.hide(element, for: "example.test")
+        let reopened = SiteStyles(fileURL: file)
+        #expect(reopened.hiddenElements(for: "example.test") == [element])
+        #expect(reopened.hiddenElements(for: "example.test").first?.guardKey == element.guardKey)
+    }
 }

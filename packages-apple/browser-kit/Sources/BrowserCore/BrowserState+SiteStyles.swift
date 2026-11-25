@@ -56,7 +56,8 @@ extension BrowserState {
             }
             do {
                 try siteStyles.hide(HiddenSiteElement(selector: selection.selector, label: selection.label,
-                                                      note: selection.note), for: host)
+                                                      note: selection.note, fingerprint: selection.fingerprint,
+                                                      family: selection.family), for: host)
                 await siteStyles.apply(to: webView, on: host, includingRemoval: true)
                 showToast("Hidden: \(selection.label)")
             } catch {

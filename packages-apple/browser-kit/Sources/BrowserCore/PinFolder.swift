@@ -180,16 +180,43 @@ extension Space {
         return true
     }
 
-    /// Creates or refreshes the one signed-in GitHub Pull Requests folder for this Space.
+    public var automaticGitHubFolderID: UUID? {
+        pinFolders.first {
+            $0.feed?.isGitHubPullRequests == true && $0.feedNeedsActivation != true
+        }?.id
+    }
+
+    /// An explicit request can create or resume a folder. A scheduled request can only update its original folder.
     @discardableResult
-    public func refreshGitHubPullRequests(cookies: [HTTPCookie]) async throws -> PinFolder? {
+    public func refreshGitHubPullRequests(cookies: [HTTPCookie], existingFolderID: UUID? = nil) async throws -> PinFolder? {
         guard !isPrivate else { return nil }
+        let original = pinFolders.first { $0.feed?.isGitHubPullRequests == true }
+        let refreshID = original?.id ?? id
+        if let existingFolderID {
+            guard automaticGitHubFolderID == existingFolderID,
+                  Date.now.timeIntervalSince(liveFolderRefreshTimes[existingFolderID] ?? .distantPast) >= 900 else { return nil }
+        }
+        guard refreshingLiveFolderIDs.insert(refreshID).inserted else { return nil }
+        defer { refreshingLiveFolderIDs.remove(refreshID) }
+        let profileID = websiteProfileID
+        try Task.checkCancellation()
         let feed = try await LiveFolderFeed.loadGitHubPullRequests(cookies: cookies)
+        try Task.checkCancellation()
+        guard websiteProfileID == profileID else { return nil }
         if let index = pinFolders.firstIndex(where: { $0.feed?.isGitHubPullRequests == true }) {
+            let folder = pinFolders[index]
+            guard folder.id == original?.id else { return nil }
+            if let existingFolderID {
+                guard folder.id == existingFolderID, folder.feed == original?.feed,
+                      folder.feedNeedsActivation != true else { return nil }
+            }
+            liveFolderRefreshTimes[folder.id] = .now
+            if existingFolderID != nil, folder.feed == feed { return nil }
             pinFolders[index].feed = feed
-            liveFolderRefreshTimes[pinFolders[index].id] = .now
+            pinFolders[index].feedNeedsActivation = nil
             return pinFolders[index]
         }
+        guard existingFolderID == nil, original == nil else { return nil }
         guard let folder = addPinFolder(named: feed.title), let index = pinFolders.firstIndex(where: { $0.id == folder.id }) else { return nil }
         pinFolders[index].feed = feed
         liveFolderRefreshTimes[folder.id] = .now

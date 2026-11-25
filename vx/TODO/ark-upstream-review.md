@@ -18,7 +18,23 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 25, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 261 of 323 unique commits reviewed (80.8%); 62 have title/path triage only and still need implementation diff review. The earlier 100% figure described inventory triage and overstated completed review. Source review is separate from implementation and runtime verification.
+**Review progress:** 265 of 332 unique commits reviewed (79.8%). Of the remaining 67, 62 belong to the earlier batch and five to the November 26 Search pull. Source review is tracked separately from implementation and runtime verification.
+
+### November 26 pull
+
+Browsa HEAD and `origin/main` remain at `46fe04bedb0f13521328c69d0f1f6814a18e6188`. Search HEAD and `origin/main` moved from the prior review target `9b67323c` to `b9fcbb45deecddcdc4a6f1f8b8aa38dcfde6d788`. The last-synced baselines are unchanged.
+
+| Search commit | Change | Disposition |
+| --- | --- | --- |
+| `a35ea54` | Default preferences and inline predictions | Pending comparison against Ark defaults and address suggestions. |
+| `0d049ee` | Probe fixture preferences | Reviewed file scope. Only Search probes changed, with no Ark product port. |
+| `4f3228a` | Sidebar player stays available after pause | Pending comparison against Ark’s media controls. |
+| `3dffd16` | Repeat close on tucked group tabs | Pending comparison against Ark’s pin and Split View close behavior. |
+| `69902d0` | New-tab shortcuts with all windows closed | Reviewed. Ark’s command handlers already call `library.openWindow()` or `library.openWindow(.privateTab)` without a focused browser. Keyboard runtime check remains open. |
+| `9d4ce76` | Preserve popup sizing while an extension is loading | Reviewed. Search guards its custom popover’s measured size and cache. Ark uses WebKit’s native popover. Check slow-start extension behavior before porting. |
+| `d649f64` | Default to site icons and respect explicit synced choices | Reviewed. Ark already displays site favicons in the sidebar and has no corresponding glyph preference to migrate. |
+| `464240b` | Preserve hidden-element identity on dynamic pages | Pending comparison against Ark’s saved Boost selectors. |
+| `b9fcbb45` | Hide similar elements from the picker | Pending comparison against Ark’s Boost picker. |
 
 ### Browsa
 

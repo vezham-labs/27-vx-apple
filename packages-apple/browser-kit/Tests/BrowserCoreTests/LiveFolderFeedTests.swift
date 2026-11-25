@@ -5,6 +5,25 @@ import Testing
 struct LiveFolderFeedTests {
     private let source = URL(string: "https://example.com/feeds/latest.xml")!
 
+    @MainActor @Test func scheduledGitHubRefreshSkipsPausedAndRemovedFolders() async throws {
+        let space = Space(name: "Work")
+        let folder = try #require(space.addPinFolder(named: "Pull Requests"))
+        let source = try #require(URL(string: "https://github.com/_ark/live-pull-requests"))
+        space.pinFolders[0].feed = LiveFolderFeed(source: source, title: folder.name, articles: [])
+        #expect(space.automaticGitHubFolderID == folder.id)
+
+        space.pinFolders[0].feedNeedsActivation = true
+        #expect(space.automaticGitHubFolderID == nil)
+        let paused = try await space.refreshGitHubPullRequests(cookies: [], existingFolderID: folder.id)
+        #expect(paused == nil)
+        #expect(space.pinFolders.first?.feedNeedsActivation == true)
+
+        space.removePinFolder(folder.id)
+        let removed = try await space.refreshGitHubPullRequests(cookies: [], existingFolderID: folder.id)
+        #expect(removed == nil)
+        #expect(space.pinFolders.isEmpty)
+    }
+
     @Test func rssResolvesRelativeLinksAndFiltersDuplicates() throws {
         let xml = """
             <rss version="2.0"><channel><title>  Research   notes </title>

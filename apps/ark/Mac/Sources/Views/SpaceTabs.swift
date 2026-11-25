@@ -122,11 +122,11 @@ struct SpaceTabs: View {
             } action: { _, v in offset = v[0]; maxOffset = v[1] }
             .id(space.id)
             .transition(.spaceListChange)
-            .task(id: space.id) {
-                guard space.pinFolders.contains(where: { $0.feed?.isGitHubPullRequests == true }) else { return }
+            .task(id: space.automaticGitHubFolderID) {
+                guard let folderID = space.automaticGitHubFolderID else { return }
                 let refreshInterval: TimeInterval = 900
                 while !Task.isCancelled {
-                    await browser.refreshGitHubPullRequests(in: space, silently: true)
+                    await browser.refreshGitHubPullRequests(in: space, existingFolderID: folderID)
                     try? await Task.sleep(for: .seconds(refreshInterval))
                 }
             }

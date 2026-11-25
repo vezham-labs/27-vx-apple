@@ -109,9 +109,11 @@ struct NewTabMenu: View {
     private func refreshGitHubPullRequests() {
         let space = browser.currentSpace
         guard !space.isPrivate else { return }
+        let profileID = space.websiteProfileID
         browser.toast = "Refreshing GitHub pull requests…"
         Task {
             let cookies = await browser.cookies(for: space)
+            guard space.websiteProfileID == profileID else { return }
             do {
                 guard let folder = try await space.refreshGitHubPullRequests(cookies: cookies) else { return }
                 browser.scheduleSave()

@@ -80,6 +80,8 @@ Added single-board PNG export through a native save panel. `ImageRenderer` expor
 
 Added **Export All** as a ZIP containing one browsable HTML file per local board, an index, and referenced PNG assets. HTML output escapes user text and links only HTTP(S) page cards; archive creation runs off the UI thread with macOS `ditto`. The Mac build passed. The generated archive and feature UI have not been exercised in the rebuilt app; direct share-sheet integration, image annotation/editing, sync, and mobile remain open.
 
+Added a Mac **Share…** action for the active Easel. It renders the same lossless board PNG used by Export PNG into a uniquely named temporary file and gives that file to the native macOS share sheet. Ark itself does not upload the board or create a hosted collection. `pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. The share interaction remains runtime-unverified; image annotation/editing, sync, and mobile remain open.
+
 ### Mac favorite web-app previews — November 25, 2026
 
 Added a Mac hover preview for Notion, Figma, and Linear favourites. It reads up to five recent visits from the active website profile's local history and opens a selected page in a new tab; Private Space is excluded. The pinned Search source and reviewed Browsa history have no service-specific preview implementation, so this is an Ark-native first pass based on Arc's behavior rather than a copied upstream feature. `pnpm nx run ark:build-mac --output-style=static` passed. The running Finder app still maps the pre-build executable, so interaction and screenshot checks are pending. Mac Previews moves from No to Partial; service APIs/actions, mobile, and the dedicated feature screenshot remain open.

@@ -142,17 +142,26 @@ final class EaselStore {
     }
 
     @discardableResult func exportPNG(_ boardID: UUID, to url: URL) -> Bool {
-        guard let board = boards.first(where: { $0.id == boardID }) else { return false }
-        let renderer = ImageRenderer(content: EaselExportCanvas(board: board, store: self))
-        renderer.scale = 1
-        guard let image = renderer.nsImage,
-              let tiff = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff),
-              let png = bitmap.representation(using: .png, properties: [:]) else { return false }
+        guard let png = pngData(for: boardID) else { return false }
         do {
             try png.write(to: url, options: .atomic)
             return true
         } catch { return false }
+    }
+
+    func sharePNGURL(for boardID: UUID) -> URL? {
+        guard let board = boards.first(where: { $0.id == boardID }),
+              let png = pngData(for: boardID) else { return nil }
+        let filename = board.name
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "/", with: "-")
+        let exportName = filename.isEmpty ? "Export" : filename
+        let url = FileManager.default.temporaryDirectory
+            .appending(path: "Ark Easel \(exportName)-\(UUID().uuidString).png")
+        do {
+            try png.write(to: url, options: .atomic)
+            return url
+        } catch { return nil }
     }
 
     func exportAllAsZip(to outputURL: URL) async -> Bool {
@@ -208,6 +217,16 @@ final class EaselStore {
             .replacingOccurrences(of: ">", with: "&gt;")
             .replacingOccurrences(of: "\"", with: "&quot;")
             .replacingOccurrences(of: "'", with: "&#39;")
+    }
+
+    private func pngData(for boardID: UUID) -> Data? {
+        guard let board = boards.first(where: { $0.id == boardID }) else { return nil }
+        let renderer = ImageRenderer(content: EaselExportCanvas(board: board, store: self))
+        renderer.scale = 1
+        guard let image = renderer.nsImage,
+              let tiff = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff) else { return nil }
+        return bitmap.representation(using: .png, properties: [:])
     }
 
     private func update(_ cardID: UUID, in boardID: UUID, _ change: (inout EaselCard) -> Void) {
@@ -306,6 +325,9 @@ struct EaselView: View {
                 Label(board?.name ?? "Easel", systemImage: "rectangle.on.rectangle.angled").font(.system(size: 14, weight: .semibold))
             }.menuStyle(.button).buttonStyle(.plain)
             Spacer()
+            Button { shareBoard() } label: { Label("Share…", systemImage: "square.and.arrow.up") }
+                .buttonStyle(.plain)
+                .disabled(board == nil)
             Button { exportBoard() } label: { Label("Export PNG…", systemImage: "square.and.arrow.up") }
                 .buttonStyle(.plain)
                 .disabled(board == nil)
@@ -336,6 +358,16 @@ struct EaselView: View {
             guard response == .OK, let url = panel.url else { return }
             browser.showToast(store.exportPNG(board.id, to: url) ? "Easel exported" : "Couldn’t export Easel")
         }
+    }
+
+    private func shareBoard() {
+        guard let board, let window = browser.nsWindow,
+              let url = store.sharePNGURL(for: board.id) else {
+            browser.showToast("Couldn’t prepare Easel to share")
+            return
+        }
+        let picker = NSSharingServicePicker(items: [url])
+        picker.show(relativeTo: .zero, of: window.contentView ?? NSView(), preferredEdge: .minY)
     }
 
     private func exportAllBoards() {

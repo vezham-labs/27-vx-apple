@@ -146,7 +146,7 @@ extension PageCaptureImage {
         guard let value = result as? [String: String], let selector = value["selector"], !selector.isEmpty,
               let label = value["label"], let note = value["note"] else { return nil }
         return PageElementSelection(selector: selector, label: label, note: note,
-                                    fingerprint: value["fingerprint"], family: value["family"],
+                                    fingerprint: value["fingerprint"].flatMap { $0.isEmpty ? nil : $0 }, family: value["family"],
                                     relatedCount: Int(value["relatedCount"] ?? "") ?? 0)
     }
 }

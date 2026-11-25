@@ -4,6 +4,43 @@ import WebKit
 @testable import BrowserCore
 
 struct SiteStylesTests {
+    @Test @MainActor func restoringOneGuardedElementClearsOnlyItsMarker() async throws {
+        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 600, height: 400))
+        let navigation = NavigationWaiter()
+        webView.navigationDelegate = navigation
+        webView.loadHTMLString("<body><article>First</article><aside>Second</aside></body>", baseURL: URL(string: "https://example.test/"))
+        try await navigation.finished()
+        let styles = SiteStyles(fileURL: nil)
+        try styles.hide(HiddenSiteElement(selector: "article", label: "First", fingerprint: "article\n\nFirst"), for: "example.test")
+        try styles.hide(HiddenSiteElement(selector: "aside", label: "Second", fingerprint: "aside\n\nSecond"), for: "example.test")
+        await styles.apply(to: webView, on: "example.test")
+        let before = try await webView.evaluateJavaScript("['article','aside'].map(s => getComputedStyle(document.querySelector(s)).display).join(',')") as? String
+        #expect(before == "none,none")
+        try styles.restore("article", for: "example.test")
+        await styles.apply(to: webView, on: "example.test", includingRemoval: true)
+        let after = try await webView.evaluateJavaScript("['article','aside'].map(s => getComputedStyle(document.querySelector(s)).display).join(',')") as? String
+        #expect(after == "block,none")
+    }
+
+    @Test @MainActor func idSelectionAndPreviouslySavedEmptyFingerprintHideElement() async throws {
+        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 600, height: 400))
+        let navigation = NavigationWaiter()
+        webView.navigationDelegate = navigation
+        webView.loadHTMLString("<body><article id='target'>Original</article></body>", baseURL: URL(string: "https://example.test/"))
+        try await navigation.finished()
+        let selection = try #require(await PageCaptureImage.selection(at: CGPoint(x: 15, y: 15), in: webView))
+        #expect(selection.selector == "#target")
+        #expect(selection.fingerprint == nil)
+        let styles = SiteStyles(fileURL: nil)
+        try styles.hide(HiddenSiteElement(selector: selection.selector, label: selection.label, fingerprint: ""), for: "example.test")
+        await styles.apply(to: webView, on: "example.test")
+        let display = try await webView.evaluateJavaScript("getComputedStyle(document.getElementById('target')).display") as? String
+        #expect(display == "none")
+        await styles.apply(to: webView, on: "example.test", includingRemoval: true, showing: selection.selector)
+        let preview = try await webView.evaluateJavaScript("[getComputedStyle(document.getElementById('target')).display, getComputedStyle(document.getElementById('target')).outlineStyle].join(',')") as? String
+        #expect(preview == "block,solid")
+    }
+
     @Test @MainActor func classSelectionStaysSingularWhenPageAddsMatches() async throws {
         let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 600, height: 400))
         let navigation = NavigationWaiter()

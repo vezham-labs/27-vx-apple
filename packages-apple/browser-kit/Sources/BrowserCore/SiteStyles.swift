@@ -262,7 +262,7 @@ public final class SiteStyles {
         revision += 1
         let applyRevision = revision
         let hiddenElements = hiddenElements(for: host).filter { $0.selector != selectorToShow }
-        let selectors = hiddenElements.compactMap { $0.fingerprint == nil ? $0.selector : nil }
+        let selectors = hiddenElements.compactMap { ($0.fingerprint?.isEmpty ?? true) ? $0.selector : nil }
         let guarded = hiddenElements.compactMap { element -> [String: String]? in
             guard let fingerprint = element.fingerprint, !fingerprint.isEmpty else { return nil }
             return ["key": element.guardKey, "selector": element.selector, "fingerprint": fingerprint,
@@ -281,7 +281,7 @@ public final class SiteStyles {
             };
             let sheet = document.adoptedStyleSheets.find(isArkSheet);
             const guardState = globalThis.arkHiddenElementGuard;
-            if (!css && hidden.length === 0 && guarded.length === 0) {
+            if (!css && hidden.length === 0 && guarded.length === 0 && !showing) {
                 if (sheet) document.adoptedStyleSheets = document.adoptedStyleSheets.filter(item => !isArkSheet(item));
                 guardState?.update([]);
                 globalThis.arkSiteStyle = { revision };
@@ -334,6 +334,12 @@ public final class SiteStyles {
                 };
                 globalThis.arkHiddenElementGuard = {
                     update(next) {
+                        const activeKeys = new Set(next.map(item => item.key));
+                        for (const item of items) {
+                            if (!activeKeys.has(item.key)) {
+                                document.querySelectorAll(`[data-ark-hidden~="${item.key}"]`).forEach(element => setMarker(element, item.key, false));
+                            }
+                        }
                         items = next;
                         if (!observer && next.length) {
                             observer = new MutationObserver(applyGuards);

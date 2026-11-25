@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### ID-based hidden elements — November 26, 2026
+
+The picker returned an empty fingerprint for an ID selector, while the style engine applied only nil fingerprints as plain selectors. Such selections could therefore fail to hide. New selections normalize an empty fingerprint to nil, and the engine also handles previously saved empty values. Removing one guarded rule now clears its marker without disturbing other rules, and previewing the only hidden rule retains its outline. WebKit fixtures verify these paths; all 83 BrowserKit tests pass. Boosts remains Partial pending real-site and broader UI checks.
+
 ### Class-only hidden elements — November 26, 2026
 
 Reviewing Search `baea49d571b8642a277c90f76560692e4ae50e9e` exposed an incorrect earlier disposition: selector de-duplication alone does not prevent a future page from matching several elements. New class-only selections now use Ark's existing fingerprint guard; previously saved selectors remain unchanged. An existing-suite WebKit fixture picks an element, adds another matching class, and verifies only the original hides; when both have identical content it verifies neither hides. All 81 BrowserKit tests pass. A real-site interaction remains open; Boosts remains Partial.

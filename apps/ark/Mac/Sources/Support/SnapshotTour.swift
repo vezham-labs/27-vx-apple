@@ -263,6 +263,24 @@ struct SnapshotTour {
                 await pause(2)
                 note("profile switch cancels \(mode) picker capture: \(validSelection && !browser.isCapturingPage && clipboard.string(forType: .string) == "unchanged" && clipboard.data(forType: .png) == nil)")
             }
+            for mode in ["area", "element"] {
+                browser.library.assignWebsiteProfile(nil, to: browser.currentSpace)
+                await pause(2)
+                let picker = mode == "area" ? browser.selectPageArea(to: clipboard) : browser.selectPageElement(to: clipboard)
+                guard let picker else { note("\(mode) in-flight picker unavailable"); continue }
+                let start = NSPoint(x: 60, y: 60)
+                let end = NSPoint(x: 140, y: 120)
+                guard let down = captureMouseEvent(.leftMouseDown, at: start, in: picker, window: window),
+                      let up = captureMouseEvent(.leftMouseUp, at: mode == "area" ? end : start, in: picker, window: window) else {
+                    picker.cancelOperation(nil); continue
+                }
+                picker.mouseDown(with: down)
+                picker.mouseUp(with: up)
+                let started = browser.isCapturingPage
+                browser.library.assignWebsiteProfile(profile.id, to: browser.currentSpace)
+                await pause(2)
+                note("profile switch cancels in-flight \(mode) capture: \(started && !browser.isCapturingPage && clipboard.string(forType: .string) == "unchanged" && clipboard.data(forType: .png) == nil)")
+            }
             return
         }
         if ProcessInfo.processInfo.environment["ARK_ERROR_KEY_CHECK_ONLY"] == "1" {

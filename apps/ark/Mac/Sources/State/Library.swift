@@ -560,7 +560,16 @@ final class Library {
         for window in windows { window.cancelPrompts(for: tab.id) }
         controllers[tab.id]?.discardInnerScrollState()
         sleepingScrollStates[tab.id] = nil
-        unload(tab.id)
+        // Profile changes must never keep presenting the old WebView after its asynchronous
+        // PiP/session cleanup completes. The immediate page swap handles the common case;
+        // this second one makes the view resolve the newly configured controller afterwards.
+        unload(tab.id) { [weak self, weak tab] in
+            // `finishUnload` snapshots the former WebView just before it closes. It may have
+            // written the old profile ID back while this reset was waiting for PiP cleanup.
+            tab?.interactionState = nil
+            tab?.websiteSessionProfileID = nil
+            self?.pageSwaps += 1
+        }
         tab.interactionState = nil
         tab.websiteSessionProfileID = nil
         tab.loadError = nil

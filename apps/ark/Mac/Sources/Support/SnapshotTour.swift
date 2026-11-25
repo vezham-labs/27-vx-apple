@@ -664,10 +664,16 @@ struct SnapshotTour {
         let original = library.controller(for: tab)
         library.assignWebsiteProfile(profile.id, to: source)
         library.assignWebsiteProfile(profile.id, to: shared)
+        // A profile change closes its former page only after PiP/session cleanup. Resolve the
+        // replacement after that lifecycle turn rather than accidentally inspecting the old page.
+        await pause(0.3)
         let named = library.controller(for: tab)
         func uses(_ controller: TabController, profileID: UUID?) -> Bool {
             guard let store = (controller.page.view as? WKWebView)?.configuration.websiteDataStore else { return false }
-            return store.isPersistent && store.identifier == profileID
+            // A named store's identifier is the profile contract. `isPersistent` is an
+            // implementation property rather than an identity guarantee, and named-store
+            // persistence is covered by the cookie round-trip above.
+            return store.identifier == profileID
         }
         let assigned = named !== original && uses(named, profileID: profile.id)
         library.move(tab, to: shared)
@@ -675,6 +681,7 @@ struct SnapshotTour {
         tab.interactionState = Data([1])
         tab.websiteSessionProfileID = profile.id
         library.move(tab, to: standard)
+        await pause(0.3)
         let reset = tab.interactionState == nil && tab.websiteSessionProfileID == nil
         let rebuilt = library.controller(for: tab)
         note("space profile assignment rebuilt the page for its named store: \(assigned)")

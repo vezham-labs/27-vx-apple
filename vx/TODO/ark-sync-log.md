@@ -1030,6 +1030,21 @@ system-PiP path until a signed-in reproduction identifies a scoped need. Browsa'
 Pull Requests source, which Ark has not designed as a matching settings surface. No source,
 matrix rating, test, simulator, or performance claim changed from this review.
 
+### Mac Space-profile reset lifecycle — November 26, 2026
+
+The isolated Mac audit found and fixed a profile-transition race. Changing a Space profile starts
+an asynchronous WebView unload for PiP/session cleanup, but a view could resolve the old controller
+before that cleanup completed. The late session snapshot could also restore the former profile
+identifier after reset cleared it. `resetBrowsingSession` now clears that transient state again
+when unload completes and bumps the existing page-swap signal so the view resolves a controller
+made with the destination profile. The existing `SnapshotTour` waits for that lifecycle turn.
+
+A separately identified temporary Debug bundle verified named-store cookie isolation and clearing;
+profile assignment rebuilding the page on the named store; same-profile movement retaining the
+page; and cross-profile movement rebuilding with cleared session state.
+`NX_ISOLATE_PLUGINS=false pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed.
+No simulator, new test file, installed-Ark change, or performance claim was involved.
+
 ## Final synced Mac pass — November 25, 2026
 
 After inventorying all 323 incoming commits, `NX_ISOLATE_PLUGINS=false pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. The first sandboxed attempt was blocked before compilation by SwiftPM/Clang cache permissions; the same Nx build passed with the required cache access. A fresh post-build `open -n` of `dist/ark/Build/Products/Debug/Ark.app` returned Launch Services `kLSNoExecutableErr` (`-10827`); direct execution of its signed `Contents/MacOS/Ark` exited with `134` before writing tour output. The earlier existing SnapshotTour pass remains the current UI evidence, including restoration of the inner page scroll at 1,200 px. No simulator or new test file was used. A fresh UI pass needs the Debug bundle opened from Finder if Launch Services continues rejecting it.

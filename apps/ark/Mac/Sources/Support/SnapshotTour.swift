@@ -236,6 +236,27 @@ struct SnapshotTour {
                 await pause(0.5)
                 let updated = try await page?.evaluate("return getComputedStyle(document.body).backgroundColor", inWorld: "Ark Glance Audit") as? String
                 note("Glance Boost after load and update: \(initial == "rgb(12, 34, 56)" && updated == "rgb(65, 43, 21)") (initial: \(initial ?? "nil"), updated: \(updated ?? "nil"))")
+                page?.load(first)
+                await pause(2)
+                let navigated = try await page?.evaluate("return getComputedStyle(document.body).backgroundColor", inWorld: "Ark Glance Audit") as? String
+                note("Glance Boost after navigation: \(navigated == "rgb(65, 43, 21)") (\(navigated ?? "nil"))")
+                browser.library.openWindow()
+                await pause(1)
+                if let other = browser.library.windows.first(where: { $0 !== browser }) {
+                    other.openGlance(second, profile: .standard)
+                    await pause(2)
+                    try browser.saveSiteStyle("body { background-color: rgb(21, 43, 65) !important; }", for: host)
+                    await pause(0.5)
+                    let otherColor = try await other.glance?.page.evaluate("return getComputedStyle(document.body).backgroundColor", inWorld: "Ark Glance Audit") as? String
+                    note("Glance Boost update across windows: \(otherColor == "rgb(21, 43, 65)") (\(otherColor ?? "nil"))")
+                    other.closeGlance()
+                    other.nsWindow?.performClose(nil)
+                } else { note("Glance Boost cross-window fixture could not open a window") }
+                browser.closeGlance()
+                browser.openGlance(second, profile: .ephemeral)
+                await pause(2)
+                let privateColor = try await browser.glance?.page.evaluate("return getComputedStyle(document.body).backgroundColor", inWorld: "Ark Glance Audit") as? String
+                note("Private Glance excludes Boost: \(privateColor != nil && privateColor != "rgb(21, 43, 65)") (\(privateColor ?? "nil"))")
                 browser.closeGlance()
                 try browser.library.siteStyles.set("", for: host)
             } catch { note("Glance Boost check failed: \(error)") }

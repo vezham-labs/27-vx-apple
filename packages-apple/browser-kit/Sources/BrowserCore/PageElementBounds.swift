@@ -124,7 +124,7 @@ extension PageCaptureImage {
                     !/^(css|sc|jsx|emotion|svelte|styles?)-/.test(name));
             if (classes.length) {
                 const selector = element.tagName.toLowerCase() + '.' + classes.map(CSS.escape).join('.');
-                if (unique(selector)) return finish(selector);
+                if (unique(selector)) return finish(selector, true);
             }
             const parts = [];
             let node = element;

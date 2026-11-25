@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Class-only hidden elements — November 26, 2026
+
+Reviewing Search `baea49d571b8642a277c90f76560692e4ae50e9e` exposed an incorrect earlier disposition: selector de-duplication alone does not prevent a future page from matching several elements. New class-only selections now use Ark's existing fingerprint guard; previously saved selectors remain unchanged. An existing-suite WebKit fixture picks an element, adds another matching class, and verifies only the original hides; when both have identical content it verifies neither hides. All 81 BrowserKit tests pass. A real-site interaction remains open; Boosts remains Partial.
+
 ### Space export pin homes — November 26, 2026
 
 Space link exports now retain each pinned tab's original home URL, so a pin that has navigated elsewhere can still return home after import. Version 1 files without this optional field remain readable; imported home URLs are checked as credential-free HTTP(S) links. The existing BrowserKit suite passed all 80 tests, including a new round-trip case in the existing archive test file, and the Mac Nx build passed. File-dialog interaction and mobile runtime verification remain open; the Export Spaces rating stays Partial.

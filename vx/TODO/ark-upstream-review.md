@@ -332,7 +332,7 @@ The previous section already covers the nine commits from `f4ae4053` through `65
 
 | Commit | Change | Disposition |
 | --- | --- | --- |
-| `baea49d571b8642a277c90f76560692e4ae50e9e` | Hide Elements selectors stay singular on later visits | Ark already de-duplicates saved selectors per host. |
+| `baea49d571b8642a277c90f76560692e4ae50e9e` | Hide Elements selectors stay singular on later visits | Reviewed product diff: de-duplicating saved selectors does not prevent a selector from matching multiple elements later. Ark now applies its existing fingerprint guard to newly picked class-only selectors, as it already did for attributes and paths. A WebKit fixture verifies added matching elements and ambiguous identical content; legacy unguarded rules remain unchanged. Real-site verification remains open. |
 | `6a008d92861178c2181cf11cf9c4fedd483458a3` | Optional Backspace navigation | Not a missing Arc comparison row; no shortcut preference added in this pass. |
 | `7ff4d77e5ae14cacf66d01ecef2088fd284756fb` | Migration Assistant device IDs for iCloud sync | Search-specific iCloud identity; Ark's file/folder sync has a different account and device model. |
 | `235015456b3796e003f9b17a27545353bb892072` | Prevent service-worker CryptoKey IndexedDB deadlock | Adapted in Ark `extension-compat.js`: bounded cycle-safe detection rejects with `DataCloneError`; extension runtime check remains queued. |

@@ -12,12 +12,14 @@ final class GlanceSession: Identifiable, EnginePageDelegate {
     let page: any EnginePage
     let profile: BrowsingProfile
     var isPrivate: Bool { profile == .ephemeral }
+    let allowsSiteStyles: Bool
     @ObservationIgnored private(set) var loadedURL: URL?
     @ObservationIgnored weak var browser: Browser?
 
-    init(url: URL, profile: BrowsingProfile, browser: Browser) {
+    init(url: URL, profile: BrowsingProfile, browser: Browser, source: BrowserTab?) {
         self.profile = profile
         self.browser = browser
+        allowsSiteStyles = profile != .ephemeral && !(source.map { browser.library.agents.isInAgentSpace($0) } ?? false)
         page = browser.engine.makePage(options: PageOptions(profile: profile, url: url),
                                        delegate: GlanceSession.placeholder)
         page.delegate = self
@@ -44,9 +46,8 @@ final class GlanceSession: Identifiable, EnginePageDelegate {
     }
     func page(_ page: any EnginePage, didFinish url: URL, title: String) {
         loadedURL = url
-        guard !isPrivate, let browser, let host = SiteStyles.host(of: url),
-              let view = page.view as? WKWebView,
-              !(browser.currentTab.map { browser.library.agents.isInAgentSpace($0) } ?? false) else { return }
+        guard allowsSiteStyles, let browser, let host = SiteStyles.host(of: url),
+              let view = page.view as? WKWebView else { return }
         Task { await browser.library.siteStyles.apply(to: view, on: host) }
     }
     func page(_ page: any EnginePage, didFailWith error: NSError) { loadedURL = nil }
@@ -81,13 +82,13 @@ extension Browser {
         guard Self.canPreviewLink(url) else { return false }
         let profile = tab.map(library.browsingProfile(for:)) ?? library.browsingProfile(in: currentSpace)
         commandBar = nil
-        openGlance(url, profile: profile)
+        openGlance(url, profile: profile, source: tab)
         return true
     }
 
-    func openGlance(_ url: URL, profile: BrowsingProfile) {
+    func openGlance(_ url: URL, profile: BrowsingProfile, source: BrowserTab? = nil) {
         closeGlance()
-        glance = GlanceSession(url: url, profile: profile, browser: self)
+        glance = GlanceSession(url: url, profile: profile, browser: self, source: source ?? currentTab)
     }
 
     func closeGlance() {

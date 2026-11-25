@@ -2,9 +2,13 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Agent-origin Glance isolation — November 26, 2026
+
+Glance now retains the originating tab's Boost eligibility rather than checking the selected tab later; same-profile tab or Space switches can leave a preview open. An isolated Mac audit opened a Glance from an Agent-space tab while a normal tab was selected and verified that a subsequent Boost update did not style it. The same audit passed initial, live-update, navigation, cross-window, private, and unrelated-host checks using loopback fixtures. The Mac build passed with an existing concurrency warning. Real-site checks remain open.
+
 ### Boosts in Glance — November 26, 2026
 
-Search `72dba5be4fc8680187ed183782d4a4280a2140f9` exposed a gap in the prior review: Ark's Glance page is not a tab controller. Mac Glance now applies saved site styles after load and receives matching rule updates across browser windows, excluding private and agent pages. The Mac Nx build passed. A separately identified temporary Debug app verified a saved style after Glance loaded, a changed style while it remained open, reapplication after navigation, an update in a second window, and exclusion in private Glance, using loopback fixture pages. Agent-space and unrelated-host cases remain unverified; Boosts remains Partial.
+Search `72dba5be4fc8680187ed183782d4a4280a2140f9` exposed a gap in the prior review: Ark's Glance page is not a tab controller. Mac Glance now applies saved site styles after load and receives matching rule updates across browser windows, excluding private and agent pages. The Mac Nx build passed. A separately identified temporary Debug app verified load, updates, navigation, cross-window propagation, and private, agent-origin and unrelated-host exclusion using loopback fixtures. Boosts remains Partial pending real-site and broader UI checks.
 
 ### ID-based hidden elements — November 26, 2026
 

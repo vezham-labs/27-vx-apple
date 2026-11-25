@@ -219,7 +219,7 @@ final class TabController: EnginePageDelegate {
         guard let library else { return .allow }
         if request.wantsGlance {
             guard let window = library.window(showing: tab) ?? library.activeWindow else { return .allow }
-            window.openGlance(request.url, profile: linkPreview?.profile ?? library.browsingProfile(for: tab))
+            window.openGlance(request.url, profile: linkPreview?.profile ?? library.browsingProfile(for: tab), source: tab)
             return .cancel
         }
         if request.wantsNewTab {
@@ -247,7 +247,7 @@ final class TabController: EnginePageDelegate {
                 window.newTab(url: request.url, source: .link)
                 return .cancel
             case .glance:
-                window.openGlance(request.url, profile: library.browsingProfile(for: tab))
+                window.openGlance(request.url, profile: library.browsingProfile(for: tab), source: tab)
                 return .cancel
             }
         }

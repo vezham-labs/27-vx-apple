@@ -252,11 +252,28 @@ struct SnapshotTour {
                     other.closeGlance()
                     other.nsWindow?.performClose(nil)
                 } else { note("Glance Boost cross-window fixture could not open a window") }
+                if host == "127.0.0.1", var otherHost = URLComponents(url: first, resolvingAgainstBaseURL: false) {
+                    otherHost.host = "localhost"
+                    if let url = otherHost.url {
+                        page?.load(url)
+                        await pause(2)
+                        let otherColor = try await page?.evaluate("return getComputedStyle(document.body).backgroundColor", inWorld: "Ark Glance Audit") as? String
+                        note("Glance excludes unrelated host Boost: \(browser.glance?.loadedURL?.host() == "localhost" && otherColor != nil && otherColor != "rgb(21, 43, 65)") (\(otherColor ?? "nil"))")
+                    }
+                }
                 browser.closeGlance()
                 browser.openGlance(second, profile: .ephemeral)
                 await pause(2)
                 let privateColor = try await browser.glance?.page.evaluate("return getComputedStyle(document.body).backgroundColor", inWorld: "Ark Glance Audit") as? String
                 note("Private Glance excludes Boost: \(privateColor != nil && privateColor != "rgb(21, 43, 65)") (\(privateColor ?? "nil"))")
+                browser.closeGlance()
+                let agentTab = browser.library.insertTab(url: first, in: browser.library.agents.agentSpace, source: .link, for: browser)
+                browser.openGlance(second, profile: .standard, source: agentTab)
+                await pause(2)
+                try browser.saveSiteStyle("body { background-color: rgb(45, 67, 89) !important; }", for: host)
+                await pause(0.5)
+                let agentColor = try await browser.glance?.page.evaluate("return getComputedStyle(document.body).backgroundColor", inWorld: "Ark Glance Audit") as? String
+                note("Agent-origin Glance excludes Boost after update: \(agentColor != nil && agentColor != "rgb(45, 67, 89)") (\(agentColor ?? "nil"))")
                 browser.closeGlance()
                 try browser.library.siteStyles.set("", for: host)
             } catch { note("Glance Boost check failed: \(error)") }

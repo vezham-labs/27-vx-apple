@@ -1045,6 +1045,16 @@ page; and cross-profile movement rebuilding with cleared session state.
 `NX_ISOLATE_PLUGINS=false pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed.
 No simulator, new test file, installed-Ark change, or performance claim was involved.
 
+### Mac Live Folder lifecycle audit — November 26, 2026
+
+The prior failure was a fixture limitation, not a Live Folder implementation failure: its static
+feed could not satisfy a check that expected a changed refresh. A separately identified temporary
+Debug bundle ran against a loopback-only dynamic feed. It verified RSS discovery, an article title
+change with stable article URLs/IDs, cached data remaining after an intentional HTTP 500 refresh,
+and an imported folder remaining paused until an explicit resume. The new Mac feature capture is
+[`preview/ark/mac/features/live-folder.png`](../../preview/ark/mac/features/live-folder.png).
+No source behavior changed, no simulator was started, and the installed Ark was untouched.
+
 ## Final synced Mac pass — November 25, 2026
 
 After inventorying all 323 incoming commits, `NX_ISOLATE_PLUGINS=false pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. The first sandboxed attempt was blocked before compilation by SwiftPM/Clang cache permissions; the same Nx build passed with the required cache access. A fresh post-build `open -n` of `dist/ark/Build/Products/Debug/Ark.app` returned Launch Services `kLSNoExecutableErr` (`-10827`); direct execution of its signed `Contents/MacOS/Ark` exited with `134` before writing tour output. The earlier existing SnapshotTour pass remains the current UI evidence, including restoration of the inner page scroll at 1,200 px. No simulator or new test file was used. A fresh UI pass needs the Debug bundle opened from Finder if Launch Services continues rejecting it.

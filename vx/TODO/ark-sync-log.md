@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Mac capture session guard — November 26, 2026
+
+Full-page, region, element, and Easel capture now also confirm that the original WebView and browsing profile remain active after asynchronous work. Profile reassignment starts asynchronous page cleanup while tab identity and URL stay the same; an old capture must not be copied or added to an Easel during that transition. An isolated Mac fixture started a full-page capture, reassigned the profile immediately, and verified the tab stayed selected and the clipboard remained unchanged. The Mac Nx build passed. Region, element and Easel timing checks remain open; existing capture fixture evidence is unchanged.
+
 ### Hung-page keyboard review — November 26, 2026
 
 Reviewed Browsa `99ff3fd4fd7b04869ac8a5134a7bd2851d017ad9`: its recovery releases focus from a failed or unresponsive WebKit view, using private process properties for hangs. Ark intercepts some shortcuts before WebKit, but not all menu commands; the earlier inventory claim of complete independence was incorrect. Ark now releases a WebKit first responder behind a known load-error overlay before dispatching a key, without private APIs. An isolated Mac fixture set a load error, focused the page, verified focus was released after a key event, and observed Command-T opening the command bar. This simulated error does not reproduce a crashed or hung WebKit process; those cases remain open. Mac build passed.

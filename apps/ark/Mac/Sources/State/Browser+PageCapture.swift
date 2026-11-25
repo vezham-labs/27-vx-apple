@@ -10,18 +10,19 @@ extension Browser {
             showToast("Couldn’t capture this page")
             return
         }
+        let profile = library.browsingProfile(for: tab)
 
         isCapturingPage = true
         Task {
             defer { isCapturingPage = false }
             let pdf = try? await webView.pdf(configuration: WKPDFConfiguration())
-            guard currentTab === tab, tab.url == url else { return }
+            guard currentTab === tab, tab.url == url, library.browsingProfile(for: tab) == profile, library.existingController(for: tab)?.page?.view === webView else { return }
             guard let pdf else {
                 showToast("Couldn’t capture this page")
                 return
             }
             let png = await PageCaptureImage.png(from: pdf, backingScale: webView.window?.backingScaleFactor ?? 1)
-            guard currentTab === tab, tab.url == url else { return }
+            guard currentTab === tab, tab.url == url, library.browsingProfile(for: tab) == profile, library.existingController(for: tab)?.page?.view === webView else { return }
             guard let png, library.easels.addImage(png, title: tab.title.isEmpty ? (url.host() ?? "Capture") : tab.title, to: boardID) else {
                 showToast("Couldn’t add this capture to Easel")
                 return
@@ -36,19 +37,20 @@ extension Browser {
             showToast("Couldn’t capture this page")
             return
         }
+        let profile = library.browsingProfile(for: tab)
 
         isCapturingPage = true
         Task {
             defer { isCapturingPage = false }
             let pdf = try? await webView.pdf(configuration: WKPDFConfiguration())
-            guard currentTab === tab, tab.url == url else { return }
+            guard currentTab === tab, tab.url == url, library.browsingProfile(for: tab) == profile, library.existingController(for: tab)?.page?.view === webView else { return }
             guard let pdf else {
                 showToast("Couldn’t capture this page")
                 return
             }
             let backingScale = webView.window?.backingScaleFactor ?? 1
             let png = await PageCaptureImage.png(from: pdf, backingScale: backingScale)
-            guard currentTab === tab, tab.url == url else { return }
+            guard currentTab === tab, tab.url == url, library.browsingProfile(for: tab) == profile, library.existingController(for: tab)?.page?.view === webView else { return }
             guard let png else {
                 showToast("Couldn’t capture this page")
                 return
@@ -75,8 +77,10 @@ extension Browser {
             showToast("Couldn’t capture this page")
             return nil
         }
+        let profile = library.browsingProfile(for: tab)
         let picker = RegionCaptureView.present(on: webView, mode: mode) { [weak self, weak webView] selection in
-            guard let self, let webView, !isCapturingPage, currentTab === tab, tab.url == url else { return }
+            guard let self, let webView, !isCapturingPage, currentTab === tab, tab.url == url,
+                  library.browsingProfile(for: tab) == profile, library.existingController(for: tab)?.page?.view === webView else { return }
             isCapturingPage = true
             Task {
                 defer { isCapturingPage = false }
@@ -85,7 +89,7 @@ extension Browser {
                 case .area(let area): rect = area
                 case .element(let point, _): rect = await PageCaptureImage.element(at: point, in: webView)
                 }
-                guard currentTab === tab, tab.url == url else { return }
+                guard currentTab === tab, tab.url == url, library.browsingProfile(for: tab) == profile, library.existingController(for: tab)?.page?.view === webView else { return }
                 let failure = mode == .area ? "Couldn’t capture this area" : "Couldn’t capture this element"
                 guard let rect else {
                     showToast(failure)
@@ -105,7 +109,7 @@ extension Browser {
                 } else {
                     png = nil
                 }
-                guard currentTab === tab, tab.url == url else { return }
+                guard currentTab === tab, tab.url == url, library.browsingProfile(for: tab) == profile, library.existingController(for: tab)?.page?.view === webView else { return }
                 guard let png else {
                     showToast(failure)
                     return

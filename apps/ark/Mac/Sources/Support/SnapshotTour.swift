@@ -222,6 +222,22 @@ struct SnapshotTour {
         }
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
+        if ProcessInfo.processInfo.environment["ARK_CAPTURE_PROFILE_CHECK_ONLY"] == "1" {
+            let tab = browser.newTab(url: first)
+            await pause(2)
+            guard let profile = WebsiteProfile(name: "Capture Audit") else { return }
+            browser.library.settings.websiteProfiles.append(profile)
+            let clipboard = NSPasteboard.withUniqueName()
+            defer { clipboard.releaseGlobally() }
+            clipboard.clearContents()
+            clipboard.setString("unchanged", forType: .string)
+            browser.copyFullPageImage(to: clipboard)
+            let started = browser.isCapturingPage
+            browser.library.assignWebsiteProfile(profile.id, to: browser.currentSpace)
+            await pause(3)
+            note("profile switch cancels pending capture: \(started && !browser.isCapturingPage && clipboard.string(forType: .string) == "unchanged" && clipboard.data(forType: .png) == nil); tab unchanged: \(browser.currentTab === tab)")
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_ERROR_KEY_CHECK_ONLY"] == "1" {
             let tab = browser.newTab(url: first)
             await pause(2)

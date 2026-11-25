@@ -24,6 +24,14 @@ extension Browser {
         closeSiteStyleEditor()
     }
 
+    func saveSiteStyle(_ css: String, font: SiteStyleFont, accent: String?, for host: String) throws {
+        try library.siteStyles.set(css, for: host)
+        try library.siteStyles.setFont(font, for: host)
+        try library.siteStyles.setAccent(accent, for: host)
+        applySiteStyle(for: host)
+        closeSiteStyleEditor()
+    }
+
     func restoreSiteElement(_ selector: String, for host: String) throws {
         try library.siteStyles.restore(selector, for: host)
         applySiteStyle(for: host)

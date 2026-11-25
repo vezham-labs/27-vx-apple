@@ -72,7 +72,8 @@ struct BrowserWindow: View {
             if let host = browser.siteStyleHost {
                 SiteStyleEditor(host: host, css: browser.library.siteStyles[host] ?? "",
                                 hiddenElements: browser.library.siteStyles.hiddenElements(for: host),
-                                font: browser.library.siteStyles.font(for: host))
+                                font: browser.library.siteStyles.font(for: host),
+                                accent: browser.library.siteStyles.accent(for: host))
                     .environment(browser)
             }
         }

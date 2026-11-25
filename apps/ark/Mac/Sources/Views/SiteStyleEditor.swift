@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import BrowserCore
 
 struct SiteStyleEditor: View {
@@ -7,6 +8,7 @@ struct SiteStyleEditor: View {
     @State var css: String
     @State var hiddenElements: [HiddenSiteElement]
     @State var font: SiteStyleFont
+    @State var accent: String?
     @State private var saveFailed = false
 
     var body: some View {
@@ -17,6 +19,14 @@ struct SiteStyleEditor: View {
                 ForEach(SiteStyleFont.allCases) { option in
                     Text(option.title).tag(option)
                 }
+            }
+            ColorPicker("Accent color", selection: accentColor)
+            Text("Optional. Ark applies this colour to links, controls, and selections on this site only.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if accent != nil {
+                Button("Remove accent", role: .destructive) { accent = nil }
+                    .buttonStyle(.plain)
             }
             TextEditor(text: $css)
                 .font(.body.monospaced())
@@ -70,7 +80,7 @@ struct SiteStyleEditor: View {
                 Button("Cancel") { browser.closeSiteStyleEditor() }
                     .keyboardShortcut(.cancelAction)
                 Button("Save") {
-                    do { try browser.saveSiteStyle(css, font: font, for: host) }
+                    do { try browser.saveSiteStyle(css, font: font, accent: accent, for: host) }
                     catch { saveFailed = true }
                 }
                 .keyboardShortcut(.defaultAction)
@@ -79,5 +89,30 @@ struct SiteStyleEditor: View {
         .padding(20)
         .frame(width: 460)
         .onDisappear { browser.previewSiteElement(nil) }
+    }
+
+    private var accentColor: Binding<Color> {
+        Binding(
+            get: {
+                guard let accent, let color = NSColor(hex: accent) else { return .accentColor }
+                return Color(nsColor: color)
+            },
+            set: { value in
+                guard let color = NSColor(value).usingColorSpace(.sRGB) else { return }
+                accent = String(format: "#%02X%02X%02X", Int((color.redComponent * 255).rounded()),
+                                Int((color.greenComponent * 255).rounded()), Int((color.blueComponent * 255).rounded()))
+            }
+        )
+    }
+}
+
+private extension NSColor {
+    convenience init?(hex: String) {
+        guard let normalized = SiteStyles.normalizedAccent(hex) else { return nil }
+        let value = String(normalized.dropFirst())
+        guard let rgb = UInt32(value, radix: 16) else { return nil }
+        self.init(srgbRed: CGFloat((rgb >> 16) & 0xff) / 255,
+                  green: CGFloat((rgb >> 8) & 0xff) / 255,
+                  blue: CGFloat(rgb & 0xff) / 255, alpha: 1)
     }
 }

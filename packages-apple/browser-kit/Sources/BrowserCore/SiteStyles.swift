@@ -52,15 +52,18 @@ public final class SiteStyles {
     private let fileURL: URL?
     private let hiddenFileURL: URL?
     private let fontsFileURL: URL?
+    private let accentsFileURL: URL?
     private var styles: [String: String]
     private var hidden: [String: [HiddenSiteElement]]
     private var fonts: [String: SiteStyleFont]
+    private var accents: [String: String]
     private var revision = 0
 
     public init(fileURL: URL?) {
         self.fileURL = fileURL
         hiddenFileURL = fileURL?.deletingLastPathComponent().appending(path: "site-hidden-elements.json")
         fontsFileURL = fileURL?.deletingLastPathComponent().appending(path: "site-fonts.json")
+        accentsFileURL = fileURL?.deletingLastPathComponent().appending(path: "site-accents.json")
         styles = fileURL.flatMap { try? Data(contentsOf: $0) }
             .flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
         if let data = hiddenFileURL.flatMap({ try? Data(contentsOf: $0) }),
@@ -74,6 +77,8 @@ public final class SiteStyles {
         }
         fonts = fontsFileURL.flatMap { try? Data(contentsOf: $0) }
             .flatMap { try? JSONDecoder().decode([String: SiteStyleFont].self, from: $0) } ?? [:]
+        accents = accentsFileURL.flatMap { try? Data(contentsOf: $0) }
+            .flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
     }
 
     public subscript(host: String) -> String? { styles[host] }
@@ -82,10 +87,13 @@ public final class SiteStyles {
 
     public func font(for host: String) -> SiteStyleFont { fonts[host] ?? .original }
 
+    /// A user-selected sRGB accent for a site, stored as `#RRGGBB`.
+    public func accent(for host: String) -> String? { accents[host] }
+
     public func hiddenSelectors(for host: String) -> [String] { hiddenElements(for: host).map(\.selector) }
 
     public func hasStyle(for host: String) -> Bool {
-        styles[host] != nil || hidden[host] != nil || font(for: host) != .original
+        styles[host] != nil || hidden[host] != nil || font(for: host) != .original || accent(for: host) != nil
     }
 
     public func setFont(_ font: SiteStyleFont, for host: String) throws {
@@ -98,6 +106,31 @@ public final class SiteStyles {
         }
         fonts = updated
         revision += 1
+    }
+
+    public func setAccent(_ accent: String?, for host: String) throws {
+        let value = accent.flatMap(Self.normalizedAccent)
+        guard accents[host] != value else { return }
+        var updated = accents
+        updated[host] = value
+        if let accentsFileURL {
+            try FileManager.default.createDirectory(at: accentsFileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try JSONEncoder().encode(updated).write(to: accentsFileURL, options: .atomic)
+        }
+        accents = updated
+        revision += 1
+    }
+
+    /// Avoid putting arbitrary persisted text into a page stylesheet.
+    nonisolated public static func normalizedAccent(_ value: String) -> String? {
+        let hex = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let candidate = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        guard candidate.count == 3 || candidate.count == 6,
+              candidate.allSatisfy({ $0.isHexDigit }) else { return nil }
+        if candidate.count == 3 {
+            return "#" + candidate.map { "\($0)\($0)" }.joined().uppercased()
+        }
+        return "#" + candidate.uppercased()
     }
 
     public func hide(_ selector: String, for host: String) throws {
@@ -158,7 +191,10 @@ public final class SiteStyles {
     public func apply(to webView: WKWebView, on host: String, includingRemoval: Bool = false,
                       showing selectorToShow: String?) async {
         guard Self.host(of: webView.url) == host, hasStyle(for: host) || includingRemoval else { return }
-        let css = [font(for: host).css.map { ":where(body, p, li, h1, h2, h3, h4, h5, h6, a, td, th, dd, dt, blockquote, input, textarea, button, label, figcaption) { font-family: \($0) !important; }" }, styles[host]]
+        let accentCSS = accent(for: host).map {
+            ":root { accent-color: \($0) !important; } a:link, a:visited { color: \($0) !important; } ::selection { background: \($0) !important; color: white !important; }"
+        }
+        let css = [font(for: host).css.map { ":where(body, p, li, h1, h2, h3, h4, h5, h6, a, td, th, dd, dt, blockquote, input, textarea, button, label, figcaption) { font-family: \($0) !important; }" }, accentCSS, styles[host]]
             .compactMap { $0 }.joined(separator: "\n")
         revision += 1
         let applyRevision = revision

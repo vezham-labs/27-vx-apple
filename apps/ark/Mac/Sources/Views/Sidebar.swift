@@ -714,7 +714,7 @@ struct FavoriteTile: View {
 
     private func updateAppPreview(hovered: Bool) {
         previewTask?.cancel()
-        guard hovered, appPreviewName != nil else {
+        guard appPreviewName != nil else {
             previewTask = nil
             isAppPreviewPresented = false
             previewPages = []
@@ -724,9 +724,12 @@ struct FavoriteTile: View {
             previewTask = Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(350))
                 guard !Task.isCancelled, let host = favorite.url.host() else { return }
+                let spaceID = browser.selectedSpaceID
                 let history = browser.library.profileHistory.store(for: browser.currentSpace.websiteProfileID)
-                previewPages = await history.recentVisits(forHost: host, limit: 5)
+                let pages = await history.recentVisits(forHost: host, limit: 5)
                 guard !Task.isCancelled else { return }
+                guard browser.selectedSpaceID == spaceID else { return }
+                previewPages = pages
                 isAppPreviewPresented = appPreviewName != nil && !previewPages.isEmpty
             }
         } else {
@@ -761,6 +764,12 @@ struct FavoriteTile: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { browser.open(favorite) }
             .onHover { hovering = $0; updateAppPreview(hovered: $0) }
+            .onChange(of: browser.selectedSpaceID) { _, _ in
+                previewTask?.cancel()
+                previewTask = nil
+                isAppPreviewPresented = false
+                previewPages = []
+            }
             .onDisappear {
                 previewTask?.cancel()
                 previewTask = nil
@@ -769,7 +778,7 @@ struct FavoriteTile: View {
             .popover(isPresented: $isAppPreviewPresented, arrowEdge: .leading) {
                 if let appPreviewName {
                     FavoriteAppPreview(name: appPreviewName, pages: previewPages) { url in
-                        browser.newTab(url: url, source: .bookmark)
+                        browser.newTab(url: url, in: browser.currentSpace, source: .bookmark)
                         isAppPreviewPresented = false
                     }
                     .onHover { inside in

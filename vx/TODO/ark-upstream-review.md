@@ -333,12 +333,12 @@ The previous section already covers the nine commits from `f4ae4053` through `65
 | Commit | Change | Disposition |
 | --- | --- | --- |
 | `baea49d571b8642a277c90f76560692e4ae50e9e` | Hide Elements selectors stay singular on later visits | Reviewed product diff: de-duplicating saved selectors does not prevent a selector from matching multiple elements later. Ark now applies its existing fingerprint guard to newly picked class-only selectors, as it already did for attributes and paths. A WebKit fixture verifies added matching elements and ambiguous identical content; legacy unguarded rules remain unchanged. Real-site verification remains open. |
-| `6a008d92861178c2181cf11cf9c4fedd483458a3` | Optional Backspace navigation | Not a missing Arc comparison row; no shortcut preference added in this pass. |
+| `6a008d92861178c2181cf11cf9c4fedd483458a3` | Optional Backspace navigation | Reviewed product diff: Search adds an opt-in WebKit back/forward keyboard preference that avoids editable fields and updates open pages. Ark has no equivalent preference; this is outside the named comparison rows and needs a separate shortcut decision and editable-field runtime check before adoption. No code copied. |
 | `7ff4d77e5ae14cacf66d01ecef2088fd284756fb` | Migration Assistant device IDs for iCloud sync | Search-specific iCloud identity; Ark's file/folder sync has a different account and device model. |
 | `235015456b3796e003f9b17a27545353bb892072` | Prevent service-worker CryptoKey IndexedDB deadlock | Adapted in Ark `extension-compat.js`: bounded cycle-safe detection rejects with `DataCloneError`; extension runtime check remains queued. |
 | `d8cc932899e1ce04d79242f840fecc4de8478b5b` | Site Information card on each pinned tile state | No new 42-row gap established; Ark's tab and favorite menus remain native to its sidebar. |
 | `eecf523e7f501e4f30a48ab8f1624ab66480c09c` | Dusk dark-page filter, SVG handling | Search-specific Appearance feature outside the 42 rows; not ported. |
-| `7baabebcbc639017b351ab43b5ca59197af77d1f` | Hide page behind the command field | Ark already puts its own dim overlay behind the command field; no additional setting added. |
+| `7baabebcbc639017b351ab43b5ca59197af77d1f` | Hide page behind the command field | Reviewed product diff: Search adds an off-by-default opaque cover option; Ark's command bar uses a translucent black overlay and has no equivalent preference. No setting copied; compare Arc's appearance and interaction before deciding whether to add one. |
 | `32e3c13f721d0085fe8e86aad2a2eaa59aea87e7` | Search media controls count as site interaction | Search tracking-prevention interaction model has no matching Ark state or Arc comparison row. |
 | `9f4c6585d6b51d4b42a18f881986ffff8d6c1254` | PinStuck test now releases its own drag | Test-only change; no Ark test file or product change. |
 | `7702b99862d4a0084ccc9f85e877c862b72f251b` | Changelog section order | Documentation only. |

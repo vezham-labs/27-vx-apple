@@ -2,6 +2,18 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Mac favorite preview handoff — November 26, 2026
+
+The hover-exit guard made the delayed close branch unreachable, so moving from a favorite tile into its web-app preview immediately dismissed the popover. The delay is now reachable. Space changes dismiss and clear the preview, cancelled or stale history lookups cannot publish into another Space, and selecting a preview page explicitly opens it in the current Space like the favorite itself. The Mac Nx build passed; pointer handoff, routing, and Space-switch behavior still need live UI verification. Previews remains Partial.
+
+### Mobile Favorites evidence correction — November 26, 2026
+
+The comparison marked iPhone, iPad, and Duo Favorites as Yes while the same row said their runtime checks were open. The three ratings are now Partial until those device interactions are verified. Existing Mac and shared-model evidence is unchanged; no implementation regression is implied.
+
+### Search keyboard and command-field options — November 26, 2026
+
+Reviewed product diffs for Search `6a008d9` and `7baabeb`. The first adds optional Backspace navigation with editable-field protection; Ark has no matching preference, and it needs a separate shortcut decision and runtime check. The second adds an optional opaque page cover behind the command field; Ark has a translucent overlay, so the previous disposition did not describe the difference. Compare Arc's command-field appearance before changing it. No product code or matrix rating changed.
+
 ### Agent-origin Glance isolation — November 26, 2026
 
 Glance now retains the originating tab's Boost eligibility rather than checking the selected tab later; same-profile tab or Space switches can leave a preview open. An isolated Mac audit opened a Glance from an Agent-space tab while a normal tab was selected and verified that a subsequent Boost update did not style it. The same audit passed initial, live-update, navigation, cross-window, private, and unrelated-host checks using loopback fixtures. The Mac build passed with an existing concurrency warning. Real-site checks remain open.

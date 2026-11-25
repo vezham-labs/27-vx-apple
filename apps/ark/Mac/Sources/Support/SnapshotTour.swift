@@ -222,6 +222,25 @@ struct SnapshotTour {
         }
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
+        if ProcessInfo.processInfo.environment["ARK_GLANCE_BOOST_CHECK_ONLY"] == "1" {
+            browser.newTab(url: first)
+            await pause(1)
+            guard let host = SiteStyles.host(of: first) else { note("Glance Boost fixture has no host"); return }
+            do {
+                try browser.saveSiteStyle("body { background-color: rgb(12, 34, 56) !important; }", for: host)
+                browser.openGlance(second, profile: .standard)
+                await pause(2)
+                let page = browser.glance?.page
+                let initial = try await page?.evaluate("return getComputedStyle(document.body).backgroundColor", inWorld: "Ark Glance Audit") as? String
+                try browser.saveSiteStyle("body { background-color: rgb(65, 43, 21) !important; }", for: host)
+                await pause(0.5)
+                let updated = try await page?.evaluate("return getComputedStyle(document.body).backgroundColor", inWorld: "Ark Glance Audit") as? String
+                note("Glance Boost after load and update: \(initial == "rgb(12, 34, 56)" && updated == "rgb(65, 43, 21)") (initial: \(initial ?? "nil"), updated: \(updated ?? "nil"))")
+                browser.closeGlance()
+                try browser.library.siteStyles.set("", for: host)
+            } catch { note("Glance Boost check failed: \(error)") }
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_EASEL_CHECK_ONLY"] == "1" {
             browser.newTab(url: first)
             await pause(1)

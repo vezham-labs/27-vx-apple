@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Boosts in Glance — November 26, 2026
+
+Search `72dba5be4fc8680187ed183782d4a4280a2140f9` exposed a gap in the prior review: Ark's Glance page is not a tab controller. Mac Glance now applies saved site styles after load and receives matching rule updates across browser windows, excluding private and agent pages. The Mac Nx build passed. A separately identified temporary Debug app verified a saved background style after Glance loaded and a changed style applied while it remained open, using loopback fixture pages. Cross-window, private, agent, and subsequent navigation cases remain unverified; Boosts remains Partial.
+
 ### ID-based hidden elements — November 26, 2026
 
 The picker returned an empty fingerprint for an ID selector, while the style engine applied only nil fingerprints as plain selectors. Such selections could therefore fail to hide. New selections normalize an empty fingerprint to nil, and the engine also handles previously saved empty values. Removing one guarded rule now clears its marker without disturbing other rules, and previewing the only hidden rule retains its outline. WebKit fixtures verify these paths; all 83 BrowserKit tests pass. Boosts remains Partial pending real-site and broader UI checks.

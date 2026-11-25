@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import BrowserCore
 import BrowserEngine
+import WebKit
 
 /// Glance: a configured modified click previews a link in a card over the page, like Zen's Glance and Arc's
 /// Peek. Esc (or a click outside) puts it away; ⌘Return or the expand button makes it a tab.
@@ -41,7 +42,13 @@ final class GlanceSession: Identifiable, EnginePageDelegate {
         loadedURL = nil
         browser?.cancelPrompts(for: id)
     }
-    func page(_ page: any EnginePage, didFinish url: URL, title: String) { loadedURL = url }
+    func page(_ page: any EnginePage, didFinish url: URL, title: String) {
+        loadedURL = url
+        guard !isPrivate, let browser, let host = SiteStyles.host(of: url),
+              let view = page.view as? WKWebView,
+              !(browser.currentTab.map { browser.library.agents.isInAgentSpace($0) } ?? false) else { return }
+        Task { await browser.library.siteStyles.apply(to: view, on: host) }
+    }
     func page(_ page: any EnginePage, didFailWith error: NSError) { loadedURL = nil }
     func pageContentProcessDidTerminate(_ page: any EnginePage) { loadedURL = nil }
 

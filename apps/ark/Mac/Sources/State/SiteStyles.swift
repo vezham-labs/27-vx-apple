@@ -148,5 +148,11 @@ extension Browser {
                 Task { await library.siteStyles.apply(to: view, on: host, includingRemoval: true) }
             }
         }
+        for window in library.windows {
+            guard let glance = window.glance, !glance.isPrivate,
+                  !(window.currentTab.map { library.agents.isInAgentSpace($0) } ?? false),
+                  SiteStyles.host(of: glance.url) == host, let view = glance.page.view as? WKWebView else { continue }
+            Task { await library.siteStyles.apply(to: view, on: host, includingRemoval: true) }
+        }
     }
 }

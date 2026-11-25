@@ -239,11 +239,12 @@ final class Browser {
         func appendFolders(inside parentID: UUID?) {
             for folder in folders[parentID] ?? [] where !folder.isCollapsed {
                 appendFolders(inside: folder.id)
-                visible.append(contentsOf: space.pinned.filter { $0.pinFolderID == folder.id })
+                let folderPins = space.pinned.filter { $0.pinFolderID == folder.id }
+                visible.append(contentsOf: space.sidebarRowsCollapsingSplit(folderPins))
             }
         }
         appendFolders(inside: nil)
-        visible.append(contentsOf: space.rootPins)
+        visible.append(contentsOf: space.sidebarRowsCollapsingSplit(space.rootPins))
         return visible
     }
 
@@ -650,8 +651,9 @@ final class Browser {
         ])
     }
 
-    /// Favourites behave like Arc's: the tile holds its own tab, kept out of the Today list. One
-    /// click goes back to that tab, or to a tab already showing the site, or opens one.
+    /// Favourites are shared by the profile and open in the current Space; routing never moves them.
+    /// The tile holds its own tab, kept out of Today. One click returns to it, selects an existing
+    /// tab for the site, or opens a new one in this Space.
     func open(_ favorite: Favorite) {
         if let owned = currentSpace.today.first(where: { $0.favoriteID == favorite.id }) {
             select(owned)
@@ -661,7 +663,7 @@ final class Browser {
         if let existing = currentSpace.allTabs.first(where: { lists($0) && $0.url.map(URLNormalizer.key(for:)) == key }) {
             select(existing)
         } else {
-            let tab = newTab(url: favorite.url, source: .bookmark)
+            let tab = newTab(url: favorite.url, in: currentSpace, source: .bookmark)
             tab.favoriteID = favorite.id
             scheduleSave()
         }

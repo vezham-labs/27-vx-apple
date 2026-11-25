@@ -583,6 +583,9 @@ struct SnapshotTour {
         settings.makeKeyAndOrderFront(nil)
         await pause(0.8)
         saveVisible("space-profiles", in: settings)
+        // Keep the captured window alive for AppKit, but stop its live SwiftUI tree from observing
+        // the temporary Spaces as the rest of this tour moves and deletes them.
+        settings.contentView = NSView(frame: settings.contentView?.bounds ?? .zero)
         browser.nsWindow?.makeKeyAndOrderFront(nil)
     }
 

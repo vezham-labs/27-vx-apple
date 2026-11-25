@@ -647,6 +647,10 @@ struct FavoriteTile: View {
     /// Being dragged to a new spot: drawn as the empty slot it will drop back into.
     var isLifted = false
     @State private var hovering = false
+    @State private var previewPages: [HistoryEntry] = []
+    @State private var isAppPreviewPresented = false
+    @State private var previewTask: Task<Void, Never>?
+    @State private var isPreviewHovered = false
     @Environment(SidebarDragging.self) private var dragging
     @GestureState private var held = false
 
@@ -659,6 +663,34 @@ struct FavoriteTile: View {
     /// This favourite's tab is in a call (whichever space it's open in).
     private var call: TabCall? {
         browser.library.allTabs.first { $0.favoriteID == favorite.id && $0.call != nil }?.call
+    }
+
+    private var appPreviewName: String? {
+        guard !browser.currentSpace.isPrivate, let host = favorite.url.host()?.lowercased() else { return nil }
+        if host == "notion.so" || host.hasSuffix(".notion.so") { return "Notion" }
+        if host == "figma.com" || host.hasSuffix(".figma.com") { return "Figma" }
+        if host == "linear.app" || host.hasSuffix(".linear.app") { return "Linear" }
+        return nil
+    }
+
+    private func updateAppPreview(hovered: Bool) {
+        previewTask?.cancel()
+        if hovered {
+            previewTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(350))
+                guard !Task.isCancelled, let host = favorite.url.host() else { return }
+                let history = browser.library.profileHistory.store(for: browser.currentSpace.websiteProfileID)
+                previewPages = await history.recentVisits(forHost: host, limit: 5)
+                guard !Task.isCancelled else { return }
+                isAppPreviewPresented = appPreviewName != nil && !previewPages.isEmpty
+            }
+        } else {
+            previewTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled else { return }
+                if !isPreviewHovered { isAppPreviewPresented = false }
+            }
+        }
     }
 
     var body: some View {
@@ -683,7 +715,20 @@ struct FavoriteTile: View {
             .accessibilityLabel(call == nil ? favorite.displayName : "\(favorite.displayName), in a call")
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { browser.open(favorite) }
-            .onHover { hovering = $0 }
+            .onHover { hovering = $0; updateAppPreview(hovered: $0) }
+            .popover(isPresented: $isAppPreviewPresented, arrowEdge: .leading) {
+                if let appPreviewName {
+                    FavoriteAppPreview(name: appPreviewName, pages: previewPages) { url in
+                        browser.newTab(url: url, source: .bookmark)
+                        isAppPreviewPresented = false
+                    }
+                    .onHover { inside in
+                        isPreviewHovered = inside
+                        if !inside && !hovering { updateAppPreview(hovered: false) }
+                    }
+                    .frame(width: 300)
+                }
+            }
             .help(favorite.displayName)
             .gesture(DragGesture(minimumDistance: 4, coordinateSpace: .named(SidebarDragging.coordinateSpace))
                 .updating($held) { _, held, _ in held = true }
@@ -694,7 +739,9 @@ struct FavoriteTile: View {
                 if !now, dragging.isLiftedFavourite(favorite.id) { dragging.ended(favorite, in: browser.currentSpace, browser: browser) }
             }
             .contextMenu {
-                Button("Open in New Tab", systemImage: "plus.square.on.square") { browser.newTab(url: favorite.url, source: .bookmark) }
+                Button("Open in New Tab", systemImage: "plus.square.on.square") {
+                    browser.newTab(url: favorite.url, in: browser.currentSpace, source: .bookmark)
+                }
                 PreviewLinkButton(url: favorite.url)
                 Button("Copy Link", systemImage: "link") {
                     browser.copyLink(favorite.url)
@@ -704,6 +751,40 @@ struct FavoriteTile: View {
                     withAnimation(Motion.snappy) { browser.removeFavorite(favorite) }
                 }
             }
+    }
+}
+
+/// Recent local pages for a small set of app-like favourites. This deliberately uses only Ark's
+/// profile history; service-specific actions or remote account data are outside this preview.
+private struct FavoriteAppPreview: View {
+    let name: String
+    let pages: [HistoryEntry]
+    let open: (URL) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(name).font(.headline)
+            Text("Recent pages").font(.caption).foregroundStyle(.secondary)
+            ForEach(Array(pages.enumerated()), id: \.offset) { _, page in
+                Button {
+                    open(page.url)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(page.title.isEmpty ? (page.url.host() ?? page.url.absoluteString) : page.title)
+                            .lineLimit(1)
+                        Text(page.url.host() ?? page.url.absoluteString)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(14)
+        .accessibilityElement(children: .contain)
     }
 }
 

@@ -189,11 +189,15 @@ extension Space {
     /// Live folders cannot own manually moved pins.
     @discardableResult
     public func movePinnedTabs(_ orderedIDs: [UUID], into folderID: UUID?) -> [BrowserTab]? {
-        let ids = Set(orderedIDs)
+        var ids = Set(orderedIDs)
         guard !isPrivate, !ids.isEmpty, ids.count == orderedIDs.count else { return nil }
+        for id in orderedIDs {
+            if let members = splitGroup(in: pinned), members.contains(where: { $0.id == id }) {
+                ids.formUnion(members.map(\.id))
+            }
+        }
         if let folderID, !pinFolders.contains(where: { $0.id == folderID && $0.feed == nil }) { return nil }
-        let byID = Dictionary(uniqueKeysWithValues: pinned.map { ($0.id, $0) })
-        let moving = orderedIDs.compactMap { byID[$0] }
+        let moving = pinned.filter { ids.contains($0.id) }
         guard moving.count == ids.count else { return nil }
         let unchanged = moving.allSatisfy { $0.pinFolderID == folderID }
         guard !unchanged else { return nil }
@@ -233,10 +237,13 @@ extension Space {
             guard let target = pinned.first(where: { $0.id == targetID }), target.pinFolderID == folderID else { return false }
         }
 
+        let group = splitGroup(in: pinned).flatMap { $0.contains(where: { $0.id == id }) ? $0 : nil } ?? [pinned[sourceIndex]]
+        let ids = Set(group.map(\.id))
+        guard targetID.map({ !ids.contains($0) }) ?? true else { return false }
         let originalOrder = pinned.map(\.id)
         let originalFolder = pinned[sourceIndex].pinFolderID
-        var updated = pinned
-        let tab = updated.remove(at: sourceIndex)
+        let moving = pinned.filter { ids.contains($0.id) }
+        var updated = pinned.filter { !ids.contains($0.id) }
         let insertion: Int
         if let targetID, let targetIndex = updated.firstIndex(where: { $0.id == targetID }) {
             insertion = targetIndex + (after ? 1 : 0)
@@ -245,9 +252,9 @@ extension Space {
         } else {
             insertion = updated.endIndex
         }
-        updated.insert(tab, at: insertion)
+        updated.insert(contentsOf: moving, at: insertion)
         guard updated.map(\.id) != originalOrder || originalFolder != folderID else { return false }
-        tab.pinFolderID = folderID
+        for tab in moving { tab.pinFolderID = folderID }
         pinned = updated
         return true
     }

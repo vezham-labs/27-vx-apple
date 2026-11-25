@@ -798,6 +798,28 @@ final class Library {
     func move(_ tab: BrowserTab, before target: BrowserTab?, pinned: Bool, fallback: Space, folderID: UUID? = nil) {
         guard let from = space(containing: tab), !(tab.isPrivate && pinned) else { return }
         let to = target.flatMap(space(containing:)) ?? fallback
+        if pinned, from.id == to.id,
+           let members = from.splitGroup(in: from.allTabs), members.contains(where: { $0.id == tab.id }),
+           members.count > 1 {
+            guard target.map({ target in !members.contains(where: { $0.id == target.id }) }) ?? true else { return }
+            let ordered = members
+            if let target {
+                for member in ordered.reversed() {
+                    moveSingle(member, before: target, pinned: true, fallback: fallback, folderID: folderID)
+                }
+            } else {
+                for member in ordered {
+                    moveSingle(member, before: nil, pinned: true, fallback: fallback, folderID: folderID)
+                }
+            }
+            return
+        }
+        moveSingle(tab, before: target, pinned: pinned, fallback: fallback, folderID: folderID)
+    }
+
+    private func moveSingle(_ tab: BrowserTab, before target: BrowserTab?, pinned: Bool, fallback: Space, folderID: UUID?) {
+        guard let from = space(containing: tab), !(tab.isPrivate && pinned) else { return }
+        let to = target.flatMap(space(containing:)) ?? fallback
         guard from.isPrivate == to.isPrivate else { return }
         if let folderID {
             guard pinned, !to.isPrivate, to.pinFolders.contains(where: { $0.id == folderID }) else { return }

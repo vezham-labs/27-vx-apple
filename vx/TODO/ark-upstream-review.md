@@ -12,13 +12,13 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 2. For each row, compare Ark with the pinned Search and Browsa references, adapt only compatible improvements, and keep non-applicable or risky changes documented.
 3. Verify each change with the existing app build and appropriate existing checks; no new test files. Builds do not count as runtime parity.
 4. Keep the four platform columns current. Once Mac coverage is closed or has a concrete blocker, finish iPhone, iPad, and Duo runtime checks, one simulator at a time.
-5. Measure performance only when a repeatable before/after path is available. Retain Easels, service-specific previews, and externally blocked DRM/passkeys as explicit gaps until resolved.
+5. Measure performance only when a repeatable before/after path is available. Retain incomplete Easels, service-specific preview actions, and externally blocked DRM/passkeys as explicit gaps until resolved.
 
 ## Commit inventory
 
 This inventory records the pulled heads on November 25, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 119 of 272 commits assessed (43.8%); 153 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 126 of 272 unique commits assessed (46.3%); 146 remain pending. Duplicate rows from appended review notes have been consolidated. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -60,16 +60,17 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 | `a55c720dbecfecb0b66c02cc7454e8b216d09b45` | Websites an extension lists can message it as chrome.runtime [skip ci] | Pending |
 | `8a3df66766e045d8a4fb4655729da63f77c559b2` | Relay the background's messages and storage changes to the extension's pages [skip ci] | Pending |
 | `a86a19ad884c247eb677e3af1396b233fed678e3` | Report side panel pages in runtime.getContexts [skip ci] | Pending |
-| `a9e2a61679b0a974fa32142aabf43ca43bc8a17b` | Mac: a profile per Space (separate cookies and logins) | Pending |
+| `a9e2a61679b0a974fa32142aabf43ca43bc8a17b` | Mac: a profile per Space (separate cookies and logins) | Reviewed; Ark already assigns a named website profile per Space, reloads open sessions when assignment changes, and clears that profile's data on deletion. The Mac profile isolation and assignment path are covered by existing fixture/runtime evidence. No code or rating change. |
 | `a4de8f2cf9d98a0d633c05bb6762105175c16ba7` | Mac: folders for pinned tabs, nested, with drag in and out, and Arc import keeps them | Already covered in Ark's Mac sidebar and importer: nested pin folders, ordering, and Arc's legacy/new container markers are supported. Adapted the missing Arc `isExpanded` state during import; existing fixture now covers expanded and collapsed folders. Mac build passed; runtime import confirmation remains open. |
 | `b6f6f66c52795896f2b6747e791a148fbde2dbf6` | Claude's panel: runtime.ContextType, and extension fetches with the site's cookies [skip ci] | Pending |
-| `c81876f6f62b7bcae9e979152c7d059144659ed9` | Mac: Split View, two or three tabs side by side | Pending |
+| `c81876f6f62b7bcae9e979152c7d059144659ed9` | Mac: Split View, two or three tabs side by side | Reviewed; Ark already supports four panes and has side-by-side and stacked layouts, pane focus, resizing, close/reopen, and pin ownership. The Browsa commit moves split state into Mac preferences and limits it to three panes; Ark's shared BrowserCore split state is more capable and already covered by the matrix evidence. No code change; the Mac row stays Yes. |
 | `55f59e1be4e4f5c70cec9048be2d2927689225dd` | Claude's panel: fall back to its own chat when claude.ai can't be framed [skip ci] | Pending |
-| `b7a312dce7aa9f05875dbf41a8d4fe9f43a36884` | Combine profiles per Space with pinned folders (keep both SpaceRecord fields) | Pending |
-| `2b772addf4e56a295a1c2d5140c72908bcc019f6` | Combine Split View: splits show as one row inside pinned folders, mates follow when pinned into a folder | Pending |
+| `b7a312dce7aa9f05875dbf41a8d4fe9f43a36884` | Combine profiles per Space with pinned folders (keep both SpaceRecord fields) | Reviewed; Ark snapshots preserve `websiteProfileID` and `pinFolders` together, restore both, and decode either optional field when absent in older state. No merge fix or code change is needed; profile is Mac Yes and pin folders remain Partial pending interaction coverage. |
+| `2b772addf4e56a295a1c2d5140c72908bcc019f6` | Combine Split View: splits show as one row inside pinned folders, mates follow when pinned into a folder | Adapted in BrowserCore and Mac/iOS sidebar paths; Mac build passes. Split members in one visible pinned section collapse to a single row with a pane count, and moving a Today split into a pin folder carries the whole group. Runtime drag verification and mobile device checks remain open. |
+| `aac7ed9991fa39a44120c43bef3d85edfedd59cc` | Split View: wider steady divider, handle only near a pane's top; folders: quicker open, one icon with a bounce | Reviewed. Ark already keeps divider drag widths in local `GestureState` and writes the shared split proportions once at drag end; it also supports both horizontal and vertical, multi-pane layouts. Browsa's AppKit cursor/grabber and pane-handle presentation are visual choices rather than Arc requirements, so keep Ark's Arc-aligned controls. No code change. |
+| `24377a9db55c13d6844ab017b7ea25b6a5454b71` | Split View: one hover tracker for pane handles, glass control panel, box-in-box sidebar row | Reviewed. The single AppKit tracker and expandable glass toolbar are Browsa-specific interaction/design choices; Ark already has focus-driven per-pane actions and a shared split layout. No Arc comparison gap or measured performance issue supports copying this larger rewrite, so no code change. |
+| `7627957dd8a09cdf0237faa08b651b11762ed91f` | Favourites open in the current Space rather than their routed Space | Adapted in Ark: Mac Favourite tile/context actions and iOS start/New Tab Sheet selections bypass Space Routing while preserving their current-tab behavior. Routing settings explain that Favorites stay put. Mac build passed; iOS compilation and runtime checks pending. |
 | `bd783a37d28e4ae43f2d88d56997b4b1dc2bb0b4` | Relay never breaks sendMessage; hide side panels an extension has switched off [skip ci] | Pending |
-| `aac7ed9991fa39a44120c43bef3d85edfedd59cc` | Split View: wider steady divider, handle only near a pane's top; folders: quicker open, one icon with a bounce | Pending |
-| `24377a9db55c13d6844ab017b7ea25b6a5454b71` | Split View: one hover tracker for pane handles, glass control panel, box-in-box sidebar row | Pending |
 | `02b0b9dbdbd4273f96800c80a79e454b337e6db5` | Extension popups in Browsa's own popover, from the extension's configuration [skip ci] | Pending |
 | `e9e8c1c20cea5f59b4c733f1445e4d6922fef6fe` | Popup popover: the page fills it, registered as a tab, sized as Chrome sizes popups [skip ci] | Pending |
 | `9d52b8b4ff8f7d70abcad1e34f53abf9495b24d2` | Split View: calmer sidebar row, panel shrinks back into its pill, simpler actions | Pending |
@@ -84,7 +85,6 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 | `562bee853d665407132e70443af3890f88d605fa` | Merge remote-tracking branch 'origin/claude/project-thread-vtzd51' into claude/project-thread-30qg5g | Pending |
 | `d987fd28221c5dd4ed483bde40f51a9a933a71ce` | Credentialed extension fetches only to sites the extension may reach [skip ci] | Pending |
 | `155cf7720d950998238b0527a53eb74e59041b85` | Release runbook: 1Password desktop-app onboarding is a blocker for shipping PR #105 [skip ci] | Pending |
-| `7627957dd8a09cdf0237faa08b651b11762ed91f` | Mac: Favourites open in the current Space, not their routed one [skip ci] | Pending |
 | `7a494d094c349da5ad5b6ca470e4d154635d7ae2` | Rename Site Styles to Boosts [skip ci] | Adapted in Ark commit `34b7b742`: Mac menu, command title, and editor heading use Arc's Boosts terminology; internal IDs and persistence names stay stable. Mac build passed; UI runtime check pending. |
 | `85da646a13f2d262d451c518ddbd5608eb9c408c` | Mac: Always Open in app per site, glass open-in-app prompt [skip ci] | Pending |
 | `d60f7ee081ff4eb6b16ec7666de22ad5f68b696c` | Mac: Live Folders, pinned folders that fill themselves from a feed or a GitHub search | Pending |

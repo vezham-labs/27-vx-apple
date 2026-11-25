@@ -221,15 +221,17 @@ struct TabGridOverlay: View {
                     PinFolderList(space: space, save: browser.scheduleSave, openArticle: { url in
                         browser.newTab(url: url, in: space, source: .link)
                         browser.isTabSwitcherPresented = false
-                    }, moveTodayTab: { browser.moveTodayTabToPinned($0, in: space, into: $1, relativeTo: $2, after: $3) }) { tab in
-                        pinnedChip(tab)
+                    }, moveTodayTab: { browser.moveTodayTabToPinned($0, in: space, into: $1, relativeTo: $2, after: $3) }) { tab, paneCount in
+                        pinnedChip(tab, paneCount: paneCount)
                     }
                     .padding(.horizontal, 16)
                     if !rootPins.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 10) {
-                                ForEach(rootPins) { tab in
-                                    pinnedChip(tab).pinnedTabDragDrop(tab, in: space, browser: browser, save: browser.scheduleSave)
+                                ForEach(space.sidebarRowsCollapsingSplit(rootPins)) { tab in
+                                    let splitMembers = space.splitMembers(in: rootPins)
+                                    let paneCount = splitMembers?.contains(where: { $0.id == tab.id }) == true ? (splitMembers?.count ?? 1) : 1
+                                    pinnedChip(tab, paneCount: paneCount).pinnedTabDragDrop(tab, in: space, browser: browser, save: browser.scheduleSave)
                                 }
                             }
                                 .padding(.horizontal, 16)
@@ -301,12 +303,13 @@ struct TabGridOverlay: View {
             }
     }
 
-    private func pinnedChip(_ tab: BrowserTab) -> some View {
+    private func pinnedChip(_ tab: BrowserTab, paneCount: Int = 1) -> some View {
         let selected = tab.id == browser.currentSpace.selectedTabID
         return Button { close(into: tab) } label: {
             HStack(spacing: 8) {
                 if let url = tab.url { FaviconView(url: url, size: 18) } else { Image(systemName: "pin.fill") }
                 Text(tab.displayTitle).font(.subheadline).lineLimit(1).frame(maxWidth: 120, alignment: .leading)
+                if paneCount > 1 { Text("\(paneCount)").font(.caption2.bold()).foregroundStyle(.secondary) }
             }
             .padding(.horizontal, 12).padding(.vertical, 9)
             .background(.background, in: .capsule)

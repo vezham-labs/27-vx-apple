@@ -48,10 +48,12 @@ struct SpaceTabs: View {
     var body: some View {
         let space = browser.currentSpace
         // Dragging with nothing else pinned: a zone to drop on stands in for the Pinned section.
-        let rootPins = space.rootPins
+        let rootPins = space.sidebarRowsCollapsingSplit(space.rootPins)
+        let listedToday = browser.listedToday(in: space)
+        let todayTabs = space.sidebarRowsCollapsingSplit(listedToday)
         let pinZone = dragging.lift != nil && !space.isPrivate && !rootPins.contains { !dragging.isLifted($0.id) }
         let pinned = slots(rootPins, pinned: true, gapAllowed: !pinZone)
-        let today = slots(browser.listedToday(in: space), pinned: false)
+        let today = slots(todayTabs, pinned: false)
         // The whole list is the unit that slides: its id is the space, and a transition on the list
         // inside a ScrollView is ignored (it only cross-faded).
         ZStack {
@@ -73,8 +75,8 @@ struct SpaceTabs: View {
                         openArticle: { _ = browser.newTab(url: $0, in: space, source: .link) },
                         openAllFolderTabs: { browser.openAllPinnedTabs(in: $0, space: space) },
                         allowsCollectionSharing: space.id != Preferences.agentSpaceID
-                    ) { tab in
-                        DraggableTabRow(tab: tab, space: space, collapsed: dragging.isLifted(tab.id))
+                    ) { tab, paneCount in
+                        DraggableTabRow(tab: tab, space: space, collapsed: dragging.isLifted(tab.id), paneCount: paneCount)
                     }
 
                     // Dragging with nothing pinned at the top level: somewhere to pin.
@@ -150,7 +152,10 @@ struct SpaceTabs: View {
 
     @ViewBuilder private func row(_ slot: Slot, in space: Space) -> some View {
         if let tab = slot.tab {
-            DraggableTabRow(tab: tab, space: space, collapsed: slot.collapsed)
+            let list = tab.isPinned ? space.rootPins : browser.listedToday(in: space)
+            let members = space.splitMembers(in: list)
+            let count = members?.contains(where: { $0.id == tab.id }) == true ? (members?.count ?? 1) : 1
+            DraggableTabRow(tab: tab, space: space, collapsed: slot.collapsed, paneCount: count)
         } else {
             SunkenSlot(cornerRadius: 9, active: true)
                 .frame(height: 34)
@@ -170,6 +175,7 @@ private struct DraggableTabRow: View {
     let space: Space
     /// Being dragged: folded to nothing, but kept so its gesture lives on.
     let collapsed: Bool
+    var paneCount = 1
     @GestureState private var held = false
 
     private var insertionEdge: VerticalEdge? {
@@ -183,7 +189,7 @@ private struct DraggableTabRow: View {
 
     var body: some View {
         TabRow(tab: tab, selected: tab.id == browser.selectedTabID(in: space),
-               bulkSelected: browser.selectedSidebarPinIDs.contains(tab.id))
+               bulkSelected: browser.selectedSidebarPinIDs.contains(tab.id), paneCount: paneCount)
             .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) {
                 if insertionEdge != nil {
                     Capsule().fill(Color.accentColor).frame(height: 2).allowsHitTesting(false)
@@ -314,6 +320,7 @@ struct TabRow: View {
     let tab: BrowserTab
     let selected: Bool
     var bulkSelected = false
+    var paneCount = 1
     /// Drawn under the pointer while dragged.
     var isLifted = false
     @State private var hovering = false
@@ -346,6 +353,14 @@ struct TabRow: View {
                 }
                 if tab.isLoading && tab.estimatedProgress < 0.5 {
                     ProgressView().controlSize(.mini)
+                }
+                if paneCount > 1 {
+                    Text("\(paneCount)")
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(width: 12, height: 12)
+                        .background(Color.accentColor, in: Circle())
+                        .offset(x: 5, y: 5)
                 }
             }
             .frame(width: 16, height: 16)

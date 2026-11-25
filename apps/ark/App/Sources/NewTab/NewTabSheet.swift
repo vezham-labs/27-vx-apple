@@ -39,7 +39,7 @@ struct NewTabSheet: View {
                     VStack(alignment: .leading, spacing: 20) {
                         FavoritesGrid(favorites: browser.favorites.sorted { $0.order < $1.order },
                                       compact: model.isTyping,
-                                      onOpen: { browser.perform(.open($0.url), source: .bookmark) },
+                                      onOpen: { browser.openFavorite($0.url) },
                                       onRename: { renameText = $0.displayName; editingFavorite = $0 },
                                       onRemove: { browser.removeFavorite($0) })
                         if model.isTyping {

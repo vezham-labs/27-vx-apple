@@ -25,7 +25,7 @@ public struct PinFolderList<TabRow: View>: View {
     private let openAllFolderTabs: ((PinFolder) -> Void)?
     private let moveTodayTab: ((UUID, UUID?, UUID?, Bool) -> Bool)?
     private let allowsCollectionSharing: Bool
-    private let tabRow: (BrowserTab) -> TabRow
+    private let tabRow: (BrowserTab, Int) -> TabRow
     @State private var parentID: UUID?
     @State private var renameID: UUID?
     @State private var folderName = ""
@@ -47,7 +47,7 @@ public struct PinFolderList<TabRow: View>: View {
         openAllFolderTabs: ((PinFolder) -> Void)? = nil,
         moveTodayTab: ((UUID, UUID?, UUID?, Bool) -> Bool)? = nil,
         allowsCollectionSharing: Bool = true,
-        @ViewBuilder tabRow: @escaping (BrowserTab) -> TabRow
+        @ViewBuilder tabRow: @escaping (BrowserTab, Int) -> TabRow
     ) {
         self.space = space
         self.save = save
@@ -63,13 +63,13 @@ public struct PinFolderList<TabRow: View>: View {
 
     private enum Row: Identifiable {
         case folder(PinFolder, depth: Int)
-        case tab(BrowserTab, depth: Int)
+        case tab(BrowserTab, depth: Int, paneCount: Int)
         case article(UUID, LiveFolderFeed.Article, depth: Int)
 
         var id: String {
             switch self {
             case .folder(let folder, _): "folder-\(folder.id)"
-            case .tab(let tab, _): "tab-\(tab.id)"
+            case .tab(let tab, _, _): "tab-\(tab.id)"
             case .article(let folderID, let article, _): "article-\(folderID)-\(article.id)"
             }
         }
@@ -85,7 +85,12 @@ public struct PinFolderList<TabRow: View>: View {
                 result.append(.folder(folder, depth: depth))
                 if !folder.isCollapsed {
                     addChildren(of: folder.id, depth: depth + 1)
-                    for tab in pins[folder.id] ?? [] { result.append(.tab(tab, depth: depth + 1)) }
+                    let folderPins = pins[folder.id] ?? []
+                    let splitMembers = space.splitMembers(in: folderPins)
+                    for tab in space.sidebarRowsCollapsingSplit(folderPins) {
+                        let paneCount = splitMembers?.contains(where: { $0.id == tab.id }) == true ? (splitMembers?.count ?? 1) : 1
+                        result.append(.tab(tab, depth: depth + 1, paneCount: paneCount))
+                    }
                     if openArticle != nil, let feed = folder.feed {
                         for article in feed.articles { result.append(.article(folder.id, article, depth: depth + 1)) }
                     }
@@ -103,8 +108,8 @@ public struct PinFolderList<TabRow: View>: View {
                     switch row {
                     case .folder(let folder, let depth):
                         measuredFolderRow(folder).padding(.leading, CGFloat(depth) * 12)
-                    case .tab(let tab, let depth):
-                        pinnedTabRow(tab, depth: depth)
+                    case .tab(let tab, let depth, let paneCount):
+                        pinnedTabRow(tab, depth: depth, paneCount: paneCount)
                     case .article(_, let article, let depth):
                         Button { openArticle?(article.url) } label: {
                             Label(article.title, systemImage: "doc.text")
@@ -204,9 +209,9 @@ public struct PinFolderList<TabRow: View>: View {
         }
     }
 
-    @ViewBuilder private func pinnedTabRow(_ tab: BrowserTab, depth: Int) -> some View {
+    @ViewBuilder private func pinnedTabRow(_ tab: BrowserTab, depth: Int, paneCount: Int) -> some View {
         let isDropTarget = pinDropTarget == tab.id
-        let row = tabRow(tab)
+        let row = tabRow(tab, paneCount)
             .padding(.leading, CGFloat(depth) * 12)
             .background {
                 if isDropTarget {
@@ -215,7 +220,7 @@ public struct PinFolderList<TabRow: View>: View {
             }
         row
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pinRowHeights[tab.id] = $0 }
-            .draggable(PinFolderDragItem.pin(tab.id)) { tabRow(tab) }
+            .draggable(PinFolderDragItem.pin(tab.id)) { tabRow(tab, paneCount) }
             .dropDestination(for: String.self) { items, location in
                 guard let value = items.first else { return false }
                 if let folderID = PinFolderDragItem.folderID(value) {

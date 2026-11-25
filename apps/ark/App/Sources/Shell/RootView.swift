@@ -195,7 +195,7 @@ struct StartPage: View {
         VStack(spacing: 24) {
             Spacer()
             FavoritesGrid(favorites: browser.favorites.sorted { $0.order < $1.order }, compact: false,
-                          onOpen: { browser.perform(.open($0.url), source: .bookmark) },
+                          onOpen: { browser.openFavorite($0.url) },
                           onRename: { _ in }, onRemove: { browser.removeFavorite($0) })
                 .frame(maxWidth: 420)
             Button { browser.presentNewTab() } label: {

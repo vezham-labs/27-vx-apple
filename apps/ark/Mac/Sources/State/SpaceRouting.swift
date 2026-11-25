@@ -398,7 +398,7 @@ struct SpaceRoutingSettings: View {
             Section {
                 Toggle(isOn: $router.isEnabled) {
                     Text("Open sites in their Space")
-                    Text("New tabs for a site go to its Space, wherever you are. Links you follow inside a tab stay put, and private tabs never move.")
+                    Text("New tabs for a site go to its Space, wherever you are. Links you follow inside a tab stay put, and private tabs and Favourites never move.")
                 }
             }
             if router.isEnabled {

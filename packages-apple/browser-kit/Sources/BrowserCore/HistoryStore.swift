@@ -149,6 +149,21 @@ public actor HistoryStore: HistoryIndex {
         return byHost.values.sorted { $0.frecency > $1.frecency }.prefix(limit).map { $0 }
     }
 
+    /// Recently visited pages on a host, for local app previews. Private stores remain in-memory
+    /// and callers should avoid requesting these previews while in a private Space.
+    public func recentVisits(forHost host: String, limit: Int = 5) -> [HistoryEntry] {
+        let normalizedHost = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        guard !normalizedHost.isEmpty, limit > 0 else { return [] }
+        return records.values
+            .filter { record in
+                guard record.visitCount > 0, let recordHost = record.url.host()?.lowercased() else { return false }
+                return recordHost == normalizedHost || recordHost.hasSuffix(".\(normalizedHost)")
+            }
+            .sorted { $0.lastUpdate > $1.lastUpdate }
+            .prefix(limit)
+            .map { HistoryEntry(url: $0.url, title: $0.title, frecency: $0.frecency, isBookmark: $0.isBookmark) }
+    }
+
     // MARK: Persistence
 
     private func scheduleSave() {

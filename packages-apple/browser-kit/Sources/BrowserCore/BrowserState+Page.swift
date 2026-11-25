@@ -93,6 +93,27 @@ extension BrowserState {
     public func moveTodayTabToPinned(_ id: UUID, in space: Space, into folderID: UUID? = nil,
                                     relativeTo targetID: UUID? = nil, after: Bool = false) -> Bool {
         guard !space.isPrivate, regularSpaces.contains(where: { $0 === space }),
+              space.today.contains(where: { $0.id == id }) else { return false }
+        if let group = space.splitGroup(in: space.allTabs), group.contains(where: { $0.id == id }), group.count > 1 {
+            guard targetID.map({ target in !group.contains(where: { $0.id == target }) }) ?? true else { return false }
+            let ordered = group
+            if let targetID {
+                for tab in ordered.reversed() {
+                    guard moveOneTodayTabToPinned(tab.id, in: space, into: folderID, relativeTo: targetID, after: after) else { return false }
+                }
+            } else {
+                for tab in ordered {
+                    guard moveOneTodayTabToPinned(tab.id, in: space, into: folderID) else { return false }
+                }
+            }
+            return true
+        }
+        return moveOneTodayTabToPinned(id, in: space, into: folderID, relativeTo: targetID, after: after)
+    }
+
+    private func moveOneTodayTabToPinned(_ id: UUID, in space: Space, into folderID: UUID?,
+                                         relativeTo targetID: UUID? = nil, after: Bool = false) -> Bool {
+        guard !space.isPrivate, regularSpaces.contains(where: { $0 === space }),
               let sourceIndex = space.today.firstIndex(where: { $0.id == id }) else { return false }
         if let folderID {
             guard space.pinFolders.contains(where: { $0.id == folderID && $0.feed == nil }) else { return false }

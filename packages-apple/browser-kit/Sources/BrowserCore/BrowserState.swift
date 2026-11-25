@@ -283,6 +283,18 @@ public final class BrowserState {
         }
     }
 
+    /// Opens a Favourite without applying site routing. Favorites are shared within a profile and
+    /// should stay in the Space from which the user selected them.
+    public func openFavorite(_ url: URL) {
+        let reuseCurrent = newTabSheetEditsCurrentTab
+        isNewTabSheetPresented = false
+        if reuseCurrent, let tab = currentTab {
+            session(for: tab).load(url, source: .bookmark)
+        } else {
+            newTab(url: url, in: currentSpace, source: .bookmark)
+        }
+    }
+
     // MARK: Tab management
 
     public func close(_ tab: BrowserTab) {

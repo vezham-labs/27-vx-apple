@@ -35,13 +35,15 @@ struct SidebarView: View {
         return VStack(alignment: .leading, spacing: 12) {
             PinFolderList(space: space, save: browser.scheduleSave,
                           openArticle: { browser.newTab(url: $0, in: space, source: .link) },
-                          moveTodayTab: { browser.moveTodayTabToPinned($0, in: space, into: $1, relativeTo: $2, after: $3) }) { tab in
-                TabRow(tab: tab, selected: tab.id == space.selectedTabID)
+                          moveTodayTab: { browser.moveTodayTabToPinned($0, in: space, into: $1, relativeTo: $2, after: $3) }) { tab, paneCount in
+                TabRow(tab: tab, selected: tab.id == space.selectedTabID, paneCount: paneCount)
             }
             if !rootPins.isEmpty {
                 LazyVGrid(columns: pinnedColumns, spacing: 8) {
-                    ForEach(Array(rootPins.enumerated()), id: \.element.id) { i, tab in
-                        pinnedTile(tab, selected: tab.id == space.selectedTabID)
+                    ForEach(Array(space.sidebarRowsCollapsingSplit(rootPins).enumerated()), id: \.element.id) { i, tab in
+                        let splitMembers = space.splitMembers(in: rootPins)
+                        pinnedTile(tab, selected: tab.id == space.selectedTabID,
+                                   paneCount: splitMembers?.contains(where: { $0.id == tab.id }) == true ? (splitMembers?.count ?? 1) : 1)
                             .pinnedTabDragDrop(tab, in: space, browser: browser, save: browser.scheduleSave)
                             .spaceCascade(index: i, distance: Self.cascadeDistance, spaceSwitch: browser.lastSpaceSwitch)
                     }
@@ -120,11 +122,17 @@ struct SidebarView: View {
         .buttonStyle(.plain)
     }
 
-    private func pinnedTile(_ tab: BrowserTab, selected: Bool) -> some View {
+    private func pinnedTile(_ tab: BrowserTab, selected: Bool, paneCount: Int = 1) -> some View {
         Button { browser.select(tab) } label: {
-            Group {
-                if let url = tab.url { FaviconView(url: url, size: 28) }
-                else { Image(systemName: "globe") }
+            ZStack(alignment: .bottomTrailing) {
+                Group {
+                    if let url = tab.url { FaviconView(url: url, size: 28) }
+                    else { Image(systemName: "globe") }
+                }
+                if paneCount > 1 {
+                    Text("\(paneCount)").font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white).padding(3).background(Color.accentColor, in: Circle())
+                }
             }
             .frame(maxWidth: .infinity, minHeight: 48)
             .background(selected ? AnyShapeStyle(TabRow.selectedFill) : AnyShapeStyle(.thinMaterial),
@@ -170,6 +178,7 @@ struct TabRow: View {
     @Environment(BrowserState.self) private var browser
     let tab: BrowserTab
     let selected: Bool
+    var paneCount = 1
 
     /// One tab's slot in the list: the same spacing as before.
     static let pitch: CGFloat = 44
@@ -185,6 +194,9 @@ struct TabRow: View {
                 if let url = tab.url { FaviconView(url: url, size: 20) }
                 else { Image(systemName: "globe").frame(width: 20) }
                 Text(tab.displayTitle).lineLimit(1)
+                if paneCount > 1 {
+                    Text("\(paneCount)").font(.caption2.bold()).foregroundStyle(.secondary)
+                }
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 10)

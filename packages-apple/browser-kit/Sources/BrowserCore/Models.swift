@@ -164,6 +164,37 @@ public final class Space: Identifiable {
         return splitCandidates.filter { !split.contains($0.id) }
     }
 
+    /// A split can be represented as one sidebar row only while every member is visible in the
+    /// same list. Pinned members must also belong to the same folder.
+    public func splitMembers(in list: [BrowserTab]) -> [BrowserTab]? {
+        guard let members = splitGroup(in: list),
+              let first = members.first,
+              members.allSatisfy({ member in
+                  member.favoriteID == nil && member.isPinned == first.isPinned
+                      && member.url?.scheme.map { ["http", "https"].contains($0.lowercased()) } == true
+                      && (!first.isPinned || member.pinFolderID == first.pinFolderID)
+              }) else { return nil }
+        return members
+    }
+
+    /// Returns every live split pane in pair order, including panes currently in different lists.
+    public func splitGroup(in list: [BrowserTab]) -> [BrowserTab]? {
+        guard let splitPair, splitPair.tabs.count > 1, Set(splitPair.tabs).count == splitPair.tabs.count else { return nil }
+        let members = splitPair.tabs.compactMap { id in list.first { $0.id == id } }
+        guard members.count == splitPair.tabs.count,
+              members.allSatisfy({ isSplittable($0) }) else { return nil }
+        return members
+    }
+
+    /// Keeps the first visible pane as the row and hides the other pane rows.
+    public func sidebarRowsCollapsingSplit(_ list: [BrowserTab]) -> [BrowserTab] {
+        guard let members = splitMembers(in: list), let firstVisible = list.first(where: { tab in members.contains { $0.id == tab.id } }) else {
+            return list
+        }
+        let ids = Set(members.map(\.id))
+        return list.filter { !ids.contains($0.id) || $0.id == firstVisible.id }
+    }
+
     @discardableResult
     public func splitWith(_ tab: BrowserTab) -> Bool {
         guard let current = selectedTab, splitCandidates.contains(where: { $0 === tab }) else { return false }

@@ -3,6 +3,33 @@ import BrowserCore
 import WebKit
 
 extension Browser {
+    /// Captures the current non-private page into a local Easel card without going through the clipboard.
+    func captureCurrentPage(toEasel boardID: UUID) {
+        guard !isCapturingPage, let tab = currentTab, !tab.isPrivate, let url = tab.url else { return }
+        guard let webView = currentController?.page.view as? WKWebView, webView.window != nil else {
+            showToast("Couldn’t capture this page")
+            return
+        }
+
+        isCapturingPage = true
+        Task {
+            defer { isCapturingPage = false }
+            let pdf = try? await webView.pdf(configuration: WKPDFConfiguration())
+            guard currentTab === tab, tab.url == url else { return }
+            guard let pdf else {
+                showToast("Couldn’t capture this page")
+                return
+            }
+            let png = await PageCaptureImage.png(from: pdf, backingScale: webView.window?.backingScaleFactor ?? 1)
+            guard currentTab === tab, tab.url == url else { return }
+            guard let png, library.easels.addImage(png, title: tab.title.isEmpty ? (url.host() ?? "Capture") : tab.title, to: boardID) else {
+                showToast("Couldn’t add this capture to Easel")
+                return
+            }
+            showToast("Page added to Easel")
+        }
+    }
+
     func copyFullPageImage(to clipboard: NSPasteboard = .general) {
         guard !isCapturingPage, let tab = currentTab, let url = tab.url else { return }
         guard let webView = currentController?.page.view as? WKWebView, webView.window != nil else {

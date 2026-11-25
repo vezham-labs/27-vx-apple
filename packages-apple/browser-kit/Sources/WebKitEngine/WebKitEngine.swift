@@ -384,6 +384,17 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
         if profile == .standard { HTTPCookieStorage.shared.removeCookies(since: .distantPast) }
     }
 
+    public func cookies(for profile: BrowsingProfile, url: URL) async -> [HTTPCookie] {
+        let cookies = await configuration(for: profile).websiteDataStore.httpCookieStore.allCookies()
+        guard let host = url.host?.lowercased() else { return [] }
+        return cookies.filter { cookie in
+            let domain = cookie.domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+            let domainMatches = host == domain || host.hasSuffix("." + domain)
+            let pathMatches = url.path.hasPrefix(cookie.path)
+            return domainMatches && pathMatches && (!cookie.isSecure || url.scheme?.lowercased() == "https")
+        }
+    }
+
     public func deleteWebsiteDataStore(for profile: BrowsingProfile) async {
         guard case .named(let id) = profile else { return }
         var store = namedConfigurations.removeValue(forKey: id)?.websiteDataStore

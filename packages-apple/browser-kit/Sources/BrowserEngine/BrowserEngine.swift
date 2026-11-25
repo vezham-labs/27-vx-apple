@@ -39,6 +39,11 @@ public protocol BrowserEngine: AnyObject {
     /// Clears a named profile's persistent store and releases its cached configuration after its pages close.
     func deleteWebsiteDataStore(for profile: BrowsingProfile) async
 
+    /// Cookies that a request to `url` would carry from this browsing profile. Consumers must keep
+    /// them in memory and send them only back to the same origin; this exists for signed-in site
+    /// integrations such as a Space's GitHub Live Folder, never for persistence or analytics.
+    func cookies(for profile: BrowsingProfile, url: URL) async -> [HTTPCookie]
+
     /// The Mac click modifier that opens a link in a temporary preview.
     var linkPreviewModifier: LinkPreviewModifier { get set }
 
@@ -79,6 +84,7 @@ public protocol BrowserEngine: AnyObject {
 
 public extension BrowserEngine {
     func deleteWebsiteDataStore(for profile: BrowsingProfile) async {}
+    func cookies(for profile: BrowsingProfile, url: URL) async -> [HTTPCookie] { [] }
     var linkPreviewModifier: LinkPreviewModifier { get { .option } set {} }
     var extensions: [EngineExtension] { [] }
     var extensionHost: (any EngineExtensionHost)? { get { nil } set {} }

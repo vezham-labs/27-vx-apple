@@ -122,6 +122,14 @@ struct SpaceTabs: View {
             } action: { _, v in offset = v[0]; maxOffset = v[1] }
             .id(space.id)
             .transition(.spaceListChange)
+            .task(id: space.id) {
+                guard space.pinFolders.contains(where: { $0.feed?.isGitHubPullRequests == true }) else { return }
+                let refreshInterval: TimeInterval = 900
+                while !Task.isCancelled {
+                    await browser.refreshGitHubPullRequests(in: space, silently: true)
+                    try? await Task.sleep(for: .seconds(refreshInterval))
+                }
+            }
         }
         // However the space changes (a swipe, a key, a click), the old list slides out as the new one
         // slides in. Swipes and keys change it outside any animation, so the old list used to vanish.

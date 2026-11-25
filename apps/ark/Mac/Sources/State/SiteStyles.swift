@@ -5,19 +5,19 @@ import UniformTypeIdentifiers
 
 extension Browser {
     func refreshGitHubPullRequests() {
-        let space = currentSpace
+        Task { await refreshGitHubPullRequests(in: currentSpace, silently: false) }
+    }
+
+    func refreshGitHubPullRequests(in space: Space, silently: Bool) async {
         guard !space.isPrivate, let github = URL(string: "https://github.com/pulls") else { return }
-        showToast("Refreshing GitHub pull requests…")
-        Task { [weak self] in
-            guard let self else { return }
-            let cookies = await engine.cookies(for: library.browsingProfile(in: space), url: github)
-            do {
-                guard let folder = try await space.refreshGitHubPullRequests(cookies: cookies) else { return }
-                library.scheduleSave()
-                showToast("GitHub Pull Requests: \(folder.feed?.articles.count ?? 0) open")
-            } catch {
-                showToast("Sign in to GitHub in this Space to add Pull Requests")
-            }
+        if !silently { showToast("Refreshing GitHub pull requests…") }
+        let cookies = await engine.cookies(for: library.browsingProfile(in: space), url: github)
+        do {
+            guard let folder = try await space.refreshGitHubPullRequests(cookies: cookies) else { return }
+            library.scheduleSave()
+            if !silently { showToast("GitHub Pull Requests: \(folder.feed?.articles.count ?? 0) open") }
+        } catch {
+            if !silently { showToast("Sign in to GitHub in this Space to add Pull Requests") }
         }
     }
 

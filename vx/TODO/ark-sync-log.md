@@ -4,7 +4,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 ### Mac capture session guard — November 26, 2026
 
-Full-page, region, element, and Easel capture now also confirm that the original WebView and browsing profile remain active after asynchronous work. Profile reassignment starts asynchronous page cleanup while tab identity and URL stay the same; an old capture must not be copied or added to an Easel during that transition. An isolated Mac fixture started a full-page capture, reassigned the profile immediately, and verified the tab stayed selected and the clipboard remained unchanged. The Mac Nx build passed. Region, element and Easel timing checks remain open; existing capture fixture evidence is unchanged.
+Full-page, region, element, and Easel capture now also confirm that the original WebView and browsing profile remain active after asynchronous work. Profile reassignment starts asynchronous page cleanup while tab identity and URL stay the same; an old capture must not be copied or added to an Easel during that transition. An isolated Mac fixture started a full-page capture, reassigned the profile immediately, and verified the tab stayed selected and the clipboard remained unchanged. It repeated the transition during an Easel capture and verified no image card was added. For area and element capture it switched profiles between picker mouse-down and mouse-up and verified the clipboard remained unchanged. The Mac Nx build passed. Mid-snapshot timing for area and element remains unverified; existing capture fixture evidence is unchanged.
 
 ### Hung-page keyboard review — November 26, 2026
 

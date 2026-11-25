@@ -236,6 +236,33 @@ struct SnapshotTour {
             browser.library.assignWebsiteProfile(profile.id, to: browser.currentSpace)
             await pause(3)
             note("profile switch cancels pending capture: \(started && !browser.isCapturingPage && clipboard.string(forType: .string) == "unchanged" && clipboard.data(forType: .png) == nil); tab unchanged: \(browser.currentTab === tab)")
+            browser.library.assignWebsiteProfile(nil, to: browser.currentSpace)
+            await pause(2)
+            let board = browser.library.easels.addBoard()
+            browser.captureCurrentPage(toEasel: board.id)
+            let easelStarted = browser.isCapturingPage
+            browser.library.assignWebsiteProfile(profile.id, to: browser.currentSpace)
+            await pause(3)
+            let boardCards = browser.library.easels.boards.first(where: { $0.id == board.id })?.cards.count
+            note("profile switch cancels pending Easel capture: \(easelStarted && !browser.isCapturingPage && boardCards == 0) (cards: \(boardCards.map(String.init) ?? "nil"))")
+            for mode in ["area", "element"] {
+                browser.library.assignWebsiteProfile(nil, to: browser.currentSpace)
+                await pause(2)
+                let picker = mode == "area" ? browser.selectPageArea(to: clipboard) : browser.selectPageElement(to: clipboard)
+                guard let picker else { note("\(mode) profile-switch picker unavailable"); continue }
+                let start = NSPoint(x: 60, y: 60)
+                let end = NSPoint(x: 140, y: 120)
+                guard let down = captureMouseEvent(.leftMouseDown, at: start, in: picker, window: window),
+                      let up = captureMouseEvent(.leftMouseUp, at: mode == "area" ? end : start, in: picker, window: window) else {
+                    picker.cancelOperation(nil); continue
+                }
+                let validSelection = picker.visibleRect.contains(start) && picker.visibleRect.contains(mode == "area" ? end : start)
+                picker.mouseDown(with: down)
+                browser.library.assignWebsiteProfile(profile.id, to: browser.currentSpace)
+                picker.mouseUp(with: up)
+                await pause(2)
+                note("profile switch cancels \(mode) picker capture: \(validSelection && !browser.isCapturingPage && clipboard.string(forType: .string) == "unchanged" && clipboard.data(forType: .png) == nil)")
+            }
             return
         }
         if ProcessInfo.processInfo.environment["ARK_ERROR_KEY_CHECK_ONLY"] == "1" {

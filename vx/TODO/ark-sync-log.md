@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists 149 Browsa and 123 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Browsa's clean worktree matches `origin/main` at `e981df56`. Search's clean worktree is at `33ec7aea`, with nine additional commits available on `origin/main` at `659f74dc`; those diffs were assessed without changing the upstream checkout. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 116/272 incoming commits assessed (42.6%); 156 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 117/272 incoming commits assessed (43.0%); 155 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -317,6 +317,8 @@ The Duo folder test retry started with all other simulators shut down. CoreSimul
 The Mac importer reads Arc's legacy string markers and newer object markers, using the structure in Search's `ImportArc.swift`. It imports nested pin folders and retains the source order of pinned and open tabs. Pins in deeper folders go into the nearest imported ancestor at Ark's three-level limit. The parser bounds its traversal and skips duplicate or cyclic nodes.
 
 The Mac build passed. A local fixture verified the new and legacy markers in one Space, nested folder membership, pin order, continued import of open tabs, and skipping local file URLs. The [Mac preview](../../preview/ark/mac/features/arc-folder-import.png) shows the imported fixture Space.
+
+Compared Browsa [`a4de8f2cf9d98a0d633c05bb6762105175c16ba7`](https://github.com/jmaorr/Browsa/commit/a4de8f2cf9d98a0d633c05bb6762105175c16ba7), adapted in Ark commit [`0fe4739f`](../../commit/0fe4739f): Ark already matches its nested-folder layout, ordered pins, safe traversal, and Arc import behavior. Ark now also imports Arc’s `isExpanded` flag into its native collapsed-folder state; the existing SnapshotTour fixture includes expanded and collapsed folders and asserts both. `ark:build-mac` passed. The built app’s import flow has not yet been manually rechecked. No new test file or simulator was used; the Arc import row stays Yes.
 
 ### Live Folders
 

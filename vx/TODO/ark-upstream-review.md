@@ -18,7 +18,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 25, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 116 of 272 commits assessed (42.6%); 156 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 117 of 272 commits assessed (43.0%); 155 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -61,7 +61,7 @@ Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Review target: `e981df56c5
 | `8a3df66766e045d8a4fb4655729da63f77c559b2` | Relay the background's messages and storage changes to the extension's pages [skip ci] | Pending |
 | `a86a19ad884c247eb677e3af1396b233fed678e3` | Report side panel pages in runtime.getContexts [skip ci] | Pending |
 | `a9e2a61679b0a974fa32142aabf43ca43bc8a17b` | Mac: a profile per Space (separate cookies and logins) | Pending |
-| `a4de8f2cf9d98a0d633c05bb6762105175c16ba7` | Mac: folders for pinned tabs, nested, with drag in and out, and Arc import keeps them | Pending |
+| `a4de8f2cf9d98a0d633c05bb6762105175c16ba7` | Mac: folders for pinned tabs, nested, with drag in and out, and Arc import keeps them | Already covered in Ark's Mac sidebar and importer: nested pin folders, ordering, and Arc's legacy/new container markers are supported. Adapted the missing Arc `isExpanded` state during import; existing fixture now covers expanded and collapsed folders. Mac build passed; runtime import confirmation remains open. |
 | `b6f6f66c52795896f2b6747e791a148fbde2dbf6` | Claude's panel: runtime.ContextType, and extension fetches with the site's cookies [skip ci] | Pending |
 | `c81876f6f62b7bcae9e979152c7d059144659ed9` | Mac: Split View, two or three tabs side by side | Pending |
 | `55f59e1be4e4f5c70cec9048be2d2927689225dd` | Claude's panel: fall back to its own chat when claude.ai can't be framed [skip ci] | Pending |

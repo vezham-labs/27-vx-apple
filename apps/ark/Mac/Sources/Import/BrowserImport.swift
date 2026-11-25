@@ -99,6 +99,7 @@ struct ImportedData: Sendable {
             let sourceID: String
             let name: String
             let parentID: String?
+            let isExpanded: Bool?
         }
 
         struct Pin: Sendable {
@@ -119,7 +120,12 @@ struct ImportedData: Sendable {
             // Ark allows three levels. Deeper Arc pins stay in the nearest created ancestor.
             for folder in folders {
                 let parent = folder.parentID.flatMap { destinations[$0] }
-                destinations[folder.sourceID] = space.addPinFolder(named: folder.name, inside: parent)?.id ?? parent
+                if let created = space.addPinFolder(named: folder.name, inside: parent) {
+                    destinations[folder.sourceID] = created.id
+                    if folder.isExpanded == false { space.togglePinFolder(created.id) }
+                } else {
+                    destinations[folder.sourceID] = parent
+                }
             }
             space.pinned = pinned.map { BrowserTab(url: $0.url, title: $0.title, isPinned: true) }
             for (pin, tab) in zip(pinned, space.pinned) {
@@ -328,7 +334,7 @@ enum BrowserImport {
                 if keepFolders, depth > 0, payload?["list"] != nil {
                     let title = (item["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
                     folders.append(.init(sourceID: id, name: title.flatMap { $0.isEmpty ? nil : $0 } ?? "Folder",
-                                         parentID: parentID))
+                                         parentID: parentID, isExpanded: item["isExpanded"] as? Bool))
                     destination = id
                 }
                 for case let child as String in item["childrenIds"] as? [Any] ?? [] {

@@ -575,8 +575,8 @@ struct SnapshotTour {
             "newContainerIDs":[{"pinned":{}},"pins"],"containerIDs":["pinned","legacy","unpinned","today"]
         }],"items":[
             {"id":"pins","childrenIds":["root","folder","root"]},
-            {"id":"folder","title":"Research","data":{"list":{}},"childrenIds":["work","child","folder"]},
-            {"id":"child","title":"References","data":{"list":{}},"childrenIds":["nested"]},
+            {"id":"folder","title":"Research","isExpanded":true,"data":{"list":{}},"childrenIds":["work","child","folder"]},
+            {"id":"child","title":"References","isExpanded":false,"data":{"list":{}},"childrenIds":["nested"]},
             {"id":"today","childrenIds":["open","local"]},
             {"id":"root","data":{"tab":{"savedTitle":"Root","savedURL":"https://example.test/root"}}},
             {"id":"work","title":"Research plan","data":{"tab":{"savedURL":"https://example.test/work"}}},
@@ -602,6 +602,7 @@ struct SnapshotTour {
         source.populate(space)
         let names = space.pinFolders.map { space.pinFolderName($0) }
         let expected = names == ["Research", "Research / References"]
+            && !space.pinFolders[0].isCollapsed && space.pinFolders[1].isCollapsed
             && space.pinned.map(\.displayTitle) == ["Root", "Research plan", "Reference"]
             && space.rootPins.map(\.displayTitle) == ["Root"]
             && space.pinned.last?.pinFolderID == space.pinFolders.last?.id

@@ -19,8 +19,13 @@ public struct SpaceLinkArchive: Codable, Sendable, Transferable {
         public let title: String
         public let url: URL
         public let pinFolderID: UUID?
+        public let pinnedHomeURL: URL?
 
         fileprivate var isWebLink: Bool {
+            Self.isSafeWebURL(url)
+        }
+
+        fileprivate static func isSafeWebURL(_ url: URL) -> Bool {
             guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
                   let host = url.host(), !host.isEmpty else { return false }
             return url.user == nil && url.password == nil
@@ -32,6 +37,7 @@ public struct SpaceLinkArchive: Codable, Sendable, Transferable {
             self.title = tab.displayTitle
             self.url = url
             pinFolderID = tab.isPinned ? tab.pinFolderID : nil
+            pinnedHomeURL = tab.isPinned ? tab.pinnedHomeURL.flatMap { Self.isSafeWebURL($0) ? $0 : nil } : nil
             guard isWebLink else { return nil }
         }
     }
@@ -125,6 +131,10 @@ public struct SpaceLinkArchive: Codable, Sendable, Transferable {
             throw InvalidArchive.tooLarge
         }
         guard pinned.allSatisfy(\.isWebLink), today.allSatisfy(\.isWebLink) else { throw InvalidArchive.invalidLink }
+        guard pinned.allSatisfy({ link in
+            guard let url = link.pinnedHomeURL else { return true }
+            return Link.isSafeWebURL(url)
+        }) else { throw InvalidArchive.invalidLink }
         guard (pinFolders ?? []).allSatisfy({ folder in
             guard let feed = folder.feed else { return true }
             return LiveFolderFeed.webURL(feed.source.absoluteString) != nil
@@ -158,7 +168,10 @@ public struct SpaceLinkArchive: Codable, Sendable, Transferable {
         func tab(from link: Link, pinned: Bool) -> BrowserTab {
             let tab = BrowserTab(url: link.url, title: link.title, isPinned: pinned)
             tab.windowKey = windowKey
-            if pinned { tab.pinFolderID = link.pinFolderID.flatMap { folderIDs[$0] } }
+            if pinned {
+                tab.pinFolderID = link.pinFolderID.flatMap { folderIDs[$0] }
+                tab.pinnedHomeURL = link.pinnedHomeURL
+            }
             return tab
         }
         let space = Space(name: name.isEmpty ? "Imported Space" : name, colorIndex: colorIndex,

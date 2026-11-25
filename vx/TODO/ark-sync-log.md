@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Space export pin homes — November 26, 2026
+
+Space link exports now retain each pinned tab's original home URL, so a pin that has navigated elsewhere can still return home after import. Version 1 files without this optional field remain readable; imported home URLs are checked as credential-free HTTP(S) links. The existing BrowserKit suite passed all 80 tests, including a new round-trip case in the existing archive test file, and the Mac Nx build passed. File-dialog interaction and mobile runtime verification remain open; the Export Spaces rating stays Partial.
+
 ## Current Mac sync pass — November 24–25, 2026
 
 The [incoming review inventory](ark-upstream-review.md) lists 149 Browsa and 123 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Browsa's clean worktree matches `origin/main` at `e981df56`. Search's clean worktree is at `33ec7aea`, with nine additional commits available on `origin/main` at `659f74dc`; those diffs were assessed without changing the upstream checkout. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.

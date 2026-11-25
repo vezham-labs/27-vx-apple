@@ -40,6 +40,20 @@ import Testing
         #expect(SpaceLinkArchive(space: Space(name: "Private", isPrivate: true)) == nil)
     }
 
+    @Test @MainActor func roundTripPreservesPinnedHome() throws {
+        let pin = BrowserTab(url: URL(string: "https://example.com/current"), title: "Pin", isPinned: true)
+        pin.pinnedHomeURL = URL(string: "https://example.com/home")
+        let archive = try #require(SpaceLinkArchive(space: Space(name: "Work", pinned: [pin])))
+        let restored = try SpaceLinkArchive(data: archive.encoded()).makeSpace(colorIndex: 0)
+        #expect(restored.pinned.first?.url == pin.url)
+        #expect(restored.pinned.first?.pinnedHomeURL == pin.pinnedHomeURL)
+        pin.pinnedHomeURL = URL(string: "https://user:secret@example.com/home")
+        let sanitized = try #require(SpaceLinkArchive(space: Space(name: "Work", pinned: [pin])))
+        let data = try sanitized.encoded()
+        #expect(!String(decoding: data, as: UTF8.self).contains("secret"))
+        #expect(try SpaceLinkArchive(data: data).makeSpace(colorIndex: 0).pinned.first?.pinnedHomeURL == nil)
+    }
+
     @Test func validatesExternalFilesBeforeImporting() {
         func payload(version: Int = 1, url: String) -> Data {
             Data("""
@@ -53,6 +67,12 @@ import Testing
             #expect(throws: SpaceLinkArchive.InvalidArchive.invalidLink) {
                 try SpaceLinkArchive(data: payload(url: url))
             }
+        }
+        let unsafeHome = Data("""
+            {"version":1,"name":"Work","pinned":[{"title":"Pin","url":"https://example.com/","pinnedHomeURL":"file:///tmp/local"}],"today":[]}
+            """.utf8)
+        #expect(throws: SpaceLinkArchive.InvalidArchive.invalidLink) {
+            try SpaceLinkArchive(data: unsafeHome)
         }
         #expect(throws: SpaceLinkArchive.InvalidArchive.tooLarge) {
             try SpaceLinkArchive(data: Data(count: 2 * 1024 * 1024 + 1))

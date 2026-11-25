@@ -58,6 +58,7 @@ struct ToolCommand: Identifiable {
 @MainActor @Observable
 final class Workbench {
     private(set) var tools: [Tool] = []
+    private(set) var extensionPanelPages: [String: URL] = [:]
     /// Tools whose sidebar section is showing, in order. Saved.
     var sidebarToolIDs: [String] { didSet { UserDefaults.standard.set(sidebarToolIDs, forKey: "sidebarTools") } }
 
@@ -75,6 +76,11 @@ final class Workbench {
     }
 
     func tool(_ id: String) -> Tool? { tools.first { $0.id == id } }
+
+    func setExtensionPanelPage(_ url: URL?, for extensionID: String) {
+        if let url { extensionPanelPages[extensionID] = url }
+        else { extensionPanelPages.removeValue(forKey: extensionID) }
+    }
 
     /// Tools turned off in the Library. They stay registered (so the Library can list them) but
     /// leave the panel rail, the sidebar and ⌘K. Saved.

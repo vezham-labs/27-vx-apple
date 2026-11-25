@@ -101,6 +101,7 @@ final class ClosureMenuItem: NSMenuItem {
 
 /// Notes on this page or across the site. Yours and your agents', a thread per note. While the
 /// panel is open, open notes are marked on the page.
+@MainActor
 struct MarginPanel: View {
     enum Scope: String, CaseIterable { case page = "This Page", site = "This Site" }
 

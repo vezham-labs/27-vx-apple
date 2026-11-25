@@ -67,7 +67,7 @@ struct SiteStyleEditor: View {
             }
             HStack {
                 Spacer()
-                Button("Cancel") { browser.siteStyleHost = nil }
+                Button("Cancel") { browser.closeSiteStyleEditor() }
                     .keyboardShortcut(.cancelAction)
                 Button("Save") {
                     do { try browser.saveSiteStyle(css, font: font, for: host) }

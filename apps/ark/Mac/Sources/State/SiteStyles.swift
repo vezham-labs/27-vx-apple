@@ -9,13 +9,19 @@ extension Browser {
 
     func editSiteStyle() {
         siteStyleHost = editableSiteStyleHost
+        isSiteStyleEditorPresented = siteStyleHost != nil
+    }
+
+    func closeSiteStyleEditor() {
+        isSiteStyleEditorPresented = false
+        siteStyleHost = nil
     }
 
     func saveSiteStyle(_ css: String, font: SiteStyleFont = .original, for host: String) throws {
         try library.siteStyles.set(css, for: host)
         try library.siteStyles.setFont(font, for: host)
         applySiteStyle(for: host)
-        siteStyleHost = nil
+        closeSiteStyleEditor()
     }
 
     func restoreSiteElement(_ selector: String, for host: String) throws {

@@ -1,6 +1,8 @@
 import AppKit
 import WebKit
 import BrowserCore
+import BrowserEngine
+import WebKitEngine
 
 /// Owns only the video Ark floated automatically. The call window and site-initiated PiP are separate.
 @MainActor
@@ -109,9 +111,6 @@ final class VideoPictureInPicture {
             guard !Task.isCancelled, self.requestID == requestID else { return }
             guard let browser else { return }
             let library = browser.library
-            if let view, await Self.run("return Array.from(document.querySelectorAll('video')).some(video => video.webkitPresentationMode === 'picture-in-picture');", in: view) {
-                return
-            }
             tabID = nil
             view = nil
             for id in candidates {
@@ -119,10 +118,11 @@ final class VideoPictureInPicture {
                 guard library.videoMiniPlayer.tabID != id else { continue }
                 guard let tab = library.tab(id: id), !tab.isPrivate, tab.call == nil,
                       !library.agents.isInAgentSpace(tab), isAway(from: tab, in: browser, applicationInactive: applicationInactive),
-                      let page = library.existingController(for: tab)?.page,
-                      !page.state.isCapturing, let candidate = page.view as? WKWebView else { continue }
+                      let controller = library.existingController(for: tab),
+                      !controller.page.state.isCapturing, let candidate = controller.page.view as? WKWebView else { continue }
                 Self.enableNativeMode(in: candidate)
-                guard await Self.run(Self.startScript, in: candidate) else { continue }
+                let result = await Self.start(page: controller.page, view: candidate)
+                guard result == "in" || result == "already" else { continue }
                 guard !Task.isCancelled, Preferences.automaticVideoPiP, library.tab(id: id) === tab,
                       library.existingController(for: tab)?.page.view === candidate,
                       isAway(from: tab, in: browser, applicationInactive: applicationInactive) else {
@@ -163,12 +163,12 @@ final class VideoPictureInPicture {
             if let dismissal = self.dismissal, dismissal.tabID != tab.id { await dismissal.task.value }
             guard !Task.isCancelled, browser.currentTab === tab,
                   browser.library.existingController(for: tab)?.page.view === candidate else { return }
-            let result = await Self.result(Self.toggleScript, in: candidate)
+            let result = await Self.toggle(page: page, view: candidate)
             guard !Task.isCancelled, self.requestID == requestID else {
-                if (result as? String) == "in" { await candidate.closeAllMediaPresentations() }
+                if result == "in" { await candidate.closeAllMediaPresentations() }
                 return
             }
-            switch result as? String {
+            switch result {
             case "in":
                 if self.dismissal?.tabID == tab.id { self.dismissal = nil }
                 self.tabID = tab.id
@@ -229,55 +229,93 @@ final class VideoPictureInPicture {
         unsafeBitCast(preferences.method(for: selector), to: Setter.self)(preferences, selector, true)
     }
 
-    private static let startScript = """
-        const mode = 'picture-in-picture';
-        let best = null;
-        let area = 0;
-        for (const video of document.querySelectorAll('video')) {
-            if (video.webkitPresentationMode === mode) return false;
-            if (video.paused || video.ended || video.muted || video.volume === 0 || video.srcObject || video.readyState < 2 ||
-                video.hasAttribute('disablepictureinpicture') || !video.webkitSupportsPresentationMode?.(mode)) continue;
-            const rect = video.getBoundingClientRect();
-            const width = Math.min(innerWidth, rect.right) - Math.max(0, rect.left);
-            const height = Math.min(innerHeight, rect.bottom) - Math.max(0, rect.top);
-            const size = width * height;
-            if (width >= 160 && height >= 90 && size > area) { best = video; area = size; }
-        }
-        if (!best) return false;
-        try { best.webkitSetPresentationMode(mode); }
-        catch { return false; }
-        return true;
-        """
+    private struct VideoChoice {
+        let frameID: String?
+        let index: Int
+        let area: Double
+        let floating: Bool
+        let supported: Bool
+    }
 
-    private static let toggleScript = """
+    private static func frameIDs(in page: any EnginePage) -> [String?] {
+        guard let page = page as? WebKitPage, !page.registeredFrameIDs.isEmpty else { return [nil] }
+        return page.registeredFrameIDs.map(Optional.some)
+    }
+
+    private static func evaluate(_ script: String, page: any EnginePage, view: WKWebView,
+                                 frameID: String?, arguments: [String: Any] = [:]) async -> Any? {
+        if let page = page as? WebKitPage {
+            return try? await page.evaluate(script, arguments: arguments, inFrame: frameID, inWorld: "ark.video-pip")
+        }
+        guard frameID == nil else { return nil }
+        return try? await view.callAsyncJavaScript(script, arguments: arguments, in: nil,
+                                                    contentWorld: .world(name: "ark.video-pip"))
+    }
+
+    private static func bestVideo(in page: any EnginePage, view: WKWebView, automatic: Bool) async -> VideoChoice? {
+        var best: VideoChoice?
+        for frameID in frameIDs(in: page) {
+            guard let value = await evaluate(probeScript, page: page, view: view, frameID: frameID,
+                                             arguments: ["automatic": automatic]) as? [String: Any],
+                  let state = value["state"] as? String, let index = value["index"] as? Int else { continue }
+            let choice = VideoChoice(frameID: frameID, index: index,
+                                     area: value["area"] as? Double ?? 0,
+                                     floating: state == "floating",
+                                     supported: value["supported"] as? Bool ?? false)
+            if choice.floating { return choice }
+            if state == "candidate", choice.area > (best?.area ?? 0) { best = choice }
+        }
+        return best
+    }
+
+    private static func perform(_ choice: VideoChoice, mode: String, page: any EnginePage, view: WKWebView) async -> Bool {
+        (await evaluate(performScript, page: page, view: view, frameID: choice.frameID,
+                        arguments: ["index": choice.index, "mode": mode])) as? Bool == true
+    }
+
+    private static func start(page: any EnginePage, view: WKWebView) async -> String {
+        guard let choice = await bestVideo(in: page, view: view, automatic: true) else { return "none" }
+        if choice.floating { return "already" }
+        guard choice.supported else { return "refused" }
+        return await perform(choice, mode: "picture-in-picture", page: page, view: view) ? "in" : "refused"
+    }
+
+    private static func toggle(page: any EnginePage, view: WKWebView) async -> String {
+        guard let choice = await bestVideo(in: page, view: view, automatic: false) else { return "none" }
+        if choice.floating {
+            return await perform(choice, mode: "inline", page: page, view: view) ? "out" : "refused"
+        }
+        guard choice.supported else { return "refused" }
+        return await perform(choice, mode: "picture-in-picture", page: page, view: view) ? "in" : "refused"
+    }
+
+    private static let probeScript = """
         const mode = 'picture-in-picture';
+        const isAutomatic = Boolean(automatic);
         const videos = Array.from(document.querySelectorAll('video'));
-        const floating = videos.find(video => video.webkitPresentationMode === mode);
-        if (floating) {
-            try { floating.webkitSetPresentationMode('inline'); return 'out'; }
-            catch { return 'refused'; }
+        for (let i = 0; i < videos.length; i++) {
+            if (videos[i].webkitPresentationMode === mode) return { state: 'floating', index: i, area: 0, supported: true };
         }
         let best = null;
         let area = 0;
-        for (const video of videos) {
-            if (video.readyState < 2 || video.hasAttribute('disablepictureinpicture') ||
-                !video.webkitSupportsPresentationMode?.(mode)) continue;
+        let supported = false;
+        for (let i = 0; i < videos.length; i++) {
+            const video = videos[i];
+            if (video.readyState < 2 || video.hasAttribute('disablepictureinpicture')) continue;
+            if (isAutomatic && (video.paused || video.ended || video.muted || video.volume === 0 || video.srcObject)) continue;
             const rect = video.getBoundingClientRect();
             const width = Math.max(0, Math.min(innerWidth, rect.right) - Math.max(0, rect.left));
             const height = Math.max(0, Math.min(innerHeight, rect.bottom) - Math.max(0, rect.top));
-            if (width * height > area) { best = video; area = width * height; }
+            const size = width * height;
+            if (isAutomatic && (width < 160 || height < 90)) continue;
+            if (size > area) { best = i; area = size; supported = Boolean(video.webkitSupportsPresentationMode?.(mode)); }
         }
-        if (!best) return 'none';
-        try { best.webkitSetPresentationMode(mode); return 'in'; }
-        catch { return 'refused'; }
+        return best == null ? { state: 'none' } : { state: 'candidate', index: best, area, supported };
         """
 
-    private static func run(_ script: String, in view: WKWebView) async -> Bool {
-        (await result(script, in: view)) as? Bool == true
-    }
-
-    private static func result(_ script: String, in view: WKWebView) async -> Any? {
-        try? await view.callAsyncJavaScript(script, arguments: [:], in: nil,
-                                            contentWorld: .world(name: "ark.video-pip"))
-    }
+    private static let performScript = """
+        const video = document.querySelectorAll('video')[index];
+        if (!video || typeof video.webkitSetPresentationMode !== 'function') return false;
+        try { video.webkitSetPresentationMode(mode); return true; } catch { return false; }
+        """
 }

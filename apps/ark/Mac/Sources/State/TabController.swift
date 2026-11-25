@@ -19,9 +19,14 @@ final class TabController: EnginePageDelegate {
     private var window: Browser? { library?.window(showing: tab) }
     /// How the next finished load should count in history.
     private var pendingSource: Frecency.VisitSource?
+    /// The largest inner scrolling surface captured when the WebView was unloaded.
+    private var pendingInnerScrollRestore: String?
+    private var canCaptureInnerScroll = true
     /// The page's process died while it was out of sight. Reload when it's shown again.
     private var needsRecovery = false
     private var lastTermination: Date?
+    private var askingApps: Set<String> = []
+    private var declinedApps: Set<String> = []
 
     init(tab: BrowserTab, library: Library, engineID: String? = nil, makePage: (TabController) -> any EnginePage) {
         self.tab = tab
@@ -66,6 +71,8 @@ final class TabController: EnginePageDelegate {
             library.swapEngine(of: tab, to: url, source: source)
             return
         }
+        pendingInnerScrollRestore = nil
+        library?.discardSleepingScrollState(for: tab.id)
         pendingSource = source
         tab.loadError = nil
         page.load(url)
@@ -82,6 +89,96 @@ final class TabController: EnginePageDelegate {
             tab.interactionState = state
             tab.websiteSessionProfileID = (page.view as? WKWebView)?.configuration.websiteDataStore.identifier
         }
+    }
+
+    func captureInnerScroll() async -> String? {
+        guard canCaptureInnerScroll, !tab.isPrivate, let page,
+              let position = try? await page.evaluate(Self.captureInnerScroll, inWorld: "page") as? String,
+              position.utf8.count <= 16 * 1024 else { return nil }
+        return position
+    }
+
+    func discardInnerScrollState() {
+        canCaptureInnerScroll = false
+        pendingInnerScrollRestore = nil
+    }
+
+    func restoreInnerScroll(_ position: String) {
+        pendingInnerScrollRestore = position
+    }
+
+    private static let captureInnerScroll = #"""
+        return (() => {
+          try {
+            const viewport = innerWidth * innerHeight;
+            let best = null, area = 0, visited = 0;
+            const walk = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_ELEMENT);
+            for (let el = walk.currentNode; el && visited++ < 60000; el = walk.nextNode()) {
+              if (el === document.body || el === document.documentElement || !(el.scrollTop || el.scrollLeft)) continue;
+              const next = el.clientWidth * el.clientHeight;
+              if (next > area) { best = el; area = next; }
+            }
+            if (!best || area < viewport / 4) return null;
+            const step = (el) => {
+              let index = 1;
+              for (let sibling = el.previousElementSibling; sibling; sibling = sibling.previousElementSibling)
+                if (sibling.tagName === el.tagName) index++;
+              return el.tagName.toLowerCase() + ':nth-of-type(' + index + ')';
+            };
+            const path = [];
+            let el = best;
+            for (; el && el !== document.documentElement; el = el.parentElement) {
+              if (el.id && document.querySelectorAll('#' + CSS.escape(el.id)).length === 1) {
+                path.unshift('#' + CSS.escape(el.id)); break;
+              }
+              path.unshift(step(el));
+            }
+            if (!el || el === document.documentElement) path.unshift('html');
+            const classes = [...best.classList].map((name) => '.' + CSS.escape(name)).join('');
+            const like = classes ? best.tagName.toLowerCase() + classes : '';
+            return JSON.stringify([location.href, path.join(' > '), like, best.scrollTop, best.scrollLeft]);
+          } catch (_) { return null; }
+        })()
+        """#
+
+    private static func restoreInnerScroll(_ position: String) -> String {
+        """
+        (() => {
+          try {
+            const saved = \(position);
+            const [href, path, like, top, left] = saved;
+            if (location.href !== href) return;
+            let done = false, placed = null, timer = 0, stableSince = 0;
+            const events = ['wheel', 'keydown', 'mousedown', 'pointerdown', 'touchstart'];
+            const stop = () => { done = true; clearInterval(timer); for (const type of events) removeEventListener(type, person, true); };
+            const person = (event) => { if (event.isTrusted) stop(); };
+            for (const type of events) addEventListener(type, person, true);
+            const find = () => {
+              try { const element = document.querySelector(path); if (element) return element; } catch (_) {}
+              if (like) { try { const matches = document.querySelectorAll(like); if (matches.length === 1) return matches[0]; } catch (_) {} }
+              return null;
+            };
+            const until = Date.now() + 8000;
+            const look = () => {
+              if (done) return;
+              if (Date.now() > until || location.href !== href) return stop();
+              const element = find();
+              if (!element) return;
+              const current = [element.scrollTop, element.scrollLeft];
+              if (placed && (current[0] !== placed[0] || current[1] !== placed[1]) && (current[0] || current[1])) return stop();
+              if (element.scrollHeight - element.clientHeight < top || element.scrollWidth - element.clientWidth < left) return;
+              element.scrollTop = top; element.scrollLeft = left;
+              placed = [element.scrollTop, element.scrollLeft];
+              if (placed[0] === top && placed[1] === left) {
+                if (!stableSince) stableSince = Date.now();
+                else if (Date.now() - stableSince > 1500) stop();
+              }
+            };
+            timer = setInterval(look, 100);
+            addEventListener('DOMContentLoaded', look);
+          } catch (_) {}
+        })()
+        """
     }
 
     func recoverIfNeeded() {
@@ -195,9 +292,9 @@ final class TabController: EnginePageDelegate {
     }
 
     /// Hands a link to the app that opens it, asking first, as Safari and Chrome do: a page could
-    /// otherwise launch Zoom, FaceTime or the App Store by itself. The answer is kept per site and
-    /// per kind of link, like camera and microphone. A frame inside the page (an ad, an embed) only
-    /// gets to ask when it was a click on a link. Email links open straight away.
+    /// otherwise launch Zoom, FaceTime or the App Store by itself. Always Open and Don't Open are
+    /// kept per site and link scheme. A frame inside the page (an ad, an embed) only gets to ask
+    /// when it was a click on a link. Email links open straight away.
     private func openInApp(_ request: NavigationRequest) async {
         let url = request.url
         let scheme = url.scheme?.lowercased() ?? ""
@@ -206,32 +303,98 @@ final class TabController: EnginePageDelegate {
             window?.showToast("No app on this Mac opens \(scheme): links")
             return
         }
-        // Typed into the address bar on an empty tab, or an email, phone or message link: no site to ask about.
-        guard !["mailto", "tel", "facetime", "sms"].contains(scheme), let host = page.state.url?.host() ?? tab.url?.host(), let library else {
+        // Contact links clicked by the user can open directly; script-driven calls and messages
+        // use the site's normal permission prompt instead.
+        let clickedContact = ["tel", "facetime", "facetime-audio", "sms"].contains(scheme) && request.kind == .link
+        guard scheme != "mailto", !clickedContact, let host = page.state.url?.host() ?? tab.url?.host(), let library else {
             NSWorkspace.shared.open(url)
             return
         }
-        let key = Self.openAppKey(scheme)
-        if let saved = library.sitePermissions(for: host, isPrivate: tab.isPrivate)[key] {
-            if saved { NSWorkspace.shared.open(url) }
+        switch Self.openAppAnswer(library.sitePermissions(for: host, isPrivate: tab.isPrivate), scheme: scheme) {
+        case true?:
+            NSWorkspace.shared.open(url)
             return
+        case false?:
+            if request.kind == .link {
+                let app = FileManager.default.displayName(atPath: appURL.path).replacingOccurrences(of: ".app", with: "")
+                window?.showToast("\(host) can't open \(app)", actions: [
+                    ToastAction(title: "Ask Again") { [weak library] in
+                        if let library { Self.setOpenAppAnswer(nil, in: library, host: host, scheme: scheme, isPrivate: self.tab.isPrivate) }
+                    }
+                ])
+            }
+            return
+        case nil:
+            break
         }
+        let declineKey = host + " " + scheme
+        if request.kind != .link, declinedApps.contains(declineKey) { return }
+        guard !askingApps.contains(declineKey) else { return }
         guard let window else { return }
         let app = FileManager.default.displayName(atPath: appURL.path).replacingOccurrences(of: ".app", with: "")
-        let answer = await window.ask(.openApp(app: app, host: host), from: tab)
-        // Cancelled because the tab went away: don't remember a "no" the user never gave.
-        guard answer != .cancel || window.currentTab?.id == tab.id else { return }
-        let allowed = answer == .ok
-        library.setSitePermission(key, allowed, for: host, isPrivate: tab.isPrivate)
-        if allowed { NSWorkspace.shared.open(url) }
+        askingApps.insert(declineKey)
+        defer { askingApps.remove(declineKey) }
+        let answer = await window.ask(.openApp(app: app, appURL: appURL, host: host), from: tab)
+        guard window.currentTab?.id == tab.id else { return }
+        if answer == Prompt.alwaysOpen {
+            Self.setOpenAppAnswer(true, in: library, host: host, scheme: scheme, isPrivate: tab.isPrivate)
+            NSWorkspace.shared.open(url)
+        } else if answer == Prompt.neverOpen {
+            Self.setOpenAppAnswer(false, in: library, host: host, scheme: scheme, isPrivate: tab.isPrivate)
+        } else if answer == .ok {
+            NSWorkspace.shared.open(url)
+        } else if answer == .cancel, request.kind != .link {
+            declinedApps.insert(declineKey)
+        }
     }
 
-    /// The saved-answer key for opening one kind of link in its app, such as "app:zoommtg".
-    static func openAppKey(_ scheme: String) -> String { "app:" + scheme }
+    /// New saved choices distinguish Don't Open from old negative answers, which meant Not Now.
+    private static let openAppPrefix = "open:"
+    private static let legacyOpenAppPrefix = "app:"
+
+    static func openAppKey(_ scheme: String) -> String { openAppPrefix + scheme }
+    private static func legacyOpenAppKey(_ scheme: String) -> String { legacyOpenAppPrefix + scheme }
+
+    static func setOpenAppAnswer(_ answer: Bool?, in library: Library, host: String, scheme: String, isPrivate: Bool) {
+        library.setSitePermission(legacyOpenAppKey(scheme), nil, for: host, isPrivate: isPrivate)
+        library.setSitePermission(openAppKey(scheme), answer, for: host, isPrivate: isPrivate)
+    }
+
+    /// Always Open (true), Don't Open (false), or ask (nil). Legacy saved yeses remain valid.
+    static func openAppAnswer(_ saved: [String: Bool], scheme: String) -> Bool? {
+        if let answer = saved[openAppKey(scheme)] { return answer }
+        return saved[legacyOpenAppKey(scheme)] == true ? true : nil
+    }
+
+    static func openAppAnswers(_ saved: [String: Bool]) -> [String: Bool] {
+        var answers: [String: Bool] = [:]
+        for (key, value) in saved where key.hasPrefix(legacyOpenAppPrefix) && value {
+            answers[String(key.dropFirst(legacyOpenAppPrefix.count))] = true
+        }
+        for (key, value) in saved where key.hasPrefix(openAppPrefix) {
+            answers[String(key.dropFirst(openAppPrefix.count))] = value
+        }
+        return answers
+    }
+
+    static func isOpenAppKey(_ key: String) -> Bool {
+        key.hasPrefix(openAppPrefix) || key.hasPrefix(legacyOpenAppPrefix)
+    }
+
+    static func appName(forScheme scheme: String) -> String {
+        guard let url = URL(string: scheme + "://"),
+              let appURL = NSWorkspace.shared.urlForApplication(toOpen: url) else { return scheme + ": links" }
+        return FileManager.default.displayName(atPath: appURL.path).replacingOccurrences(of: ".app", with: "")
+    }
 
     func page(_ page: any EnginePage, didCommit url: URL?) {
         tab.loadError = nil
         library?.windows.forEach { $0.cancelPrompts(for: tab.id) }
+        if let position = pendingInnerScrollRestore {
+            pendingInnerScrollRestore = nil
+            library?.discardSleepingScrollState(for: tab.id)
+            Task { _ = try? await page.evaluate(Self.restoreInnerScroll(position), inWorld: "page") }
+        }
         if let host = url?.host() {
             let z = Preferences.zoom(for: host)
             if abs(page.zoom - z) > 0.001 { setZoom(z) }

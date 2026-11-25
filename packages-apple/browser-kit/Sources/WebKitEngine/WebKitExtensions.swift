@@ -18,6 +18,8 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
         // pause it mid-task. Extension web views are never paused (see also startKeepAlive).
         let configuration = WKWebExtensionController.Configuration.default()
         configuration.webViewConfiguration?.preferences.inactiveSchedulingPolicy = .none
+        // Keep extension backgrounds on the same Safari engine version as Ark's tabs.
+        configuration.webViewConfiguration?.applicationNameForUserAgent = SafariUserAgent.applicationName
         return WKWebExtensionController(configuration: configuration)
     }()
     weak var host: (any EngineExtensionHost)?
@@ -143,6 +145,12 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
         return head.trimmingCharacters(in: .whitespaces).lowercased()
     }
 
+    /// Resolve manifest pages as URLs so query strings and fragments stay out of the filename.
+    static func extensionPage(_ path: String, relativeTo baseURL: URL) -> URL? {
+        let relativePath = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        return URL(string: relativePath, relativeTo: baseURL)?.absoluteURL
+    }
+
     func applyPrivateAccess(_ id: String) {
         contexts[id]?.hasAccessToPrivateData = WebKitExtensionsPrivacy.isAllowed(id)
     }
@@ -152,7 +160,9 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
         let manifest = ext.manifest
         let panelPath = ((manifest["side_panel"] as? [String: Any])?["default_path"] as? String)
             ?? ((manifest["sidebar_action"] as? [String: Any])?["default_panel"] as? String)
-        let panelURL = panelPath.map { context.baseURL.appending(path: $0.hasPrefix("/") ? String($0.dropFirst()) : $0) }
+        // Some extensions use a disabled placeholder page to opt out of their side panel.
+        let activePanelPath = panelPath.flatMap { $0.localizedCaseInsensitiveContains("disabled") ? nil : $0 }
+        let panelURL = activePanelPath.flatMap { Self.extensionPage($0, relativeTo: context.baseURL) }
         return EngineExtension(id: id, name: ext.displayName ?? id, version: ext.version ?? "",
                                icon: icon, hasAction: context.action(for: nil) != nil, panelURL: panelURL,
                                optionsURL: context.optionsPageURL)
@@ -164,7 +174,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
         contexts.map { id, context in
             let m = context.webExtension.manifest
             let action = (m["action"] as? [String: Any]) ?? (m["browser_action"] as? [String: Any])
-            let popup = (action?["default_popup"] as? String).map { context.baseURL.appending(path: $0.hasPrefix("/") ? String($0.dropFirst()) : $0) }
+            let popup = (action?["default_popup"] as? String).flatMap { Self.extensionPage($0, relativeTo: context.baseURL) }
             let errors = (context.webExtension.errors + context.errors).map { "\($0.localizedDescription) \((($0 as NSError).userInfo[NSDebugDescriptionErrorKey] as? String) ?? "")" }
             return (id, context.webExtension.displayName ?? id, popup, m, errors)
         }
@@ -281,7 +291,8 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
             || (manifest["sidebar_action"] as? [String: Any])?["default_panel"] != nil
         let hasPopup = context.action(for: page)?.presentsPopup ?? false
         if ExtensionBridges.opensPanelOnAction(extensionID) || (hasPanel && !hasPopup),
-           host?.showExtensionPanel(extensionID: extensionID) == true { return }
+           ExtensionBridges.panelOptions[extensionID]?.enabled != false,
+           host?.showExtensionPanel(extensionID: extensionID, pageURL: ExtensionBridges.panelOptions[extensionID]?.path) == true { return }
         popupAnchor = anchor
         context.performAction(for: page)
     }
@@ -414,6 +425,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
         if let name = applicationIdentifier, ExtensionBridges.names.contains(name) {
             ExtensionBridges.handle(name, message: message, extensionID: extensionContext.uniqueIdentifier,
                                     displayName: extensionContext.webExtension.displayName ?? "An extension",
+                                    baseURL: extensionContext.baseURL,
                                     host: host, reply: replyHandler)
             return
         }

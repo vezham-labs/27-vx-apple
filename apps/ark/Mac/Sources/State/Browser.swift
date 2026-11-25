@@ -23,7 +23,6 @@ final class Browser {
     /// Pins selected with Command-click or Shift-click in the Mac sidebar.
     var selectedSidebarPinIDs: Set<UUID> = []
     @ObservationIgnored private var sidebarPinSelectionAnchor: UUID?
-    var isCreatingPinFolderForSelection = false
     var newPinFolderName = ""
     @ObservationIgnored private var pendingPinFolderIDs: Set<UUID> = []
     @ObservationIgnored private var pendingPinFolderSpaceID: UUID?
@@ -34,6 +33,7 @@ final class Browser {
     var splitBySpace: [UUID: TabSplit]
     var isSplitPickerPresented = false
     var isRecentTabsPresented = false
+    var isSiteStyleEditorPresented = false
     /// The AppKit window, for focusing and for matching key events to this browser.
     @ObservationIgnored weak var nsWindow: NSWindow?
     #if DEBUG
@@ -267,10 +267,31 @@ final class Browser {
     func beginPinFolderForSelectedPins(from tab: BrowserTab) {
         let tabs = selectedSidebarPins(for: tab)
         guard tabs.count > 1, tabs.allSatisfy(\.isPinned), !currentSpace.isPrivate else { return }
+        guard let window = nsWindow else { return }
         pendingPinFolderIDs = Set(tabs.map(\.id))
         pendingPinFolderSpaceID = currentSpace.id
         newPinFolderName = ""
-        isCreatingPinFolderForSelection = true
+
+        let nameField = NSTextField(string: "")
+        nameField.placeholderString = "Folder name"
+        nameField.frame = NSRect(x: 0, y: 0, width: 260, height: 24)
+        let alert = NSAlert()
+        alert.messageText = "New Pin Folder"
+        alert.informativeText = "Create a folder with the selected pinned tabs."
+        alert.accessoryView = nameField
+        alert.addButton(withTitle: "Create")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = nameField
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard let self else { return }
+            if response == .alertFirstButtonReturn {
+                newPinFolderName = nameField.stringValue
+                createPinFolderForSelectedPins()
+            } else {
+                pendingPinFolderIDs.removeAll()
+                pendingPinFolderSpaceID = nil
+            }
+        }
     }
 
     func createPinFolderForSelectedPins() {
@@ -349,7 +370,8 @@ final class Browser {
     var currentTab: BrowserTab? {
         let space = currentSpace
         guard let id = tabSelection[space.id] else { return nil }
-        return space.allTabs.first { $0.id == id && lists($0) }
+        for tab in space.allTabs where tab.id == id && lists(tab) { return tab }
+        return nil
     }
 
     /// Whether this window's sidebar lists a tab: pinned and favourite tabs in every window,

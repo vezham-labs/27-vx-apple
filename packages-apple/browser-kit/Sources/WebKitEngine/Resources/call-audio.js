@@ -10,6 +10,7 @@
 // Runs in the page world at document start, in every frame.
 (() => {
   'use strict';
+  const handler = () => typeof __arkBridge === 'function' ? __arkBridge('arkCallAudio') : null;
   if (window.__arkCallAudio) return;
   const md = navigator.mediaDevices;
   if (!md || typeof md.getUserMedia !== 'function' || !window.AudioContext) return;
@@ -236,7 +237,7 @@
   function loadApm() {
     if (!apmBytes) {
       apmBytes = (async () => {
-        const h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.arkCallAudio;
+        const h = handler();
         if (h) {
           const b64 = await h.postMessage({ type: 'apm' });
           if (!b64) return null;
@@ -254,7 +255,6 @@
   // ---------- Settings › Audio, read from Ark about once a second while a call runs ----------
   const voices = new Set();
   let tuning = null, tuningJSON = '', tuningTimer = null;
-  const handler = () => window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.arkCallAudio;
   async function readTuning() {
     const h = handler();
     if (!h) return null;

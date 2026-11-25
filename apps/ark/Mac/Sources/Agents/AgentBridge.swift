@@ -431,7 +431,7 @@ extension Preferences {
 /// focus, and isn't in the Window menu or Mission Control. A tab moves out of it the moment you
 /// look at it (PageHost adopts its view).
 @MainActor
-final class AgentStage {
+final class AgentStage: NSObject {
     private lazy var window: NSWindow = {
         let w = NSWindow(contentRect: NSRect(x: -40_000, y: -40_000, width: 1200, height: 820),
                          styleMask: [.borderless], backing: .buffered, defer: false)
@@ -441,8 +441,23 @@ final class AgentStage {
         w.isExcludedFromWindowsMenu = true
         w.collectionBehavior = [.transient, .ignoresCycle, .stationary, .fullScreenNone]
         w.title = "Agent Stage"
+        NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
+                                              name: NSApplication.didChangeScreenParametersNotification, object: nil)
         return w
     }()
+
+    @objc private func screensChanged() {
+        restoreOffscreenPosition()
+        // The window server can reposition windows again while the display layout settles.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            self?.restoreOffscreenPosition()
+        }
+    }
+
+    private func restoreOffscreenPosition() {
+        let origin = NSPoint(x: -40_000, y: -40_000)
+        if window.frame.origin != origin { window.setFrameOrigin(origin) }
+    }
 
     func host(_ view: NSView) {
         guard view.window == nil, let content = window.contentView else { return }

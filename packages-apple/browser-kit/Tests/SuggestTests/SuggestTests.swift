@@ -39,7 +39,10 @@ private func engine(history: [HistoryEntry] = [],
 @Suite struct URLNormalizerTests {
     @Test func navigableInputs() {
         #expect(URLNormalizer.urlIfNavigable("github.com")?.absoluteString == "https://github.com")
-        #expect(URLNormalizer.urlIfNavigable("localhost:3000")?.absoluteString == "https://localhost:3000")
+        #expect(URLNormalizer.urlIfNavigable("localhost:3000")?.absoluteString == "http://localhost:3000")
+        #expect(URLNormalizer.urlIfNavigable("LOCALHOST:3000")?.absoluteString == "http://LOCALHOST:3000")
+        #expect(URLNormalizer.urlIfNavigable("printer.local")?.absoluteString == "http://printer.local")
+        #expect(URLNormalizer.urlIfNavigable("192.168.1.20/admin")?.absoluteString == "http://192.168.1.20/admin")
         #expect(URLNormalizer.urlIfNavigable("http://example.com/a")?.absoluteString == "http://example.com/a")
     }
 

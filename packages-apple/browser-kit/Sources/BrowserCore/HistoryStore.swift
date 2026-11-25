@@ -154,11 +154,28 @@ public actor HistoryStore: HistoryIndex {
     public func recentVisits(forHost host: String, limit: Int = 5) -> [HistoryEntry] {
         let normalizedHost = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
         guard !normalizedHost.isEmpty, limit > 0 else { return [] }
-        return records.values
-            .filter { record in
-                guard record.visitCount > 0, let recordHost = record.url.host()?.lowercased() else { return false }
-                return recordHost == normalizedHost || recordHost.hasSuffix(".\(normalizedHost)")
+        func matches(_ record: Record) -> Bool {
+            guard record.visitCount > 0, let recordHost = record.url.host()?.lowercased() else { return false }
+            return recordHost == normalizedHost || recordHost.hasSuffix(".\(normalizedHost)")
+        }
+
+        // The sidebar asks for five pages on hover. Sorting every visit for that
+        // small result occupies the history actor unnecessarily; keep only the newest few
+        // while scanning. Larger callers retain the full-sort path to avoid
+        // quadratic insertion work when they request a substantial result set.
+        if limit <= 32 {
+            var newest: [Record] = []
+            newest.reserveCapacity(min(limit, records.count))
+            for record in records.values where matches(record) {
+                let insertion = newest.firstIndex { $0.lastUpdate < record.lastUpdate } ?? newest.endIndex
+                guard insertion < limit else { continue }
+                newest.insert(record, at: insertion)
+                if newest.count > limit { newest.removeLast() }
             }
+            return newest.map { HistoryEntry(url: $0.url, title: $0.title, frecency: $0.frecency, isBookmark: $0.isBookmark) }
+        }
+
+        return records.values.filter(matches)
             .sorted { $0.lastUpdate > $1.lastUpdate }
             .prefix(limit)
             .map { HistoryEntry(url: $0.url, title: $0.title, frecency: $0.frecency, isBookmark: $0.isBookmark) }

@@ -50,6 +50,7 @@ final class Library {
     var callAudioStats: CallAudioStats?
     /// The extensions running now, for the toolbar.
     private(set) var extensions: [EngineExtension] = []
+    var shownExtensionPanels: [String: URL] = [:]
     /// Bumped when pins change or an extension updates its action, so the address pill redraws.
     var extensionPinsRevision = 0
     var extensionActionsRevision = 0
@@ -100,6 +101,8 @@ final class Library {
     /// Live pages, by tab. The least recently used are unloaded past `capacity`.
     @ObservationIgnored private(set) var controllers: [UUID: TabController] = [:]
     @ObservationIgnored private var lru: [UUID] = []
+    /// Inner scroll positions for pages unloaded to save memory. Kept only for open tabs.
+    @ObservationIgnored private var sleepingScrollStates: [UUID: String] = [:]
     @ObservationIgnored private let capacity = 24
     @ObservationIgnored private let snapshotURL: URL?
     let syncCoordinator: BrowserSyncCoordinator
@@ -555,6 +558,8 @@ final class Library {
 
     private func resetBrowsingSession(of tab: BrowserTab) {
         for window in windows { window.cancelPrompts(for: tab.id) }
+        controllers[tab.id]?.discardInnerScrollState()
+        sleepingScrollStates[tab.id] = nil
         unload(tab.id)
         tab.interactionState = nil
         tab.websiteSessionProfileID = nil
@@ -578,12 +583,17 @@ final class Library {
                                                  sessionState: tab.interactionState),
                             delegate: delegate)
         }
+        if let state = sleepingScrollStates[tab.id] { c.restoreInnerScroll(state) }
         controllers[tab.id] = c
         evictIfNeeded(keeping: tab.id)
         return c
     }
 
     func existingController(for tab: BrowserTab) -> TabController? { controllers[tab.id] }
+
+    func discardSleepingScrollState(for tabID: UUID) {
+        sleepingScrollStates[tabID] = nil
+    }
 
     func cleanedNavigationURL(_ url: URL) -> URL? {
         guard settings.cleanLinks, !settings.blockingDisabled(for: url.host()) else { return nil }
@@ -668,6 +678,10 @@ final class Library {
         }
     }
 
+#if DEBUG
+    func unloadForDebugCheck(_ id: UUID) async { await unloadAndWait(id) }
+#endif
+
     private func unload(_ id: UUID, then completion: @escaping @MainActor () -> Void) {
         if unloadCompletions[id] != nil {
             unloadCompletions[id, default: []].append(completion)
@@ -676,17 +690,32 @@ final class Library {
         unloadCompletions[id] = [completion]
         videoPictureInPicture.beforeTabUnload(id) { [weak self] in
             guard let self else { completion(); return }
-            self.videoMiniPlayer.beforeTabUnload(id) {
-                self.finishUnload(id)
-                let completions = self.unloadCompletions.removeValue(forKey: id) ?? []
-                completions.forEach { $0() }
+            self.videoMiniPlayer.beforeTabUnload(id) { [weak self] in
+                Task { @MainActor [weak self] in
+                    guard let self else { completion(); return }
+                    await self.finishUnload(id)
+                    let completions = self.unloadCompletions.removeValue(forKey: id) ?? []
+                    completions.forEach { $0() }
+                }
             }
         }
     }
 
-    private func finishUnload(_ id: UUID) {
+    private func finishUnload(_ id: UUID) async {
         if let c = controllers[id] {
+            let scrollState = await c.captureInnerScroll()
             c.freeze()
+            if space(containing: c.tab) != nil, let scrollState {
+                let openIDs = Set(allTabs.map(\.id))
+                sleepingScrollStates = sleepingScrollStates.filter { openIDs.contains($0.key) }
+                if sleepingScrollStates[id] == nil, sleepingScrollStates.count >= 64,
+                   let oldest = sleepingScrollStates.keys.first {
+                    sleepingScrollStates[oldest] = nil
+                }
+                sleepingScrollStates[id] = scrollState
+            } else {
+                sleepingScrollStates[id] = nil
+            }
             c.page.close()
             c.tab.call = nil
         }
@@ -764,6 +793,7 @@ final class Library {
         // Windows showing it move on first, while it's still in the list to measure from.
         for w in windows { w.moveOff(tab, in: space, closing: true) }
         space.today.removeAll { $0.id == tab.id }
+        sleepingScrollStates[tab.id] = nil
         if space.selectedTabID == tab.id { space.selectedTabID = nil }
         if index == nil, tab.isPinned {
             // Closing a pinned tab only unloads it, like Arc.
@@ -1253,11 +1283,16 @@ extension Library: EngineExtensionHost {
     }
 
     /// chrome.sidePanel.open, or a toolbar click on an extension that asked for its panel instead.
-    func showExtensionPanel(extensionID: String) -> Bool {
+    func showExtensionPanel(extensionID: String, pageURL: URL? = nil) -> Bool {
         let id = "ext:" + extensionID
         guard workbench.tool(id) != nil, let window = activeWindow else { return false }
+        if let pageURL { workbench.setExtensionPanelPage(pageURL, for: extensionID) }
         window.showPanel(id)
         return true
+    }
+
+    func openExtensionPanels(extensionID: String) -> [URL] {
+        shownExtensionPanels[extensionID].map { [$0] } ?? []
     }
 
     func focusExtensionWindow(_ id: UUID) {

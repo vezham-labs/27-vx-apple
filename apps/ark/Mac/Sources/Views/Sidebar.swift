@@ -6,6 +6,7 @@ import Suggest
 
 /// Arc-style sidebar: navigation, address, favourites, then the current space's pinned and today
 /// tabs, and the space switcher at the bottom.
+@MainActor
 struct Sidebar: View {
     @Environment(Browser.self) private var browser
     /// Floating over the page (undocked), rather than beside it.
@@ -16,26 +17,33 @@ struct Sidebar: View {
     static let minimumWidth: CGFloat = 12 + WindowButtons.width + 4 * 28 + 4 * 2 + 12
 
     var body: some View {
+        // Read Browser-backed child views before entering the SwiftUI builder closure. This keeps
+        // actor-isolated model reads out of the deferred VStack content closure.
+        let topRowView = topRow.introArrival(0)
+        let agentDrivingPill = AgentDrivingPill().padding(.horizontal, 10)
+        let addressPill = AddressPill()
+            .padding(.horizontal, 10)
+            .introArrival(1)
+        let favorites = FavoritesGrid()
+            .padding(.horizontal, 10)
+            .introArrival(2)
+        let tabs = SpaceTabs().introArrival(3)
+        let toolSections = ToolSections()
+            .padding(.horizontal, 10)
+            .introArrival(4)
+        let bottomRowView = bottomRow
+            .padding(.horizontal, 10)
+            .padding(.bottom, 8)
+            .introArrival(5)
+
         VStack(spacing: 10) {
-            topRow
-                .introArrival(0)
-            AgentDrivingPill()
-                .padding(.horizontal, 10)
-            AddressPill()
-                .padding(.horizontal, 10)
-                .introArrival(1)
-            FavoritesGrid()
-                .padding(.horizontal, 10)
-                .introArrival(2)
-            SpaceTabs()
-                .introArrival(3)
-            ToolSections()
-                .padding(.horizontal, 10)
-                .introArrival(4)
-            bottomRow
-                .padding(.horizontal, 10)
-                .padding(.bottom, 8)
-                .introArrival(5)
+            topRowView
+            agentDrivingPill
+            addressPill
+            favorites
+            tabs
+            toolSections
+            bottomRowView
         }
         .background { SpaceSwipeArea { browser.selectAdjacentSpace($0) } }
         .overlay(alignment: .topLeading) { LiftedTabRow() }
@@ -53,22 +61,36 @@ struct Sidebar: View {
     /// Room for the traffic lights and the sidebar button on the left; back, forward and reload at
     /// the right edge, like Arc.
     private var topRow: some View {
-        HStack(spacing: 2) {
+        let isFullScreen = browser.isFullScreen
+        let sidebarHelp = Shortcuts.shared.help(browser.isSidebarDocked ? "Hide Sidebar" : "Keep Sidebar Open", .sidebar)
+        let canGoBack = browser.currentTab?.canGoBack == true
+        let canGoForward = browser.currentTab?.canGoForward == true
+        let isLoading = browser.currentTab?.isLoading == true
+        let canReload = browser.currentAddress != nil
+        let backHelp = Shortcuts.shared.help("Back", .back)
+        let forwardHelp = Shortcuts.shared.help("Forward", .forward)
+        let reloadHelp = Shortcuts.shared.help("Reload", .reload)
+        let stopHelp = Shortcuts.shared.help("Stop", .stop)
+        let windowButtons = WindowButtons(isFullScreen: isFullScreen)
+            .frame(width: WindowButtons.width, height: 28)
+        let sidebarButton = SidebarIconButton(symbol: "sidebar.left", help: sidebarHelp) {
+            browser.toggleSidebar()
+        }
+        let backButton = SidebarIconButton(symbol: "chevron.left", help: backHelp, enabled: canGoBack) { browser.goBack() }
+        let forwardButton = SidebarIconButton(symbol: "chevron.right", help: forwardHelp, enabled: canGoForward) { browser.goForward() }
+        let progressButton = isLoading
+            ? SidebarIconButton(symbol: "xmark", help: stopHelp) { browser.stopLoading() }
+            : SidebarIconButton(symbol: "arrow.clockwise", help: reloadHelp, enabled: canReload) { browser.reload() }
+
+        return HStack(spacing: 2) {
             // The window's buttons are part of the sidebar, so they come and go with it, docked or
             // floating. In full screen they're here too, as well as dropping down with the menu bar.
-            WindowButtons(isFullScreen: browser.isFullScreen)
-                .frame(width: WindowButtons.width, height: 28)
-            SidebarIconButton(symbol: "sidebar.left", help: Shortcuts.shared.help(browser.isSidebarDocked ? "Hide Sidebar" : "Keep Sidebar Open", .sidebar)) {
-                browser.toggleSidebar()
-            }
+            windowButtons
+            sidebarButton
             Spacer(minLength: 0)
-            SidebarIconButton(symbol: "chevron.left", help: Shortcuts.shared.help("Back", .back), enabled: browser.currentTab?.canGoBack == true) { browser.goBack() }
-            SidebarIconButton(symbol: "chevron.right", help: Shortcuts.shared.help("Forward", .forward), enabled: browser.currentTab?.canGoForward == true) { browser.goForward() }
-            if browser.currentTab?.isLoading == true {
-                SidebarIconButton(symbol: "xmark", help: Shortcuts.shared.help("Stop", .stop)) { browser.stopLoading() }
-            } else {
-                SidebarIconButton(symbol: "arrow.clockwise", help: Shortcuts.shared.help("Reload", .reload), enabled: browser.currentAddress != nil) { browser.reload() }
-            }
+            backButton
+            forwardButton
+            progressButton
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         // A little more room from the window's top and side edges than a title bar gives, like
@@ -272,6 +294,23 @@ private struct SiteMenu: View {
             }
             media.submenu = mediaMenu
             menu.addItem(media)
+
+            let isPrivate = browser.currentTab?.isPrivate == true
+            let appAnswers = TabController.openAppAnswers(browser.library.sitePermissions(for: host, isPrivate: isPrivate))
+            for (scheme, answer) in appAnswers.sorted(by: { $0.key < $1.key }) {
+                let app = TabController.appName(forScheme: scheme)
+                let openApp = NSMenuItem(title: "Open in \(app)", action: nil, keyEquivalent: "")
+                let choices = NSMenu()
+                for (title, value) in [("Ask", Bool?.none), ("Always Open", Bool?.some(true)), ("Don’t Open", Bool?.some(false))] {
+                    let item = actions.item(title) {
+                        TabController.setOpenAppAnswer(value, in: browser.library, host: host, scheme: scheme, isPrivate: isPrivate)
+                    }
+                    item.state = answer == value ? .on : .off
+                    choices.addItem(item)
+                }
+                openApp.submenu = choices
+                menu.addItem(openApp)
+            }
         }
         let exts = browser.library.actionExtensions
         if !exts.isEmpty {
@@ -675,6 +714,12 @@ struct FavoriteTile: View {
 
     private func updateAppPreview(hovered: Bool) {
         previewTask?.cancel()
+        guard hovered, appPreviewName != nil else {
+            previewTask = nil
+            isAppPreviewPresented = false
+            previewPages = []
+            return
+        }
         if hovered {
             previewTask = Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(350))
@@ -716,6 +761,11 @@ struct FavoriteTile: View {
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { browser.open(favorite) }
             .onHover { hovering = $0; updateAppPreview(hovered: $0) }
+            .onDisappear {
+                previewTask?.cancel()
+                previewTask = nil
+                isAppPreviewPresented = false
+            }
             .popover(isPresented: $isAppPreviewPresented, arrowEdge: .leading) {
                 if let appPreviewName {
                     FavoriteAppPreview(name: appPreviewName, pages: previewPages) { url in

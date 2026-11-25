@@ -39,6 +39,7 @@ struct SnapshotTour {
         }
         if let fixture = ProcessInfo.processInfo.environment["ARK_SNAPSHOT_FEATURE_URL"], let url = URL(string: fixture) {
             await featurePreviews(browser, base: url)
+            note("feature preview branch returned")
             NSApp.terminate(nil)
             return
         }
@@ -150,8 +151,51 @@ struct SnapshotTour {
         save("14-settings-audio-dark", in: settings)
         settings.close()
 
+        await verifySleepingInnerScroll(browser, library: library)
         browser.saveNow()
         NSApp.terminate(nil)
+    }
+
+    private func verifySleepingInnerScroll(_ browser: Browser, library: Library) async {
+        let fixture = directory.appending(path: "nested-scroll-fixture.html")
+        let content = """
+        <!doctype html><meta charset="utf-8"><title>Nested scroll fixture</title>
+        <style>body{font:16px sans-serif}#feed{height:600px;width:800px;overflow:auto;border:1px solid}
+        #items{height:5000px;background:repeating-linear-gradient(#fff 0 39px,#ddd 40px)}</style>
+        <div id="feed"><div id="items">Nested scroll restoration fixture</div></div>
+        """
+        do { try content.write(to: fixture, atomically: true, encoding: .utf8) }
+        catch { note("nested scroll fixture write failed: \(error)"); return }
+        guard let url = URL(string: fixture.absoluteString + "?target") else { return }
+        let space = browser.currentSpace
+        let target = library.insertTab(url: url, in: space, for: browser)
+        browser.select(target)
+        for _ in 0..<40 {
+            if let page = library.existingController(for: target)?.page, !page.state.isLoading,
+               page.state.url == url { break }
+            await pause(0.1)
+        }
+        guard let page = library.existingController(for: target)?.page else {
+            note("nested scroll fixture target has no page")
+            return
+        }
+        let positioned = try? await page.evaluate("return (() => { const feed = document.querySelector('#feed'); if (!feed) return 'missing'; feed.scrollTop = 1200; return String(feed.scrollTop); })()", inWorld: "page") as? String
+        guard positioned == "1200" else {
+            note("nested scroll fixture failed to position target page: url=\(String(describing: page.state.url)) loading=\(page.state.isLoading) result=\(String(describing: positioned))")
+            return
+        }
+        await library.unloadForDebugCheck(target.id)
+        let didUnload = library.existingController(for: target) == nil
+        guard didUnload else { note("nested scroll fixture did not evict its target page"); return }
+        browser.select(target)
+        for _ in 0..<80 {
+            if let page = library.existingController(for: target)?.page, !page.state.isLoading,
+               page.state.url == url { break }
+            await pause(0.1)
+        }
+        await pause(2)
+        let restored = try? await library.existingController(for: target)?.page.evaluate("return (() => { const feed = document.querySelector('#feed'); return feed ? String(feed.scrollTop) : 'missing'; })()", inWorld: "page") as? String
+        note("nested scroll after sleeping-page restore: \(restored ?? "missing") (expected 1200)")
     }
 
     private var window: NSWindow? {
@@ -166,6 +210,16 @@ struct SnapshotTour {
             await miniPlayerPreview(browser, base: base)
             return
         }
+        if ProcessInfo.processInfo.environment["ARK_PIP_FRAME_CHECK_ONLY"] == "1" {
+            await pictureInPictureFrameCheck(browser, base: base)
+            return
+        }
+        if ProcessInfo.processInfo.environment["ARK_PIN_FOLDER_CHECK_ONLY"] == "1" {
+            browser.newTab(url: base.appending(path: "field-notes.html"))
+            await pause(0.8)
+            await pinFolderPreview(browser, window: window, base: base)
+            return
+        }
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
         if ProcessInfo.processInfo.environment["ARK_PIN_LINK_CHECK_ONLY"] == "1" {
@@ -176,13 +230,20 @@ struct SnapshotTour {
             return
         }
         await namedProfileCheck()
+        note("named profile check returned")
         await spaceProfileCheck(browser)
+        note("Space profile check returned; active Space: \(browser.currentSpace.name), current tab: \(browser.currentTab?.displayTitle ?? "none")")
+        note("opening first local fixture page")
         browser.newTab(url: first)
         await pause(1)
+        note("first local fixture page loaded: \(browser.currentTab?.url?.absoluteString ?? "none")")
         browser.newTab(url: second)
         await pause(1)
+        note("second local fixture page loaded: \(browser.currentTab?.url?.absoluteString ?? "none")")
         saveVisible("sidebar-and-tabs", in: window)
-        guard browser.lastUsedTab?.url == first else { note("last-used tab mismatch"); return }
+        let previousTabURL = browser.lastUsedTab?.url
+        note("last-used tab before pinned-link check: \(previousTabURL?.absoluteString ?? "none")")
+        guard previousTabURL == first else { note("last-used tab mismatch"); return }
         await pinnedLinkNavigationCheck(browser, sourceURL: second, targetURL: first)
         await commandPreview(browser, query: "last used tab", file: "last-used-tab")
         browser.run(command: "last-used-tab")
@@ -207,7 +268,7 @@ struct SnapshotTour {
         await elementPreview(browser, window: window)
         await recentTabsPreview(browser, window: window)
         await linkWindowPreview(browser, url: second)
-        await pinFolderPreview(browser, window: window)
+        await pinFolderPreview(browser, window: window, base: base)
         await arcFolderImportCheck(browser, window: window, page: first)
         await liveFolderPreview(browser, window: window, sourcePage: base.appending(path: "live-source.html"))
 
@@ -245,7 +306,7 @@ struct SnapshotTour {
         browser.run(command: "edit-site-style")
         await pause(0.6)
         saveVisible("site-style-editor", in: window.attachedSheet ?? window)
-        browser.siteStyleHost = nil
+        browser.closeSiteStyleEditor()
         await pause(0.6)
         browser.reload()
         await pause(1.5)
@@ -305,11 +366,13 @@ struct SnapshotTour {
     /// Exercises the optional pinned-link behavior against the same local fixture used by this tour.
     /// Restores both the preference and tab state afterward.
     private func pinnedLinkNavigationCheck(_ browser: Browser, sourceURL: URL, targetURL: URL) async {
+        note("pinned-link check started")
         guard let source = browser.currentTab, source.url == sourceURL,
               let page = browser.currentController?.page else {
             note("pinned-link check: fixture tab unavailable")
             return
         }
+        note("pinned-link source and WebKit page resolved")
         let originalAction = UserDefaults.standard.object(forKey: Preferences.pinnedLinkActionKey)
         let originalLegacySetting = UserDefaults.standard.object(forKey: Preferences.pinnedLinksOpenInNewTabKey)
         let wasPinned = source.isPinned
@@ -328,9 +391,12 @@ struct SnapshotTour {
             browser.select(source)
             if !wasPinned, source.isPinned { browser.togglePinned(source) }
         }
-        if !wasPinned { browser.togglePinned(source) }
+        if !wasPinned {
+            browser.togglePinned(source)
+            note("pinned-link source pin toggled")
+        }
         UserDefaults.standard.set(PinnedLinkAction.today.rawValue, forKey: Preferences.pinnedLinkActionKey)
-        guard let targetData = try? JSONSerialization.data(withJSONObject: targetURL.absoluteString),
+        guard let targetData = try? JSONEncoder().encode(targetURL.absoluteString),
               let target = String(data: targetData, encoding: .utf8) else {
             note("pinned-link check: could not encode target URL")
             return
@@ -339,6 +405,7 @@ struct SnapshotTour {
         const link = document.createElement('a'); link.href = \(target); link.textContent = 'Ark pinned-link fixture';
         document.body.append(link); link.click(); return true;
         """, inWorld: "page")
+        note("pinned-link Today click returned from WebKit")
         await pause(1.5)
         let opened = browser.currentTab
         let passed = opened?.id != source.id && opened?.url == targetURL && source.isPinned && source.url == sourceURL
@@ -352,7 +419,7 @@ struct SnapshotTour {
         }
         glanceTarget.host = glanceTarget.host == "localhost" ? "127.0.0.1" : "localhost"
         guard let glanceURL = glanceTarget.url,
-              let glanceData = try? JSONSerialization.data(withJSONObject: glanceURL.absoluteString),
+              let glanceData = try? JSONEncoder().encode(glanceURL.absoluteString),
               let encodedGlanceURL = String(data: glanceData, encoding: .utf8) else {
             note("pinned-link Glance check: could not encode fixture URL")
             return
@@ -362,6 +429,7 @@ struct SnapshotTour {
         const link = document.createElement('a'); link.href = \(encodedGlanceURL); link.textContent = 'Ark pinned-link Glance fixture';
         document.body.append(link); link.click(); return true;
         """, inWorld: "page")
+        note("pinned-link Glance click returned from WebKit")
         await pause(1.5)
         let previewed = browser.glance?.url == glanceURL && browser.currentTab?.id == source.id && source.isPinned && source.url == sourceURL
         note("pinned-link Glance check: \(previewed ? "opened cross-host link in Glance and kept pin at source" : "did not meet expected Glance/pin state")")
@@ -484,6 +552,47 @@ struct SnapshotTour {
         }
         note("mini-player opens playing video: \(floating == true); selecting its tab restores inline playback: \(returned == true)")
         browser.close(otherTab)
+    }
+
+    private func pictureInPictureFrameCheck(_ browser: Browser, base: URL) async {
+        let tab = browser.newTab(url: base.appending(path: "pip-host.html"))
+        guard let page = browser.library.existingController(for: tab)?.page as? WebKitPage,
+              let view = page.view as? WKWebView else { note("PiP frame fixture has no WebKit page"); return }
+        for _ in 0..<80 {
+            if page.registeredFrameIDs.count >= 2 { break }
+            await pause(0.1)
+        }
+        let mainOrigin = tab.url.map { "\($0.scheme ?? "")://\($0.host ?? ""):\($0.port ?? 80)" } ?? ""
+        var targetFrame: String?
+        var frameOrigins: [String] = []
+        for frame in page.registeredFrameIDs {
+            guard let value = try? await page.evaluate("return { origin: location.origin, url: location.href, hasVideo: !!document.querySelector('video') };",
+                                                        inFrame: frame, inWorld: "ark.pip-frame-check") as? [String: Any],
+                  let origin = value["origin"] as? String else { continue }
+            frameOrigins.append(origin)
+            let expected = URL(string: origin)?.port ?? 80
+            if value["hasVideo"] as? Bool == true && "\(URL(string: origin)?.scheme ?? "")://\(URL(string: origin)?.host ?? ""):\(expected)" != mainOrigin {
+                targetFrame = frame
+            }
+        }
+        guard let targetFrame else {
+            note("cross-origin PiP fixture missing iframe registration/video; origins: \(frameOrigins)")
+            return
+        }
+        for _ in 0..<40 {
+            let playing = (try? await page.evaluate("return !!document.querySelector('video') && !document.querySelector('video').paused && document.querySelector('video').readyState >= 2;",
+                                                     inFrame: targetFrame, inWorld: "ark.pip-frame-check") as? Bool) == true
+            if playing { break }
+            await pause(0.2)
+        }
+        browser.library.videoPictureInPicture.toggle(for: tab, in: browser)
+        for _ in 0..<40 where !browser.library.videoPictureInPicture.isFloating(tab.id) { await pause(0.1) }
+        let floating = (try? await page.evaluate("return document.querySelector('video')?.webkitPresentationMode === 'picture-in-picture';",
+                                                  inFrame: targetFrame, inWorld: "ark.pip-frame-check") as? Bool) == true
+        note("registered \(page.registeredFrameIDs.count) frames; cross-origin video entered system PiP: \(floating)")
+        browser.library.videoPictureInPicture.stop()
+        await view.closeAllMediaPresentations()
+        browser.close(tab)
     }
 
     private func namedProfileCheck() async {
@@ -676,24 +785,87 @@ struct SnapshotTour {
         }
     }
 
-    private func pinFolderPreview(_ browser: Browser, window: NSWindow) async {
+    private func pinFolderPreview(_ browser: Browser, window: NSWindow, base: URL) async {
         let space = browser.currentSpace
         guard let tab = browser.currentTab, !tab.isPinned,
               let folder = space.addPinFolder(named: "Coastal Survey"),
               let child = space.addPinFolder(named: "Reference Pages", inside: folder.id) else { return }
+        var secondTab: BrowserTab?
+        var bulkFolderID: UUID?
         defer {
+            if let bulkFolderID { space.removePinFolder(bulkFolderID) }
             space.removePinFolder(child.id)
             space.removePinFolder(folder.id)
             if tab.isPinned { browser.togglePinned(tab) }
+            if let secondTab, secondTab.isPinned { browser.togglePinned(secondTab) }
         }
         await pause(0.8)
         let nested = await drag(tab, into: child.id, in: space, browser: browser)
         note("drag from Today into nested pin folder: \(nested)")
         guard nested else { return }
         saveVisible("pinned-folders", in: window)
+        let second = browser.newTab(url: base.appending(path: "atlas.html"))
+        secondTab = second
+        await pause(0.4)
+        let secondNested = await drag(second, into: child.id, in: space, browser: browser)
+        note("add second pin to folder for reorder and selection checks: \(secondNested)")
+        guard secondNested else { return }
+        let initialFolderOrder = space.pinned.filter { $0.pinFolderID == child.id }.map(\.id)
+        let reordered = await dragToEndOfFolder(tab, after: second, folderID: child.id, in: space, browser: browser)
+        let expectedOrder = [second.id, tab.id]
+        let finalFolderOrder = space.pinned.filter { $0.pinFolderID == child.id }.map(\.id)
+        note("drag reorders pins within folder: target and order \(reordered), started correctly \(initialFolderOrder == [tab.id, second.id]), order \(finalFolderOrder == expectedOrder)")
+
+        let bulkFolder = space.addPinFolder(named: "Selected Pins")
+        bulkFolderID = bulkFolder?.id
+        if let bulkFolder {
+            let orderBeforeBulkMove = space.pinned.map(\.id)
+            let childPinIDsBeforeBulkMove = Set(space.pinned.filter { $0.pinFolderID == child.id }.map(\.id))
+            let firstClick = await clickSidebarPin(second, modifiers: .command, browser: browser, window: window)
+            let secondClick = await clickSidebarPin(tab, modifiers: .command, browser: browser, window: window)
+            let selected = browser.selectedSidebarPinIDs == Set([second.id, tab.id])
+            browser.moveSelectedPins(into: bulkFolder.id)
+            let moved = selected && space.pinned.filter { $0.pinFolderID == bulkFolder.id }.map(\.id) == expectedOrder
+                && browser.canUndoSidebarPinMove
+            let movedOrder = space.pinned.filter { $0.pinFolderID == bulkFolder.id }.map(\.id)
+            let moveUndoAvailable = browser.canUndoSidebarPinMove
+            if let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+                                            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                            context: nil, characters: "z", charactersIgnoringModifiers: "z",
+                                            isARepeat: false, keyCode: 6) {
+                NSApp.postEvent(event, atStart: true)
+                await pause(0.25)
+            }
+            let shortcutUndid = !browser.canUndoSidebarPinMove
+            let restoredOrder = space.pinned.map(\.id) == orderBeforeBulkMove
+            let restoredFolderPins = Set(space.pinned.filter { $0.pinFolderID == child.id }.map(\.id)) == childPinIDsBeforeBulkMove
+            let restoredFolderExists = space.pinFolders.contains(where: { $0.id == bulkFolder.id })
+            let restoredDestinationEmpty = space.pinned.filter { $0.pinFolderID == bulkFolder.id }.isEmpty
+            note("Command-clicks selected both rows: \(firstClick && secondClick && selected); bulk move \(moved) to expected order \(movedOrder == expectedOrder), undo available \(moveUndoAvailable), ⌘Z handled \(shortcutUndid), restore order \(restoredOrder), source folder assignments \(restoredFolderPins), destination folder exists \(restoredFolderExists), destination empty \(restoredDestinationEmpty)")
+            if browser.canUndoSidebarPinMove { browser.undoSidebarPinMove() }
+            browser.clearSidebarPinSelection()
+            let shiftAnchor = await clickSidebarPin(second, modifiers: .command, browser: browser, window: window)
+            let shiftRange = await clickSidebarPin(tab, modifiers: .shift, browser: browser, window: window)
+            note("Shift-click selected the visible range of two pins: \(shiftAnchor && shiftRange && browser.selectedSidebarPinIDs == Set([second.id, tab.id]))")
+            browser.clearSidebarPinSelection()
+        }
+        browser.select(tab)
         let moved = await drag(tab, into: folder.id, in: space, browser: browser)
         let returned = moved ? await drag(tab, into: child.id, in: space, browser: browser) : false
         note("drag a pin between folders in both directions: \(moved && returned)")
+        let todayBeforeOpenAll = Set(space.today.map(\.id))
+        let selectedBeforeOpenAll = browser.currentTab?.id
+        let expectedOpenAll = space.pinned.filter { $0.pinFolderID == child.id }.compactMap(\.url)
+        if let parent = space.pinFolders.first(where: { $0.id == folder.id }) {
+            let todayCountBeforeOpenAll = space.today.count
+            browser.openAllPinnedTabs(in: parent, space: space)
+            let opened = space.today.filter { !todayBeforeOpenAll.contains($0.id) }
+            for _ in 0..<40 where opened.contains(where: { $0.url == nil }) { await pause(0.1) }
+            let openedInOrder = opened.compactMap(\.url) == expectedOpenAll
+            let keptSelection = browser.currentTab?.id == selectedBeforeOpenAll
+            note("Open All nested order/count \(openedInOrder)/\(opened.count == expectedOpenAll.count); keeps selection \(keptSelection); folder no-feed \(parent.feed == nil), today count \(todayCountBeforeOpenAll)->\(space.today.count); expected \(expectedOpenAll.map(\.absoluteString)), opened \(opened.compactMap(\.url).map(\.absoluteString))")
+            for openedTab in opened { browser.close(openedTab) }
+        }
         space.togglePinFolder(folder.id)
         if space.pinFolders.contains(where: { $0.id == folder.id && $0.isCollapsed }),
            space.selectedTabID == tab.id, space.rootPins.allSatisfy({ $0.id != tab.id }) {
@@ -714,6 +886,52 @@ struct SnapshotTour {
         await pause(0.8)
         return targeted && !dragging.isLifted(tab.id) && tab.isPinned && tab.pinFolderID == folderID
             && !space.today.contains { $0.id == tab.id } && browser.currentTab === tab
+    }
+
+    private func dragToEndOfFolder(_ tab: BrowserTab, after sibling: BrowserTab, folderID: UUID,
+                                   in space: Space, browser: Browser) async -> Bool {
+        guard let dragging = browser.sidebarDragging,
+              let sourceFrame = dragging.rowFrames[tab.id],
+              dragging.rowFrames[sibling.id] != nil else { return false }
+        let source = CGPoint(x: sourceFrame.midX, y: sourceFrame.midY)
+        dragging.changed(tab, from: source, to: source, in: space, browser: browser)
+        let expectedCount = space.pinned.filter { $0.pinFolderID == folderID && $0.id != tab.id }.count
+        var targetedEnd = false
+        for _ in 0..<24 {
+            await pause(0.04)
+            guard let frame = dragging.rowFrames[sibling.id] else { continue }
+            let destination = CGPoint(x: frame.midX, y: frame.maxY - 1)
+            dragging.changed(tab, from: source, to: destination, in: space, browser: browser)
+            if dragging.target == .folderSlot(folderID, expectedCount) { targetedEnd = true; break }
+        }
+        note("within-folder drag reached the append slot: \(targetedEnd)")
+        dragging.ended(tab, in: space, browser: browser)
+        for _ in 0..<40 where dragging.isLifted(tab.id) { await pause(0.1) }
+        await pause(0.3)
+        return targetedEnd && !dragging.isLifted(tab.id)
+            && space.pinned.filter { $0.pinFolderID == folderID }.map(\.id).last == tab.id
+    }
+
+    private func clickSidebarPin(_ tab: BrowserTab, modifiers: NSEvent.ModifierFlags,
+                                 browser: Browser, window: NSWindow) async -> Bool {
+        guard let dragging = browser.sidebarDragging,
+              let frame = dragging.rowFrames[tab.id] else { return false }
+        let layoutPoint = CGPoint(x: frame.midX + dragging.originInWindow.x,
+                                  y: frame.midY + dragging.originInWindow.y)
+        let point = CGPoint(x: layoutPoint.x,
+                            y: (window.contentView?.bounds.height ?? window.frame.height) - layoutPoint.y)
+        guard let down = NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: modifiers,
+                                            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                            context: nil, eventNumber: 0, clickCount: 1, pressure: 1),
+              let up = NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: modifiers,
+                                          timestamp: ProcessInfo.processInfo.systemUptime + 0.01, windowNumber: window.windowNumber,
+                                          context: nil, eventNumber: 0, clickCount: 1, pressure: 0) else { return false }
+        NSApp.postEvent(down, atStart: false)
+        NSApp.postEvent(up, atStart: false)
+        await pause(0.25)
+        let selected = browser.selectedSidebarPinIDs.contains(tab.id)
+        note("Command-click row selected \(tab.displayTitle): \(selected); current tab is row: \(browser.currentTab?.id == tab.id)")
+        return selected
     }
 
     private func linkWindowPreview(_ browser: Browser, url: URL) async {
@@ -846,7 +1064,7 @@ struct SnapshotTour {
         let board = NSPasteboard.withUniqueName()
         defer { board.releaseGlobally() }
         guard let element = try? await browser.currentController?.page.evaluate("""
-            const rect = document.querySelector("h2").getBoundingClientRect();
+            const rect = document.querySelector("h1").getBoundingClientRect();
             return [rect.x + 32, rect.y + rect.height / 2, rect.width, rect.height];
             """, inWorld: "Ark Capture Fixture") as? [NSNumber], element.count == 4,
               let picker = browser.selectPageElement(to: board) else {
@@ -906,17 +1124,61 @@ struct SnapshotTour {
             try browser.library.syncCoordinator.selectFolder(syncFolder)
             await browser.library.syncNow()
             note("sync settings fixture: folder selected, state \(browser.library.syncCoordinator.state)")
+
+            let peer = BrowserSyncCoordinator(configurationURL: directory.appending(path: "peer-sync.json"))
+            try peer.selectFolder(syncFolder)
+            peer.setSharingOpenTabs(true)
+            let remoteTab = BrowserTab(url: URL(string: "https://tabs.ark.local/review")!, title: "Remote review")
+            let currentRecords = browser.library.regularSpaces.map(\.record)
+            let remoteSpaces = currentRecords.map { source -> SpaceRecord in
+                guard source.id == browser.currentSpace.id else { return source }
+                var space = source
+                space.today = [remoteTab.record]
+                return space
+            }
+            let peerSnapshot = BrowserSnapshot(
+                spaces: remoteSpaces, selectedSpaceID: browser.currentSpace.id,
+                favorites: browser.library.favorites(for: nil), archive: browser.library.archive.map(\.record),
+                settings: browser.library.settings, saved: nil,
+                profileFavorites: browser.library.favoritesByProfile
+            )
+            _ = await peer.synchronize(peerSnapshot)
+            await browser.library.syncNow()
+            let received = browser.library.syncCoordinator.otherDevices.contains { device in
+                device.spaces.contains { space in
+                    space.id == browser.currentSpace.id && space.tabs.contains { $0.url == remoteTab.url }
+                }
+            }
+            await browser.library.syncNow()
+            let retained = browser.library.syncCoordinator.otherDevices.contains { device in
+                device.spaces.contains { space in space.tabs.contains { $0.url == remoteTab.url } }
+            }
+            peer.setSharingOpenTabs(false)
+            _ = await peer.synchronize(peerSnapshot)
+            await browser.library.syncNow()
+            let withdrawn = !browser.library.syncCoordinator.otherDevices.contains { device in
+                device.spaces.contains { space in space.tabs.contains { $0.url == remoteTab.url } }
+            }
+            note("shared-folder tab index arrived, survived another device sync, and cleared on opt-out: \(received && retained && withdrawn)")
         } catch {
             note("sync settings fixture failed: \(error.localizedDescription)")
         }
         for (pane, file) in [("spaces", "shared-collections"), ("routing", "space-routing"), ("shortcuts", "custom-shortcuts"), ("privacy", "ad-blocker"), ("general", "idle-page-unloading"), ("sync", "sync-settings")] {
-            browser.library.openSettings(pane: pane)
+            // Host the real settings view directly: the Settings scene may not
+            // have a registered open action during a standalone Debug launch.
+            defaults.set(pane, forKey: "settingsTab")
+            let settings = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 620),
+                                    styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            settings.title = SettingsView.panes.first { $0.id == pane }?.title ?? pane
+            settings.contentView = NSHostingView(rootView: SettingsView()
+                .environment(browser.library).environment(delegate.updates))
+            SnapshotTourWindows.retained.append(settings)
+            settings.center()
+            settings.makeKeyAndOrderFront(nil)
             await pause(0.8)
-            guard let settings = NSApp.keyWindow, settings !== window else {
-                note("settings window missing for \(pane)")
-                continue
-            }
             saveVisible(file, in: settings)
+            settings.contentView = NSView(frame: settings.contentView?.bounds ?? .zero)
+            settings.orderOut(nil)
         }
     }
 

@@ -1,0 +1,6 @@
+tour started after 0.0s
+reader showing: true title: Arc (web browser)
+windows: 2, second shows tab: none, command bar: Optional(Ark.CommandBarMode.newTab)
+after move: windows 3, first shows Apple
+after closing: windows 1
+nested scroll after sleeping-page restore: 1200 (expected 1200)

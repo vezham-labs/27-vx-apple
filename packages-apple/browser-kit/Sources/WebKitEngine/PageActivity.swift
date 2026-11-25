@@ -13,6 +13,8 @@ enum PageActivity {
         let frame: String
         let audible: Bool
         let typed: Bool
+        let registered: Bool
+        let unregistered: Bool
     }
 
     @MainActor static var script: WKUserScript {
@@ -20,17 +22,20 @@ enum PageActivity {
     }
 
     final class Handler: NSObject, WKScriptMessageHandler {
-        private let onReport: @MainActor (WKWebView, Report) -> Void
+        private let onReport: @MainActor (WKWebView, WKFrameInfo, Report) -> Void
 
-        init(onReport: @escaping @MainActor (WKWebView, Report) -> Void) {
+        init(onReport: @escaping @MainActor (WKWebView, WKFrameInfo, Report) -> Void) {
             self.onReport = onReport
         }
 
         func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
             guard let body = message.body as? [String: Any], let frame = body["frame"] as? String,
                   frame.count <= 32, let webView = message.webView else { return }
-            let report = Report(frame: frame, audible: body["audible"] as? Bool ?? false, typed: body["typed"] as? Bool ?? false)
-            MainActor.assumeIsolated { onReport(webView, report) }
+            let report = Report(frame: frame, audible: body["audible"] as? Bool ?? false,
+                                typed: body["typed"] as? Bool ?? false, registered: body["registered"] as? Bool ?? false,
+                                unregistered: body["unregistered"] as? Bool ?? false)
+            let frameInfo = message.frameInfo
+            MainActor.assumeIsolated { onReport(webView, frameInfo, report) }
         }
     }
 
@@ -60,7 +65,13 @@ enum PageActivity {
         return fields.size > 0;
       }
       function post(a, t) {
-        try { webkit.messageHandlers.\(messageName).postMessage({ frame: frame, audible: a, typed: t }); } catch (e) {}
+        try { webkit.messageHandlers.\(messageName).postMessage({ frame: frame, audible: a, typed: t, registered: false, unregistered: false }); } catch (e) {}
+      }
+      function registerFrame() {
+        try { webkit.messageHandlers.\(messageName).postMessage({ frame: frame, audible: false, typed: false, registered: true, unregistered: false }); } catch (e) {}
+      }
+      function unregisterFrame() {
+        try { webkit.messageHandlers.\(messageName).postMessage({ frame: frame, audible: false, typed: false, registered: false, unregistered: true }); } catch (e) {}
       }
       function report() {
         var a = audible(), t = typed(), now = (a ? 'a' : '') + (t ? 't' : '');
@@ -105,9 +116,10 @@ enum PageActivity {
       }, true);
       window.addEventListener('pagehide', function () {
         if (pending) { clearTimeout(pending); pending = 0; }
-        last = ''; post(false, false);
+        last = ''; post(false, false); unregisterFrame();
       });
-      window.addEventListener('pageshow', function (e) { if (e.persisted) { last = '-'; report(); } });
+      window.addEventListener('pageshow', function (e) { if (e.persisted) { registerFrame(); last = '-'; report(); } });
+      registerFrame();
     })();
     """
 }

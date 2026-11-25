@@ -189,13 +189,15 @@ public protocol EngineExtensionHost: AnyObject {
     func extensionActionsDidChange()
     /// `chrome.sidePanel.open`, or a toolbar click with `openPanelOnActionClick`: show the extension's
     /// side panel page. False if it has none.
-    func showExtensionPanel(extensionID: String) -> Bool
+    func showExtensionPanel(extensionID: String, pageURL: URL?) -> Bool
+    func openExtensionPanels(extensionID: String) -> [URL]
 }
 
 public extension EngineExtensionHost {
     var extensionManagementEntries: [EngineExtensionManagementEntry] { [] }
     func extensionActionsDidChange() {}
-    func showExtensionPanel(extensionID: String) -> Bool { false }
+    func showExtensionPanel(extensionID: String, pageURL: URL? = nil) -> Bool { false }
+    func openExtensionPanels(extensionID: String) -> [URL] { [] }
 }
 
 /// Manifest-derived details needed by Chrome's `management` API. The WebKit engine overlays live

@@ -6,6 +6,45 @@
   if (globalThis.__arkCompat) return;
   globalThis.__arkCompat = true;
   const isWorker = typeof window === 'undefined';
+  // WebKit can deadlock when an extension service worker stores a CryptoKey:
+  // IndexedDB asks the same web-process thread to serialize the key while that
+  // thread is blocked waiting for IndexedDB. Fail with DataCloneError so
+  // libraries can take their normal unsupported-storage fallback.
+  if (isWorker && globalThis.IDBObjectStore && typeof globalThis.CryptoKey === 'function') {
+    const holdsCryptoKey = (value) => {
+      const seen = new Set(), pending = [value];
+      let visited = 0;
+      while (pending.length && visited++ < 20000) {
+        const item = pending.pop();
+        if (!item || typeof item !== 'object' || seen.has(item)) continue;
+        if (item instanceof globalThis.CryptoKey) return true;
+        seen.add(item);
+        if (ArrayBuffer.isView(item) || item instanceof ArrayBuffer
+            || (globalThis.Blob && item instanceof globalThis.Blob)) continue;
+        if (item instanceof Map) { for (const [key, entry] of item) pending.push(key, entry); continue; }
+        if (item instanceof Set) { for (const entry of item) pending.push(entry); continue; }
+        for (const key of Object.keys(item)) pending.push(item[key]);
+      }
+      return false;
+    };
+    const cloneError = () => new DOMException(
+      "A CryptoKey can't be stored from an extension service worker in this browser.", 'DataCloneError');
+    const guardStoreMethod = (prototype, name) => {
+      const original = prototype && prototype[name];
+      if (typeof original !== 'function') return;
+      Object.defineProperty(prototype, name, {
+        configurable: true,
+        writable: true,
+        value: function (value, ...rest) {
+          if (holdsCryptoKey(value)) throw cloneError();
+          return original.call(this, value, ...rest);
+        },
+      });
+    };
+    guardStoreMethod(globalThis.IDBObjectStore.prototype, 'put');
+    guardStoreMethod(globalThis.IDBObjectStore.prototype, 'add');
+    if (globalThis.IDBCursor) guardStoreMethod(globalThis.IDBCursor.prototype, 'update');
+  }
   const roots = [globalThis.chrome, globalThis.browser].filter((r, i, all) => r && all.indexOf(r) === i);
   // WebKit may drop a namespace's JS wrapper (and anything added to it) and hand out a fresh one, so
   // keep a reference to every object patched here.
@@ -112,8 +151,8 @@
     // The side panel is Ark's right panel. open() shows it; openPanelOnActionClick makes the toolbar
     // button open it, as in Chrome.
     sidePanel: () => ({
-      setOptions: resolves(undefined),
-      getOptions: resolves({}),
+      setOptions: (o = {}) => bridge('ark.sidepanel', { action: 'options', path: typeof o.path === 'string' ? o.path : null, enabled: o.enabled !== false }).then(() => undefined),
+      getOptions: () => bridge('ark.sidepanel', { action: 'getOptions' }),
       setPanelBehavior: (b = {}) => bridge('ark.sidepanel', { action: 'behavior', openPanelOnActionClick: !!b.openPanelOnActionClick }).then(() => undefined),
       getPanelBehavior: () => bridge('ark.sidepanel', { action: 'getBehavior' }),
       open: () => bridge('ark.sidepanel', { action: 'open' }).then(() => undefined),
@@ -182,12 +221,19 @@
   // Constants and small helpers Chrome has on namespaces WebKit does provide. Extensions read some of
   // them at startup (chrome.offscreen.Reason.CLIPBOARD, chrome.scripting.ExecutionWorld.MAIN).
   const extras = {
-    // Only the offscreen document is reported; other contexts aren't tracked.
+    // Offscreen documents and side panels are tracked; other contexts aren't.
     runtime: { getContexts: (filter = {}) => {
       const types = filter.contextTypes;
-      if (types && !types.includes('OFFSCREEN_DOCUMENT')) return Promise.resolve([]);
-      return offscreenCall('has').then((url) => url ? [{ contextType: 'OFFSCREEN_DOCUMENT', documentUrl: url, documentOrigin: new URL(url).origin,
-        contextId: 'ark-offscreen', tabId: -1, windowId: -1, frameId: -1, incognito: false }] : [], () => []);
+      const wants = (type) => !types || types.includes(type);
+      const context = (type, url, id) => ({ contextType: type, documentUrl: url, documentOrigin: new URL(url).origin,
+        contextId: id, tabId: -1, windowId: -1, frameId: -1, incognito: false });
+      const offscreen = wants('OFFSCREEN_DOCUMENT') ? offscreenCall('has').then((url) => url ? [context('OFFSCREEN_DOCUMENT', url, 'ark-offscreen')] : [], () => []) : Promise.resolve([]);
+      const panels = wants('SIDE_PANEL') ? bridge('ark.sidepanel', { action: 'contexts' }).then((urls) => (urls || []).map((url, i) => context('SIDE_PANEL', url, `ark-panel-${i}`)), () => []) : Promise.resolve([]);
+      return Promise.all([offscreen, panels]).then(([a, b]) => {
+        let all = a.concat(b);
+        if (filter.documentUrls) all = all.filter((item) => filter.documentUrls.includes(item.documentUrl));
+        return all;
+      });
     } },
     scripting: { ExecutionWorld: { ISOLATED: 'ISOLATED', MAIN: 'MAIN' } },
     identity: { AccountStatus: Object.freeze({ SYNC: 'SYNC', ANY: 'ANY' }) },

@@ -5,6 +5,26 @@ import Suggest
 /// exchange between devices. Open Today tabs, their WebKit interaction state,
 /// history, archive, downloads, and site permission grants stay on-device.
 public enum BrowserSyncItems {
+    private struct DeviceTab: Codable, Sendable {
+        var id: UUID
+        var title: String
+        var url: URL
+    }
+
+    private struct DeviceSpace: Codable, Sendable {
+        var id: UUID
+        var name: String
+        var tabs: [DeviceTab]
+    }
+
+    private struct DeviceTabs: Codable, Sendable {
+        var deviceID: UUID
+        var deviceName: String
+        var sharing: Bool
+        var updatedAt: Date
+        var spaces: [DeviceSpace]
+    }
+
     private struct SyncedSpace: Codable, Sendable {
         var id: UUID
         var name: String
@@ -120,6 +140,44 @@ public enum BrowserSyncItems {
         }
 
         return values.compactMapValues { $0 }
+    }
+
+    /// A per-device index of open web pages. This never enters the shared snapshot
+    /// projection, so consumers can inspect it without replacing local Today tabs.
+    public static func deviceTabsValue(from snapshot: BrowserSnapshot, deviceID: UUID,
+                                       deviceName: String, sharing: Bool, updatedAt: Date) -> String? {
+        let spaces = sharing ? snapshot.spaces.filter { !$0.isSyncLocalOnly }.compactMap { space -> DeviceSpace? in
+            let tabs = space.today.filter { !$0.isPinned && isShareable($0.url) }.prefix(500).compactMap { tab -> DeviceTab? in
+                guard let url = tab.url.flatMap(safeWebURL) else { return nil }
+                let title = String((tab.customTitle ?? tab.title).prefix(512))
+                return DeviceTab(id: tab.id, title: title.isEmpty ? (url.host ?? url.absoluteString) : title, url: url)
+            }
+            guard !tabs.isEmpty else { return nil }
+            return DeviceSpace(id: space.id, name: String(space.name.prefix(128)), tabs: tabs)
+        } : []
+        return BrowserSyncMerge.text(DeviceTabs(deviceID: deviceID, deviceName: String(deviceName.prefix(128)),
+                                                sharing: sharing, updatedAt: updatedAt, spaces: spaces))
+    }
+
+    public static func otherDevices(in values: [String: String], excluding deviceID: UUID,
+                                    now: Date = .now) -> [BrowserSyncRemoteDevice] {
+        let freshnessLimit: TimeInterval = 30 * 24 * 60 * 60
+        return values.compactMap { key, value -> BrowserSyncRemoteDevice? in
+            guard key.hasPrefix("deviceTabs:"), let record = BrowserSyncMerge.value(DeviceTabs.self, from: value),
+                  record.deviceID != deviceID, record.sharing,
+                  now.timeIntervalSince(record.updatedAt) <= freshnessLimit,
+                  record.updatedAt <= now.addingTimeInterval(5 * 60) else { return nil }
+            let spaces = record.spaces.compactMap { space -> BrowserSyncRemoteSpace? in
+                let tabs = space.tabs.compactMap { tab -> BrowserSyncRemoteTab? in
+                    guard let url = safeWebURL(tab.url) else { return nil }
+                    return BrowserSyncRemoteTab(id: tab.id, title: tab.title, url: url)
+                }
+                return tabs.isEmpty ? nil : BrowserSyncRemoteSpace(id: space.id, name: space.name, tabs: tabs)
+            }
+            guard !spaces.isEmpty else { return nil }
+            return BrowserSyncRemoteDevice(id: record.deviceID, name: record.deviceName,
+                                           updatedAt: record.updatedAt, spaces: spaces)
+        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     /// Applies merged values while preserving local-only state such as Today
@@ -270,6 +328,11 @@ public enum BrowserSyncItems {
             return isShareable(favorite.url)
         }
         if key.hasPrefix("websiteProfile:") { return BrowserSyncMerge.value(SyncedProfile.self, from: value) != nil }
+        if key.hasPrefix("deviceTabs:") {
+            guard let record = BrowserSyncMerge.value(DeviceTabs.self, from: value),
+                  key == "deviceTabs:\(record.deviceID.uuidString.lowercased())" else { return false }
+            return record.spaces.allSatisfy { space in space.tabs.allSatisfy { isShareable($0.url) } }
+        }
         switch key {
         case "setting:searchEngine": return BrowserSyncMerge.value(SearchEngine.self, from: value) != nil
         case "setting:remoteSuggestions", "setting:blockContent", "setting:linkRoutingEnabled",

@@ -9,6 +9,7 @@ import Extensibility
 import UniformTypeIdentifiers
 
 /// Ark > Settings (Cmd-,): toolbar tabs in a preferences title bar, like Safari and Mail.
+@MainActor
 struct SettingsView: View {
     @AppStorage("settingsTab") private var tab = "general"
 
@@ -93,9 +94,48 @@ private struct SyncSettings: View {
                 if library.syncCoordinator.isConfigured {
                     Button("Disconnect", role: .destructive) { library.syncCoordinator.disconnect() }
                 }
+                Toggle("Share Today tabs with other devices", isOn: Binding(
+                    get: { library.syncCoordinator.sharesOpenTabs },
+                    set: { enabled in
+                        library.syncCoordinator.setSharingOpenTabs(enabled)
+                        Task { await library.syncNow() }
+                    }
+                ))
+                .disabled(!library.syncCoordinator.isConfigured || isSyncing)
             } footer: {
-                Text("Choose the same shared folder on each device. Ark syncs Spaces, pinned links, favourites and selected settings. Today tabs and history stay on this device.")
+                Text("Choose the same shared folder on each device. Ark syncs Spaces, pinned links, favourites and selected settings. Today tabs stay on this device unless you turn on sharing; private tabs and history never sync. The next successful sync withdraws this device’s shared list; other devices remove it after their next sync. If you switch folders first, the old list stays visible for up to 30 days.")
                     .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Tabs from other devices") {
+                if library.syncCoordinator.otherDevices.isEmpty {
+                    Text(library.syncCoordinator.sharesOpenTabs
+                         ? "No other devices are sharing Today tabs yet."
+                         : "Turn on tab sharing on another device to see its open pages here.")
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(library.syncCoordinator.otherDevices) { device in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(device.name, systemImage: "desktopcomputer")
+                            .font(.headline)
+                        ForEach(device.spaces) { space in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(space.name).font(.subheadline).foregroundStyle(.secondary)
+                                ForEach(space.tabs) { tab in
+                                    Button {
+                                        open(tab.url, from: space.id)
+                                    } label: {
+                                        Label(tab.title, systemImage: "arrow.up.right.square")
+                                            .lineLimit(1)
+                                    }
+                                    .buttonStyle(.link)
+                                }
+                            }
+                        }
+                        Text("Updated \(device.updatedAt.formatted(.relative(presentation: .named)))")
+                            .font(.caption).foregroundStyle(.tertiary)
+                    }
+                    .padding(.vertical, 4)
+                }
             }
         }
         .formStyle(.grouped)
@@ -113,6 +153,13 @@ private struct SyncSettings: View {
         } message: {
             Text(errorMessage ?? "")
         }
+    }
+
+    private func open(_ url: URL, from spaceID: UUID) {
+        guard let browser = library.activeWindow else { return }
+        let target = browser.regularSpaces.first { $0.id == spaceID } ?? browser.currentSpace
+        browser.newTab(url: url, in: target, source: .link)
+        browser.nsWindow?.makeKeyAndOrderFront(nil)
     }
 }
 
@@ -249,6 +296,7 @@ private struct GeneralSettings: View {
     }
 }
 
+@MainActor
 private struct SpacesSettings: View {
     @Environment(Library.self) private var browser
     /// The space being dragged by its handle, how far it has moved, and the slot it would drop into.
@@ -329,6 +377,7 @@ private struct SpacesSettings: View {
     }
 }
 
+@MainActor
 private struct SpaceEditor: View {
     @Environment(Library.self) private var browser
     @Bindable var space: Space
@@ -566,7 +615,10 @@ private struct PrivacySettings: View {
                                     HStack {
                                         Text(permissionTitle(key))
                                         Spacer()
-                                        Text((browser.settings.sitePermissions[host]?[key] ?? false) ? "Allowed" : "Denied")
+                                        let isOpenChoice = TabController.isOpenAppKey(key)
+                                        Text(isOpenChoice
+                                             ? ((browser.settings.sitePermissions[host]?[key] ?? false) ? "Always Open" : "Don’t Open")
+                                             : ((browser.settings.sitePermissions[host]?[key] ?? false) ? "Allowed" : "Denied"))
                                             .foregroundStyle(.secondary)
                                         Button("Reset") {
                                             browser.setSitePermission(key, nil, for: host, isPrivate: false)
@@ -638,7 +690,9 @@ private struct PrivacySettings: View {
 
     private func permissionTitle(_ key: String) -> String {
         if let permission = EnginePermission(rawValue: key) { return Self.title(permission) }
-        return key.hasPrefix("app:") ? "Open in \(key.dropFirst(4))" : key
+        return key.hasPrefix("open:") || key.hasPrefix("app:")
+            ? "Open in \(TabController.appName(forScheme: String(key.dropFirst(key.hasPrefix("open:") ? 5 : 4))))"
+            : key
     }
 
     private func summary(_ perms: [String: Bool]) -> String {
@@ -649,11 +703,16 @@ private struct PrivacySettings: View {
                 perms[single.rawValue] = nil
             }
         }
-        return perms.sorted { $0.key < $1.key }.map { k, v in
+        var parts = perms.filter { !TabController.isOpenAppKey($0.key) }.sorted { $0.key < $1.key }.map { k, v in
             let name = EnginePermission(rawValue: k).map(Self.title)
-                ?? (k.hasPrefix("app:") ? "Open in \(k.dropFirst(4))" : k)
+                ?? k
             return "\(name): \(v ? "Allowed" : "Denied")"
-        }.joined(separator: ", ")
+        }
+        for (scheme, open) in TabController.openAppAnswers(perms).sorted(by: { $0.key < $1.key }) {
+            let app = TabController.appName(forScheme: scheme)
+            parts.append(open ? "Always opens in \(app)" : "Doesn’t open \(app)")
+        }
+        return parts.joined(separator: ", ")
     }
 }
 

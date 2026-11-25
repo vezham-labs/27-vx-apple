@@ -91,9 +91,35 @@ public final class WebKitPage: NSObject, EnginePage {
 
     /// What each frame last said about sound and typing, by the frame's own token.
     private var frameActivity: [String: PageActivity.Report] = [:]
+    private var frameInfos: [String: WKFrameInfo] = [:]
+
+    /// Tokens for live main and subframes registered by Ark's isolated page-activity script.
+    public var registeredFrameIDs: [String] { Array(frameInfos.keys) }
+
+    /// Runs code in a registered frame's isolated world, including a cross-origin iframe.
+    public func evaluate(_ body: String, arguments: [String: Any] = [:], inFrame frameID: String?, inWorld world: String) async throws -> Any? {
+        let contentWorld: WKContentWorld = world == "page" ? .page : .world(name: world)
+        if let frameID {
+            guard let frame = frameInfos[frameID] else { return nil }
+            return try await webView.callAsyncJavaScript(body, arguments: arguments, in: frame, contentWorld: contentWorld)
+        }
+        return try await webView.callAsyncJavaScript(body, arguments: arguments, in: nil, contentWorld: contentWorld)
+    }
 
     /// A frame's activity script reported in.
-    func activityChanged(_ report: PageActivity.Report) {
+    func activityChanged(_ report: PageActivity.Report, in frameInfo: WKFrameInfo) {
+        if report.unregistered {
+            frameInfos.removeValue(forKey: report.frame)
+            frameActivity.removeValue(forKey: report.frame)
+            updateActivity()
+            return
+        }
+        if report.registered {
+            if frameInfos.count >= 64, frameInfos[report.frame] == nil { return }
+            frameInfos[report.frame] = frameInfo
+            return
+        }
+        frameInfos[report.frame] = frameInfo
         frameActivity[report.frame] = report
         updateActivity()
     }
@@ -284,8 +310,17 @@ public final class WebKitPage: NSObject, EnginePage {
 // MARK: - Navigation
 
 extension WebKitPage: WKNavigationDelegate {
+    public func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        // User scripts register each new document at document start, before didCommit arrives.
+        frameInfos.removeAll(keepingCapacity: true)
+        frameActivity = [:]
+    }
+
     public func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                         preferences: WKWebpagePreferences) async -> (WKNavigationActionPolicy, WKWebpagePreferences) {
+        #if os(macOS)
+        PrivacySwitches.globalPrivacyControl(engine?.sendsGlobalPrivacyControl ?? false, in: preferences)
+        #endif
         // The configured modified click opens a Glance before WebKit handles the same modifiers.
         if navigationAction.navigationType == .linkActivated,
            engine?.shouldPreviewLink(on: navigationAction.modifierFlags) == true, let url = navigationAction.request.url,

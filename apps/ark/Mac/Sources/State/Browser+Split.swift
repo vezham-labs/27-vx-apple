@@ -83,7 +83,8 @@ extension Browser {
 
     var visibleTabIDs: [UUID] {
         if let pair = activeSplit { return pair.tabs }
-        return currentTab.map { [$0.id] } ?? []
+        if let tab = currentTab { return [tab.id] }
+        return []
     }
 
     func isShowing(_ tabID: UUID) -> Bool {

@@ -9,6 +9,9 @@ public final class BrowserSyncCoordinator {
         var folderBookmark: Data?
         var folderName: String?
         var lastSyncedAt: Date?
+        var shareOpenTabs: Bool?
+        var deviceTabsPublishedAt: Date?
+        var withdrawDeviceTabs: Bool?
     }
 
     public enum State: Equatable {
@@ -22,12 +25,15 @@ public final class BrowserSyncCoordinator {
     public private(set) var state: State
     public private(set) var folderName: String?
     public private(set) var lastSyncedAt: Date?
+    public private(set) var otherDevices: [BrowserSyncRemoteDevice] = []
 
     @ObservationIgnored private let configurationURL: URL?
     @ObservationIgnored private var configuration: Configuration
     @ObservationIgnored private let worker = BrowserSyncFolderWorker()
+    @ObservationIgnored private var lastDeviceTabsContent: String?
 
     public var isConfigured: Bool { configuration.folderBookmark != nil }
+    public var sharesOpenTabs: Bool { configuration.shareOpenTabs ?? false }
 
     public init(configurationURL: URL?) {
         self.configurationURL = configurationURL
@@ -35,7 +41,9 @@ public final class BrowserSyncCoordinator {
            let saved = try? JSONDecoder().decode(Configuration.self, from: data) {
             configuration = saved
         } else {
-            configuration = Configuration(deviceID: UUID(), folderBookmark: nil, folderName: nil, lastSyncedAt: nil)
+            configuration = Configuration(deviceID: UUID(), folderBookmark: nil, folderName: nil,
+                                          lastSyncedAt: nil, shareOpenTabs: false, deviceTabsPublishedAt: nil,
+                                          withdrawDeviceTabs: false)
         }
         folderName = configuration.folderName
         lastSyncedAt = configuration.lastSyncedAt
@@ -53,6 +61,12 @@ public final class BrowserSyncCoordinator {
         configuration.folderBookmark = try Self.makeBookmark(for: url)
         configuration.folderName = url.lastPathComponent
         configuration.lastSyncedAt = nil
+        // Tab sharing consent is scoped to the selected sync folder. Selecting
+        // a destination must never carry open-page sharing into a new folder.
+        configuration.shareOpenTabs = false
+        configuration.deviceTabsPublishedAt = nil
+        configuration.withdrawDeviceTabs = false
+        lastDeviceTabsContent = nil
         folderName = configuration.folderName
         lastSyncedAt = nil
         state = .ready
@@ -66,6 +80,18 @@ public final class BrowserSyncCoordinator {
         folderName = nil
         lastSyncedAt = nil
         state = .off
+        otherDevices = []
+        try? persistConfiguration()
+    }
+
+    /// Open-page URLs and titles are private by default and only shared after an explicit opt-in.
+    public func setSharingOpenTabs(_ enabled: Bool) {
+        guard sharesOpenTabs != enabled else { return }
+        let hasPublishedTabs = configuration.deviceTabsPublishedAt != nil || lastDeviceTabsContent != nil
+        configuration.shareOpenTabs = enabled
+        configuration.deviceTabsPublishedAt = nil
+        configuration.withdrawDeviceTabs = !enabled && hasPublishedTabs
+        lastDeviceTabsContent = nil
         try? persistConfiguration()
     }
 
@@ -75,10 +101,52 @@ public final class BrowserSyncCoordinator {
         guard let bookmark = configuration.folderBookmark else { return nil }
         state = .syncing
         let deviceID = configuration.deviceID
+        let deviceName = ProcessInfo.processInfo.hostName
+        let shouldPublishDeviceTabs = sharesOpenTabs || configuration.withdrawDeviceTabs == true
+        let content: String?
+        if shouldPublishDeviceTabs {
+            guard let value = BrowserSyncItems.deviceTabsValue(
+                from: snapshot, deviceID: deviceID, deviceName: deviceName,
+                sharing: sharesOpenTabs, updatedAt: .distantPast
+            ) else {
+                state = .failed("Couldn’t prepare this device’s tab list.")
+                return nil
+            }
+            content = value
+        } else {
+            content = nil
+        }
+        let now = Date()
+        let heartbeatDue = configuration.deviceTabsPublishedAt.map { now.timeIntervalSince($0) >= 15 * 60 } ?? true
+        let refreshDeviceTabs = shouldPublishDeviceTabs && (content != lastDeviceTabsContent || heartbeatDue)
+        let publishedAt = refreshDeviceTabs ? now : (configuration.deviceTabsPublishedAt ?? now)
+        let deviceTabsValue: String?
+        if shouldPublishDeviceTabs {
+            guard let value = BrowserSyncItems.deviceTabsValue(
+                from: snapshot, deviceID: deviceID, deviceName: deviceName,
+                sharing: sharesOpenTabs, updatedAt: publishedAt
+            ) else {
+                state = .failed("Couldn’t prepare this device’s tab list.")
+                return nil
+            }
+            deviceTabsValue = value
+        } else {
+            deviceTabsValue = nil
+        }
         do {
-            let result = try await worker.synchronize(snapshot, bookmark: bookmark, deviceID: deviceID)
+            let result = try await worker.synchronize(snapshot, bookmark: bookmark, deviceID: deviceID,
+                                                      deviceName: deviceName, deviceTabsValue: deviceTabsValue)
             if let renewed = result.renewedBookmark { configuration.folderBookmark = renewed }
+            if sharesOpenTabs {
+                if refreshDeviceTabs { configuration.deviceTabsPublishedAt = now }
+                lastDeviceTabsContent = content
+            } else if configuration.withdrawDeviceTabs == true {
+                configuration.deviceTabsPublishedAt = nil
+                configuration.withdrawDeviceTabs = false
+                lastDeviceTabsContent = nil
+            }
             configuration.lastSyncedAt = .now
+            otherDevices = result.otherDevices
             lastSyncedAt = configuration.lastSyncedAt
             state = .synced(configuration.lastSyncedAt ?? .now)
             try persistConfiguration()
@@ -121,6 +189,25 @@ public final class BrowserSyncCoordinator {
     }
 }
 
+public struct BrowserSyncRemoteTab: Identifiable, Equatable, Sendable {
+    public let id: UUID
+    public let title: String
+    public let url: URL
+}
+
+public struct BrowserSyncRemoteSpace: Identifiable, Equatable, Sendable {
+    public let id: UUID
+    public let name: String
+    public let tabs: [BrowserSyncRemoteTab]
+}
+
+public struct BrowserSyncRemoteDevice: Identifiable, Equatable, Sendable {
+    public let id: UUID
+    public let name: String
+    public let updatedAt: Date
+    public let spaces: [BrowserSyncRemoteSpace]
+}
+
 public enum BrowserSyncCoordinatorError: Error {
     case notAFolder
 }
@@ -133,25 +220,36 @@ private actor BrowserSyncFolderWorker {
     struct Result: Sendable {
         let snapshot: BrowserSnapshot
         let renewedBookmark: Data?
+        let otherDevices: [BrowserSyncRemoteDevice]
     }
 
-    func synchronize(_ snapshot: BrowserSnapshot, bookmark: Data, deviceID: UUID) throws -> Result {
+    func synchronize(_ snapshot: BrowserSnapshot, bookmark: Data, deviceID: UUID,
+                     deviceName: String, deviceTabsValue: String?) throws -> Result {
         let resolved = try BrowserSyncCoordinator.resolveBookmark(bookmark)
         let folder = resolved.url
         let started = folder.startAccessingSecurityScopedResource()
         defer { if started { folder.stopAccessingSecurityScopedResource() } }
 
-        let localValues = BrowserSyncItems.values(from: snapshot)
+        var localValues = BrowserSyncItems.values(from: snapshot)
+        if let deviceTabsValue {
+            localValues["deviceTabs:\(deviceID.uuidString.lowercased())"] = deviceTabsValue
+        }
+        let ownDeviceTabsKey = "deviceTabs:\(deviceID.uuidString.lowercased())"
         let merged = try BrowserSyncFolderTransport.synchronize(
             in: folder,
             scope: "browser",
             deviceID: deviceID,
-            deviceName: ProcessInfo.processInfo.hostName,
+            deviceName: deviceName,
             current: localValues,
-            protectedPrefixes: ["space:"],
-            understands: { BrowserSyncItems.understands(key: $0, value: $1) }
+            protectedPrefixes: ["space:", "deviceTabs:"],
+            understands: { key, value in
+                // Each device owns one tab-index key; missing peer keys are not local deletions.
+                if key.hasPrefix("deviceTabs:"), key != ownDeviceTabsKey { return false }
+                return BrowserSyncItems.understands(key: key, value: value)
+            }
         )
         let renewed = resolved.isStale ? try BrowserSyncCoordinator.makeBookmark(for: folder) : nil
-        return Result(snapshot: BrowserSyncItems.applying(merged, to: snapshot), renewedBookmark: renewed)
+        return Result(snapshot: BrowserSyncItems.applying(merged, to: snapshot), renewedBookmark: renewed,
+                      otherDevices: BrowserSyncItems.otherDevices(in: merged, excluding: deviceID))
     }
 }

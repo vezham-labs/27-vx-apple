@@ -60,7 +60,8 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
     private static let callAudioScript: WKUserScript? = {
         guard let url = Bundle.module.url(forResource: "call-audio", withExtension: "js"),
               let source = try? String(contentsOf: url, encoding: .utf8) else { return nil }
-        return WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: false, in: .page)
+        return WKUserScript(source: "{\n" + PageBridge.pageHelper + "\n" + source + "\n}",
+                            injectionTime: .atDocumentStart, forMainFrameOnly: false, in: .page)
     }()
 
     private let standardConfiguration: WKWebViewConfiguration
@@ -115,7 +116,8 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
         let c = WKWebViewConfiguration()
         c.websiteDataStore = store
         c.upgradeKnownHostsToHTTPS = true
-        c.mediaTypesRequiringUserActionForPlayback = AudioBench.isEnabled ? [] : .all
+        // Sound waits for a click, as in Safari; muted video can still autoplay for previews and loops.
+        c.mediaTypesRequiringUserActionForPlayback = AudioBench.isEnabled ? [] : .audio
         c.defaultWebpagePreferences.preferredContentMode = .desktop
         // Sites' own fullscreen buttons (YouTube, Netflix) work on the Mac.
         c.preferences.isElementFullscreenEnabled = true
@@ -293,6 +295,8 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
         return blocking.ruleGroups.reduce(0) { $0 + (meta.ruleCounts[$1] ?? 0) }
     }
 
+    var sendsGlobalPrivacyControl: Bool { blocking.globalPrivacyControl }
+
     private var allContentControllers: [WKUserContentController] {
         var seen = Set<ObjectIdentifier>()
         return ([standardConfiguration.userContentController, ephemeralConfiguration.userContentController]
@@ -320,16 +324,18 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
         }
         controller.addUserScript(PageActivity.script)
         controller.removeScriptMessageHandler(forName: PageActivity.messageName, contentWorld: PageActivity.world)
-        controller.add(PageActivity.Handler { [weak self] webView, report in
-            self?.page(for: webView)?.activityChanged(report)
+        controller.add(PageActivity.Handler { [weak self] webView, frameInfo, report in
+            self?.page(for: webView)?.activityChanged(report, in: frameInfo)
         }, contentWorld: PageActivity.world, name: PageActivity.messageName)
         if videoKeyControls { controller.addUserScript(VideoKeyControls.script) }
         controller.removeScriptMessageHandler(forName: CallAudioHandler.name, contentWorld: .page)
+        controller.removeScriptMessageHandler(forName: CallAudioHandler.name, contentWorld: PageBridge.world)
+        controller.addUserScript(PageBridge.relay)
         if callAudioProcessing, let script = Self.callAudioScript {
             controller.addUserScript(script)
             controller.addScriptMessageHandler(CallAudioHandler(tuning: { [weak self] in self?.callAudio ?? CallAudioTuning() },
                                                                stats: { [weak self] in self?.onCallAudioStats?($0) }),
-                                              contentWorld: .page, name: CallAudioHandler.name)
+                                              contentWorld: PageBridge.world, name: CallAudioHandler.name)
         }
         if let fixes = SiteOptimisations.script { controller.addUserScript(fixes) }
         if blocking.globalPrivacyControl {
@@ -401,9 +407,17 @@ private struct WeakPage {
 
 /// User agent tokens that match Safari on this Mac.
 enum SafariUserAgent {
-    static var applicationName: String {
+    static let applicationName = "Version/\(safariVersion) Safari/605.1.15"
+
+    private static var safariVersion: String {
+        for path in ["/System/Cryptexes/App/System/Applications/Safari.app", "/Applications/Safari.app"] {
+            if let version = Bundle(path: path)?.infoDictionary?["CFBundleShortVersionString"] as? String {
+                return version
+            }
+        }
+        // If Safari's bundle version is unavailable, preserve the previous conservative OS fallback.
         let v = ProcessInfo.processInfo.operatingSystemVersion
-        return "Version/\(v.majorVersion).\(v.minorVersion) Safari/605.1.15"
+        return "\(v.majorVersion).\(v.minorVersion)"
     }
 }
 /// Hands the call audio script WebRTC's audio processing (WebAssembly, about a megabyte) when a page

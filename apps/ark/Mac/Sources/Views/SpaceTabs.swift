@@ -327,6 +327,7 @@ struct TabRow: View {
     @State private var iconHovering = false
     /// Renaming in place: double-click the tab, or Rename Tab… in its menu.
     @State private var draft: String?
+    @State private var renameOriginal = ""
     @FocusState private var nameFocused: Bool
 
     var body: some View {
@@ -437,7 +438,7 @@ struct TabRow: View {
         }
         .shadow(color: .black.opacity(selected ? 0.08 : 0), radius: 1.5, y: 1)
         .contentShape(.rect)
-        .onTapGesture { browser.clickSidebarTab(tab, modifiers: NSEvent.modifierFlags) }
+        .onTapGesture { browser.clickSidebarTab(tab, modifiers: NSApp.currentEvent?.modifierFlags ?? []) }
         // Alongside the single click, so selecting a tab never waits to see if a second click follows.
         .simultaneousGesture(TapGesture(count: 2).onEnded { startRename() })
         // Moving to another tab, however it happens, finishes a rename left open (clicking a row
@@ -450,6 +451,7 @@ struct TabRow: View {
 
     private func startRename() {
         guard draft == nil else { return }
+        renameOriginal = tab.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         draft = tab.displayTitle
         DispatchQueue.main.async {
             nameFocused = true
@@ -462,6 +464,9 @@ struct TabRow: View {
     private func commitRename() {
         guard let name = draft?.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
         draft = nil
+        // The page may update its title while the field is open. An unchanged draft
+        // must keep following that page, or preserve an existing custom name.
+        guard name != renameOriginal else { return }
         tab.customTitle = name.isEmpty || name == tab.title ? nil : name
         browser.library.scheduleSave()
     }
@@ -740,6 +745,30 @@ private struct DownloadRow: View {
     let item: EngineDownload
 
     var body: some View {
+        if let url = draggableFile {
+            row.onDrag {
+                // A file can disappear between rendering the row and starting a drag.
+                guard let current = draggableFile else { return NSItemProvider() }
+                let provider = NSItemProvider(object: current as NSURL)
+                provider.suggestedName = item.filename
+                return provider
+            } preview: {
+                Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                    .resizable()
+                    .frame(width: 32, height: 32)
+            }
+        } else {
+            row
+        }
+    }
+
+    private var draggableFile: URL? {
+        guard item.status == .finished, let url = item.fileURL, url.isFileURL,
+              FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return url
+    }
+
+    private var row: some View {
         HStack(spacing: 10) {
             Image(nsImage: item.fileURL.map { NSWorkspace.shared.icon(forFile: $0.path) } ?? NSWorkspace.shared.icon(for: .data))
                 .resizable()

@@ -170,10 +170,51 @@ struct SettingsView: View {
                     if browser.syncCoordinator.isConfigured {
                         Button("Disconnect", role: .destructive) { browser.syncCoordinator.disconnect() }
                     }
+                    Toggle("Share Today tabs with other devices", isOn: Binding(
+                        get: { browser.syncCoordinator.sharesOpenTabs },
+                        set: { enabled in
+                            browser.syncCoordinator.setSharingOpenTabs(enabled)
+                            Task { await browser.syncNow() }
+                        }
+                    ))
+                    .disabled(!browser.syncCoordinator.isConfigured || isSyncing)
                 } header: {
                     Text("Sync")
                 } footer: {
-                    Text("Choose the same shared folder on each device. Ark syncs Spaces, pinned links, favourites and selected settings. Today tabs and history stay on this device.")
+                    Text("Choose the same shared folder on each device. Ark syncs Spaces, pinned links, favourites and selected settings. Today tabs stay on this device unless you turn on sharing; private tabs and history never sync. The next successful sync withdraws this device’s shared list; other devices remove it after their next sync. If you switch folders first, the old list stays visible for up to 30 days.")
+                }
+
+                Section("Tabs from other devices") {
+                    if browser.syncCoordinator.otherDevices.isEmpty {
+                        Text(browser.syncCoordinator.sharesOpenTabs
+                             ? "No other devices are sharing Today tabs yet."
+                             : "Turn on tab sharing on another device to see its open pages here.")
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(browser.syncCoordinator.otherDevices) { device in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label(device.name, systemImage: "iphone.and.arrow.forward")
+                                .font(.headline)
+                            ForEach(device.spaces) { space in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(space.name).font(.subheadline).foregroundStyle(.secondary)
+                                    ForEach(space.tabs) { tab in
+                                        Button {
+                                            let target = browser.regularSpaces.first { $0.id == space.id } ?? browser.currentSpace
+                                            browser.newTab(url: tab.url, in: target, source: .link)
+                                            dismiss()
+                                        } label: {
+                                            Label(tab.title, systemImage: "arrow.up.right.square")
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                }
+                            }
+                            Text("Updated \(device.updatedAt.formatted(.relative(presentation: .named)))")
+                                .font(.caption).foregroundStyle(.tertiary)
+                        }
+                        .padding(.vertical, 4)
+                    }
                 }
 
                 Section {

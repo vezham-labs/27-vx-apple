@@ -66,16 +66,9 @@ struct BrowserWindow: View {
             RecentTabsPicker(tabs: browser.recentTabs, currentID: browser.currentTab?.id)
                 .environment(browser)
         }
-        .alert("New Pin Folder", isPresented: $browser.isCreatingPinFolderForSelection) {
-            TextField("Folder name", text: $browser.newPinFolderName)
-            Button("Create") { browser.createPinFolderForSelectedPins() }
-                .disabled(browser.newPinFolderName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Create a folder with the selected pinned tabs.")
-        }
-        .sheet(isPresented: Binding(get: { browser.siteStyleHost != nil },
-                                    set: { if !$0 { browser.siteStyleHost = nil } })) {
+        .sheet(isPresented: $browser.isSiteStyleEditorPresented, onDismiss: {
+            browser.closeSiteStyleEditor()
+        }) {
             if let host = browser.siteStyleHost {
                 SiteStyleEditor(host: host, css: browser.library.siteStyles[host] ?? "",
                                 hiddenElements: browser.library.siteStyles.hiddenElements(for: host),

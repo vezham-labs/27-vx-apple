@@ -10,8 +10,8 @@ import WebKit
 /// for home-grown banners), hides the banner straight away, and clicks through to "reject all".
 /// Some consent managers can only be answered from the page's own JavaScript; for those the script
 /// asks the app (an "eval" message), which runs that step in the page world and replies.
-@MainActor
 public final class CookieBannerHandler: NSObject, WKScriptMessageHandler {
+    @MainActor
     public static let world = WKContentWorld.world(name: "duo.autoconsent")
     public static let messageName = "autoconsent"
     /// Called when a banner was declined on a page, for a quiet confirmation.
@@ -26,6 +26,7 @@ public final class CookieBannerHandler: NSObject, WKScriptMessageHandler {
     /// page full of ad and embed iframes doesn't parse it dozens of times. Subframes get a tiny gate
     /// instead: it recognises the few consent managers that draw their banner inside an iframe and
     /// asks for the full script ("loadFrame"), which the handler then loads into that one frame.
+    @MainActor
     public static func scripts(skipping hosts: Set<String>) -> [WKUserScript] {
         guard let bundle = bundledSource else { return [] }
         let skip = (try? JSONEncoder().encode(hosts.sorted())).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
@@ -50,7 +51,14 @@ public final class CookieBannerHandler: NSObject, WKScriptMessageHandler {
     private static let frameGateSource: String? = Bundle.module.url(forResource: "autoconsent-frames", withExtension: "js")
         .flatMap { try? String(contentsOf: $0, encoding: .utf8) }
 
-    public func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+    nonisolated public func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        MainActor.assumeIsolated {
+            handle(message)
+        }
+    }
+
+    @MainActor
+    private func handle(_ message: WKScriptMessage) {
         guard let body = message.body as? [String: Any], let type = body["type"] as? String,
               let webView = message.webView else { return }
         let frame = message.frameInfo

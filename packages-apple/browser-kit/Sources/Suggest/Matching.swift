@@ -28,9 +28,20 @@ public enum URLNormalizer {
         }
         // "localhost:3000", "github.com", "192.168.1.1/admin"
         let hostPart = text.split(separator: "/", maxSplits: 1).first.map(String.init) ?? text
-        let looksLikeHost = hostPart.contains(".") || hostPart.hasPrefix("localhost")
+        let hostname = String(hostPart.split(separator: ":", maxSplits: 1).first ?? Substring(hostPart)).lowercased()
+        let looksLikeHost = hostname.contains(".") || hostname == "localhost" || hostname.hasSuffix(".localhost")
         guard looksLikeHost, !hostPart.hasSuffix("."), !hostPart.hasPrefix(".") else { return nil }
-        return URL(string: "https://" + text)
+        let local = hostname == "localhost" || hostname.hasSuffix(".localhost") || hostname.hasSuffix(".local")
+            || hostname == "127.0.0.1" || hostname == "0.0.0.0" || Self.isPrivateIPv4(hostname)
+        return URL(string: (local ? "http://" : "https://") + text)
+    }
+
+    private static func isPrivateIPv4(_ host: String) -> Bool {
+        let parts = host.split(separator: ".", omittingEmptySubsequences: false)
+        let octets = parts.compactMap { UInt8($0) }
+        guard parts.count == 4, octets.count == 4 else { return false }
+        return octets[0] == 10 || (octets[0] == 192 && octets[1] == 168)
+            || (octets[0] == 172 && (16...31).contains(octets[1]))
     }
 }
 

@@ -620,6 +620,11 @@ struct ExtensionPanelView: View {
     let extensionID: String
     @State private var page: (any EnginePage)?
 
+    private var panelURL: URL? {
+        browser.library.workbench.extensionPanelPages[extensionID]
+            ?? browser.library.extensions.first(where: { $0.id == extensionID })?.panelURL
+    }
+
     var body: some View {
         Group {
             if let page {
@@ -628,13 +633,14 @@ struct ExtensionPanelView: View {
                 ProgressView()
             }
         }
-        .task(id: extensionID) {
+        .task(id: panelURL) {
             page?.close()
-            guard let url = browser.library.extensions.first(where: { $0.id == extensionID })?.panelURL else { page = nil; return }
+            guard let url = panelURL else { page = nil; browser.library.shownExtensionPanels[extensionID] = nil; return }
+            browser.library.shownExtensionPanels[extensionID] = url
             page = browser.engine.makePage(options: PageOptions(url: url), delegate: PanelPageDelegate.shared)
             page?.load(url)
         }
-        .onDisappear { page?.close(); page = nil }
+        .onDisappear { page?.close(); page = nil; browser.library.shownExtensionPanels[extensionID] = nil }
     }
 }
 

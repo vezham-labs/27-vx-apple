@@ -57,7 +57,10 @@ final class EaselStore {
     var firstBoard: EaselBoard? { boards.first }
 
     private func placement(after count: Int) -> (Double, Double) {
-        (190 + Double(count % 4) * 290, 150 + Double(count / 4) * 240)
+        // Keep a newly inserted card within the same board bounds the drag path enforces.
+        // Without this, a long-lived board could create cards below its visible/exportable area
+        // and the first move would appear to jump them upward when clamped.
+        (190 + Double(count % 4) * 290, min(1650, 150 + Double(count / 4) * 240))
     }
 
     @discardableResult func addBoard() -> EaselBoard {

@@ -1055,6 +1055,17 @@ and an imported folder remaining paused until an explicit resume. The new Mac fe
 [`preview/ark/mac/features/live-folder.png`](../../preview/ark/mac/features/live-folder.png).
 No source behavior changed, no simulator was started, and the installed Ark was untouched.
 
+### Mac Easels lifecycle and placement — November 26, 2026
+
+The existing Debug `SnapshotTour` now has an isolated Easels mode and reuses the same routine in
+the full feature tour. It verified page-card creation, note text editing and movement, doodle
+stroke persistence, page capture, PNG export, ZIP export, and preparation of a system-share PNG.
+The audit also found that a long-lived board could place a new card below the board's 1,650-point
+movement boundary, making its first move jump upward when clamped. New cards now use the same
+vertical bound as dragging. The temporary isolated bundle reported every operation true; its PNG
+and ZIP artifacts were written under `/private/tmp/ark-easel-verified`. `ark:build-mac` passed.
+No simulator or new test file was used.
+
 ## Final synced Mac pass — November 25, 2026
 
 After inventorying all 323 incoming commits, `NX_ISOLATE_PLUGINS=false pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. The first sandboxed attempt was blocked before compilation by SwiftPM/Clang cache permissions; the same Nx build passed with the required cache access. A fresh post-build `open -n` of `dist/ark/Build/Products/Debug/Ark.app` returned Launch Services `kLSNoExecutableErr` (`-10827`); direct execution of its signed `Contents/MacOS/Ark` exited with `134` before writing tour output. The earlier existing SnapshotTour pass remains the current UI evidence, including restoration of the inner page scroll at 1,200 px. No simulator or new test file was used. A fresh UI pass needs the Debug bundle opened from Finder if Launch Services continues rejecting it.

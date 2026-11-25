@@ -222,6 +222,12 @@ struct SnapshotTour {
         }
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
+        if ProcessInfo.processInfo.environment["ARK_EASEL_CHECK_ONLY"] == "1" {
+            browser.newTab(url: first)
+            await pause(1)
+            await easelPreview(browser, window: window, page: first)
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_PIN_LINK_CHECK_ONLY"] == "1" {
             browser.newTab(url: second)
             await pause(1)
@@ -341,10 +347,35 @@ struct SnapshotTour {
         if let color = try? await browser.currentController?.page.evaluate(check, inWorld: world) as? String {
             note("heading after clearing: \(color)")
         }
+        await easelPreview(browser, window: window, page: first)
+        await baselinePreviews(browser, window: window, atlas: atlas, otherPage: second)
+        await settingsPreviews(browser, window: window)
+    }
+
+    private func easelPreview(_ browser: Browser, window: NSWindow, page: URL) async {
         let easelID = browser.library.easels.firstBoard?.id ?? browser.library.easels.addBoard().id
-        _ = browser.library.easels.addPage(first, title: "Atlas · Field Guide", to: easelID)
+        let addedPage = browser.library.easels.addPage(page, title: "Atlas · Field Guide", to: easelID)
+        var editedNote = false
+        var editDetail = "note was not created"
         if let noteID = browser.library.easels.addNote(to: easelID) {
+            let origin = browser.library.easels.boards.first(where: { $0.id == easelID })?.cards.first(where: { $0.id == noteID })
             browser.library.easels.updateText("A collected page and a note, arranged on one board.", for: noteID, in: easelID)
+            browser.library.easels.move(noteID, in: easelID, by: CGSize(width: 48, height: 32))
+            if let card = browser.library.easels.boards.first(where: { $0.id == easelID })?.cards.first(where: { $0.id == noteID }) {
+                let expectedText = "A collected page and a note, arranged on one board."
+                editedNote = {
+                    card.text == expectedText
+                        && card.x == min(2200, (origin?.x ?? .infinity) + 48)
+                        && card.y == min(1650, (origin?.y ?? .infinity) + 32)
+                }()
+                editDetail = "origin \(origin?.x ?? -1),\(origin?.y ?? -1); card \(card.x),\(card.y); text \(card.text == expectedText)"
+            }
+        }
+        var addedDrawing = false
+        if let drawingID = browser.library.easels.addDrawing(to: easelID) {
+            browser.library.easels.updateStrokes([[.init(x: 20, y: 28), .init(x: 74, y: 56), .init(x: 142, y: 42)]],
+                                                 for: drawingID, in: easelID)
+            addedDrawing = browser.library.easels.boards.first(where: { $0.id == easelID })?.cards.first(where: { $0.id == drawingID })?.strokes?.count == 1
         }
         if let capture = await browser.currentController?.page.snapshot() {
             let pasteboard = NSPasteboard.withUniqueName()
@@ -359,8 +390,17 @@ struct SnapshotTour {
         await pause(1)
         saveVisible("easels", in: window)
         note("Easels preview fixture: page card, editable note, and page capture")
-        await baselinePreviews(browser, window: window, atlas: atlas, otherPage: second)
-        await settingsPreviews(browser, window: window)
+        let pngURL = directory.appending(path: "easel-export.png")
+        let zipURL = directory.appending(path: "easels-export.zip")
+        let exportedPNG = browser.library.easels.exportPNG(easelID, to: pngURL)
+            && FileManager.default.fileExists(atPath: pngURL.path())
+        let sharedURL = browser.library.easels.sharePNGURL(for: easelID)
+        let sharedPNG = sharedURL.map { FileManager.default.fileExists(atPath: $0.path(percentEncoded: false)) } ?? false
+        let exportedZip = await browser.library.easels.exportAllAsZip(to: zipURL)
+            && FileManager.default.fileExists(atPath: zipURL.path())
+        let sharedPath = sharedURL?.path(percentEncoded: false) ?? "none"
+        if let sharedURL { try? FileManager.default.removeItem(at: sharedURL) }
+        note("Easels edit, move, doodle, PNG export, ZIP export, and share preparation: \(addedPage && editedNote && addedDrawing && exportedPNG && exportedZip && sharedPNG) (page \(addedPage), edit \(editedNote), doodle \(addedDrawing), png \(exportedPNG), zip \(exportedZip), share \(sharedPNG)); \(editDetail); share URL \(sharedPath)")
     }
 
     /// Exercises the optional pinned-link behavior against the same local fixture used by this tour.

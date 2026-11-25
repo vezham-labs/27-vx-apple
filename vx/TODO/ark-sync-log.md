@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Favorite preview profile reassignment — November 26, 2026
+
+A Space's profile can change without its Space ID changing. Favorite previews now dismiss and clear on profile reassignment, and a pending history lookup checks both Space and profile before publishing. The Mac Nx build passed; live reassignment and hover checks remain open. Previews remains Partial.
+
 ### Mac favorite preview handoff — November 26, 2026
 
 The hover-exit guard made the delayed close branch unreachable, so moving from a favorite tile into its web-app preview immediately dismissed the popover. The delay is now reachable. Space changes dismiss and clear the preview, cancelled or stale history lookups cannot publish into another Space, and selecting a preview page explicitly opens it in the current Space like the favorite itself. The Mac Nx build passed; pointer handoff, routing, and Space-switch behavior still need live UI verification. Previews remains Partial.

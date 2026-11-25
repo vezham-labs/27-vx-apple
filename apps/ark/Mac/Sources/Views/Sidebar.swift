@@ -725,10 +725,11 @@ struct FavoriteTile: View {
                 try? await Task.sleep(for: .milliseconds(350))
                 guard !Task.isCancelled, let host = favorite.url.host() else { return }
                 let spaceID = browser.selectedSpaceID
-                let history = browser.library.profileHistory.store(for: browser.currentSpace.websiteProfileID)
+                let profileID = browser.currentSpace.websiteProfileID
+                let history = browser.library.profileHistory.store(for: profileID)
                 let pages = await history.recentVisits(forHost: host, limit: 5)
                 guard !Task.isCancelled else { return }
-                guard browser.selectedSpaceID == spaceID else { return }
+                guard browser.selectedSpaceID == spaceID, browser.currentSpace.websiteProfileID == profileID else { return }
                 previewPages = pages
                 isAppPreviewPresented = appPreviewName != nil && !previewPages.isEmpty
             }
@@ -765,6 +766,12 @@ struct FavoriteTile: View {
             .accessibilityAction { browser.open(favorite) }
             .onHover { hovering = $0; updateAppPreview(hovered: $0) }
             .onChange(of: browser.selectedSpaceID) { _, _ in
+                previewTask?.cancel()
+                previewTask = nil
+                isAppPreviewPresented = false
+                previewPages = []
+            }
+            .onChange(of: browser.currentSpace.websiteProfileID) { _, _ in
                 previewTask?.cancel()
                 previewTask = nil
                 isAppPreviewPresented = false

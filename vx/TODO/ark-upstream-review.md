@@ -36,6 +36,19 @@ Browsa HEAD and `origin/main` remain at `46fe04bedb0f13521328c69d0f1f6814a18e618
 | `464240b` | Preserve hidden-element identity on dynamic pages | Adapted in the current Ark workspace: newly selected unstable elements store a small DOM fingerprint and class family, then re-hide only one exact match after dynamic page construction. Legacy saved selectors remain plain CSS. BrowserKit’s existing 79-test suite passed; live dynamic-page verification remains open. |
 | `b9fcbb45` | Hide similar elements from the picker | Partially adapted for Mac: Option-click in Ark’s existing element picker hides the selected element’s stable class family when two or more match; a plain click remains a single-element hide. Mac build passed. Count preview and touch-native mobile interaction remain open. |
 
+### November 26 fetched feature branches (outside the pinned-main inventory)
+
+These refs are not successors of the pinned `origin/main` heads and therefore do not change the
+`270 / 332` main-inventory count. They were fetched with the new upstream material and reviewed
+separately so a branch-only experiment is not mistaken for a released upstream change.
+
+| Ref / commit | Change | Disposition |
+| --- | --- | --- |
+| Search `origin/perf-many-tabs` (`36546bf`…`42b10cd`) | Windowed/lazy sidebar rows, cached page maps, many-tab and frame-pacing probes | Reviewed. This is a large Search-column architecture rewrite plus branch-only benchmarks. Ark's AppKit/SwiftUI sidebar does not share its row/window model, and Ark has no equivalent repeatable before baseline. Do not copy the UI or claim a performance win. Retain the branch as a measurement design reference once an Ark many-tab workload exists. |
+| Search `origin/ext-1198` (`229b664`) | `declarativeContent.RequestContentScript` and persisted optional-site permissions | Reviewed. Ark already grants WebKit requested and optional permissions when loading an extension, but has no persisted declarative-rule registry or safe content-script injection bridge. This is a real Chrome-extension compatibility gap; adapting Search's large worker/content shim without a reproducing extension would be risky. Keep Chrome extensions Partial. |
+| Search `origin/meet-pip` (`f8809ca`…`543f4ba`) | Google Meet's own mini window and WebKit media/camera experiments | Reviewed. Ark's system PiP handles ordinary video and does not impersonate Chrome or override a site's camera state. Google Meet's site-specific mini-window behavior needs a signed-in runtime reproduction before any scoped adaptation; no code copied. |
+| Browsa `origin/claude/org-filter-pr-off` (`ba90b70`) | Hide a Space's Pull Request organisations while that source is disabled | Reviewed. This is a small settings guard for Browsa's authenticated GitHub Pull Requests source. Ark's current Live Folder settings/model have no matching organisation-filter surface, so no isolated UI port is valid. It remains part of the broader GitHub Live Folder design gap. |
+
 ### Browsa
 
 Baseline: `19eef7990aec8bd5491ef06ffc14928b7a73033f`. Previous review target: `e981df56c551fc83efc39efe1b7d61cd7abe3071`; new pulled target: `46fe04bedb0f13521328c69d0f1f6814a18e6188`.

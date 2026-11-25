@@ -1013,6 +1013,23 @@ Adapted Search [`8b20dcde02370b2f5ed6e2bc1fd8b745923cba31`](https://github.com/d
 
 Inventoried all 323 unique incoming commits across Search through `origin/main` [`9b67323c559c758b902a8edacdb23a027903353c`](https://github.com/driceroland/Search/commit/9b67323c559c758b902a8edacdb23a027903353c) and Browsa through `origin/main` [`46fe04bedb0f13521328c69d0f1f6814a18e6188`](https://github.com/jmaorr/Browsa/commit/46fe04bedb0f13521328c69d0f1f6814a18e6188). 240 commits have implementation review; the other 83 have title/path triage only and remain pending in [the upstream review](ark-upstream-review.md). Search's local-host parser, service-worker CryptoKey guard, and inner-page scroll restore were adapted above. Its hidden-element updates already apply to all Ark sessions, update prompts already wait for added extension permissions, and Ark already uses the visible implicit suggestion as Return's target. The reported `::first-line` WebKit cache crash fix is already present in Ark's `webkit.patch`, so no duplicate patch was added. Search's latest fold-fling work targets its persistent folded-column state, which Ark does not have; Ark's separate edge-peek path stays as-is pending the Arc comparison. Search's sized authentication popups, Zen import, iCloud device identity, optional Backspace navigation, search-engine darkening, and app-owned floating player have no direct missing Arc-row implementation in Ark. Browsa's renewed YouTube ad-skip work is service-specific, was previously reverted and then reintroduced, and is not copied without a reproducible Ark playback case. Its release notes, website assets, test-only probes, notification subsystem, 1Password native hosts, announcement cards, and WebKit build workflow changes are outside this 42-row pass or lack a matching Ark gap. Browsa's signed-in GitHub Pull Requests folder is a direct subfeature of Live Folders, not an out-of-scope feature: Ark's current data model stores RSS/Atom feeds only, so its Mac Live Folders rating is now Partial. The GitHub source needs a compatible model and Space-profile cookie bridge before it can be implemented safely; no cookie-authenticated test was run. Search's page-internal scroll restoration after WebView eviction is adapted and verified for Mac Archive; iOS eviction remains deferred. No other matrix rating changed from source review alone. The consolidated Mac build and snapshot tour now pass; local-host navigation and extension-runtime checks remain queued.
 
+### Fetched feature-branch review — November 26, 2026
+
+The newest fetch did not advance either pinned `origin/main` head (Browsa remains
+`46fe04b`; Search remains `b9fcbb4`), but it did make four relevant feature branches available.
+They are tracked separately from the `270 / 332` main-commit inventory. Search's
+`origin/perf-many-tabs` is a substantial custom sidebar architecture and branch-only benchmark
+suite; it provides useful workload/measurement ideas but no compatible, measured Ark change.
+`origin/ext-1198` adds persisted optional host permissions and
+`declarativeContent.RequestContentScript`: Ark already grants WebKit's requested/optional
+permissions at load, but lacks Search's persistent declarative-rule and injection bridge, so the
+Chrome extensions row remains Partial rather than importing a large unverified shim. The
+`origin/meet-pip` experiments are site-specific Google Meet behavior; Ark keeps its current
+system-PiP path until a signed-in reproduction identifies a scoped need. Browsa's
+`origin/claude/org-filter-pr-off` only hides organisation controls for its authenticated GitHub
+Pull Requests source, which Ark has not designed as a matching settings surface. No source,
+matrix rating, test, simulator, or performance claim changed from this review.
+
 ## Final synced Mac pass — November 25, 2026
 
 After inventorying all 323 incoming commits, `NX_ISOLATE_PLUGINS=false pnpm nx run ark:build-mac --skip-nx-cache --output-style=static` passed. The first sandboxed attempt was blocked before compilation by SwiftPM/Clang cache permissions; the same Nx build passed with the required cache access. A fresh post-build `open -n` of `dist/ark/Build/Products/Debug/Ark.app` returned Launch Services `kLSNoExecutableErr` (`-10827`); direct execution of its signed `Contents/MacOS/Ark` exited with `134` before writing tour output. The earlier existing SnapshotTour pass remains the current UI evidence, including restoration of the inner page scroll at 1,200 px. No simulator or new test file was used. A fresh UI pass needs the Debug bundle opened from Finder if Launch Services continues rejecting it.

@@ -25,6 +25,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
     private var contexts: [String: WKWebExtensionContext] = [:]
     private var loadGeneration = UUID()
     private var windows: [UUID: ExtensionWindow] = [:]
+    private var popupNavigationDelegates: [ObjectIdentifier: ExtensionActionPopupNavigationDelegate] = [:]
     /// Where the popup of the button being clicked should appear.
     private weak var popupAnchor: NSView?
 
@@ -256,6 +257,7 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
         keepAliveLastPing.removeAll()
         for c in contexts.values { ExtensionOffscreen.close(for: c); try? controller.unload(c) }
         contexts = [:]
+        popupNavigationDelegates.removeAll()
         loaded = []
     }
 
@@ -557,9 +559,50 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
             completionHandler(nil)
             return
         }
+        if let popup = action.popupWebView {
+            let key = ObjectIdentifier(popup)
+            let navigationDelegate = popupNavigationDelegates[key] ?? ExtensionActionPopupNavigationDelegate(owner: self, action: action)
+            navigationDelegate.update(action: action)
+            popupNavigationDelegates[key] = navigationDelegate
+            popup.navigationDelegate = navigationDelegate
+        }
         popover.behavior = .transient
         popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .maxY)
         completionHandler(nil)
+    }
+
+    fileprivate func openPopupLink(_ url: URL?) {
+        guard let url,
+              !["javascript", "file"].contains(url.scheme?.lowercased() ?? "") else { return }
+        let windowID = host?.extensionWindows.first?.id
+        _ = host?.openExtensionTab(url: url, windowID: windowID, active: true)
+    }
+}
+
+/// WebKit's native action popover does not route `_blank` popup links through
+/// `createWebViewWith`; handle those links at the exposed popup web view instead.
+@available(macOS 15.4, *)
+@MainActor
+private final class ExtensionActionPopupNavigationDelegate: NSObject, WKNavigationDelegate {
+    private weak var owner: WebKitExtensions?
+    private var action: WKWebExtension.Action
+
+    init(owner: WebKitExtensions, action: WKWebExtension.Action) {
+        self.owner = owner
+        self.action = action
+    }
+
+    func update(action: WKWebExtension.Action) {
+        self.action = action
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+        guard navigationAction.targetFrame == nil else {
+            return .allow
+        }
+        owner?.openPopupLink(navigationAction.request.url)
+        action.closePopup()
+        return .cancel
     }
 }
 

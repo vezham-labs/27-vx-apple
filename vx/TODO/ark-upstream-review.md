@@ -372,7 +372,7 @@ These 18 commits bring the Browsa review target to `46fe04be`:
 
 | Commit | Change | Disposition |
 | --- | --- | --- |
-| `99ff3fd4fd7b04869ac8a5134a7bd2851d017ad9` | Keep shortcuts working on hung pages | Browser-level Mac shortcut routing is already independent of the active page; no port identified. |
+| `99ff3fd4fd7b04869ac8a5134a7bd2851d017ad9` | Keep shortcuts working on hung pages | Partially adapted: Ark releases WebKit focus behind a known load-error overlay before key dispatch; a simulated error fixture focused the page and opened Command-T. The Mac build passed. Browsa's hung-process detection uses private WebKit properties and was not copied; real crash and hung-page recovery remain unverified. The prior claim that all browser shortcuts were independent of the page was too broad. |
 | `b462809d2e32441682602ff88a83d84d3050283f` | Library wallpaper follows appearance | Search/Browsa Library branding, not an Arc feature row; no asset copied. |
 | `813cfb92cfe972530e358d9b5fbb0af74ce8ba18` | Skip YouTube ad wait on Next | Site-specific and previously reverted/reintroduced upstream; no Ark playback reproduction, so not copied. |
 | `6fcef2994f1cd3ab406dcfc89ff76daea111611c` | Refresh ⌘T/⌘K command sheets | Ark already has separate Arc-style new-tab and command modes; no wholesale UI port because Arc is the visual reference. |

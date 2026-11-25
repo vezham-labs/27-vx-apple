@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import WebKit
 import WebKitEngine
 import BrowserCore
 
@@ -267,6 +268,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Sheets, the settings window and other windows keep their own keys.
         guard let window = event.window, window.attachedSheet == nil,
               let browser = library.window(for: window) else { return false }
+        // A failed page can retain first responder behind Ark's error overlay. Release it so
+        // menu shortcuts and the retry control do not wait for a dead WebKit process.
+        var responder = window.firstResponder as? NSView
+        while let view = responder, !(view is WKWebView) { responder = view.superview }
+        if let webView = responder as? WKWebView, library.allTabs.contains(where: { tab in
+            guard tab.loadError != nil, let pageView = library.existingController(for: tab)?.page?.view else { return false }
+            return webView === pageView || webView.isDescendant(of: pageView)
+        }) {
+            window.makeFirstResponder(nil)
+        }
         if flags == .command, key.lowercased() == "z", browser.canUndoSidebarPinMove {
             browser.undoSidebarPinMove()
             return true

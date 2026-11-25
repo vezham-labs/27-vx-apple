@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Hung-page keyboard review — November 26, 2026
+
+Reviewed Browsa `99ff3fd4fd7b04869ac8a5134a7bd2851d017ad9`: its recovery releases focus from a failed or unresponsive WebKit view, using private process properties for hangs. Ark intercepts some shortcuts before WebKit, but not all menu commands; the earlier inventory claim of complete independence was incorrect. Ark now releases a WebKit first responder behind a known load-error overlay before dispatching a key, without private APIs. An isolated Mac fixture set a load error, focused the page, verified focus was released after a key event, and observed Command-T opening the command bar. This simulated error does not reproduce a crashed or hung WebKit process; those cases remain open. Mac build passed.
+
 ### Favorite preview profile reassignment — November 26, 2026
 
 A Space's profile can change without its Space ID changing. Favorite previews now dismiss and clear on profile reassignment, and a pending history lookup checks both Space and profile before publishing. The Mac Nx build passed; live reassignment and hover checks remain open. Previews remains Partial.

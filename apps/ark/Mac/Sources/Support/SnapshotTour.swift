@@ -222,6 +222,36 @@ struct SnapshotTour {
         }
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
+        if ProcessInfo.processInfo.environment["ARK_ERROR_KEY_CHECK_ONLY"] == "1" {
+            let tab = browser.newTab(url: first)
+            await pause(2)
+            guard let view = browser.library.existingController(for: tab)?.page?.view as? WKWebView else {
+                note("failed-page shortcut fixture has no web view"); return
+            }
+            tab.loadError = LoadError(url: first, error: NSError(domain: "ArkAudit", code: 1))
+            await pause(0.5)
+            let focused = window.makeFirstResponder(view)
+            if let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                                            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                            context: nil, characters: "", charactersIgnoringModifiers: "",
+                                            isARepeat: false, keyCode: 113) {
+                NSApp.postEvent(event, atStart: true)
+                await pause(0.3)
+            }
+            var responder = window.firstResponder as? NSView
+            while let current = responder, !(current is WKWebView) { responder = current.superview }
+            let released = responder == nil
+            _ = window.makeFirstResponder(view)
+            if let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+                                            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                            context: nil, characters: "t", charactersIgnoringModifiers: "t",
+                                            isARepeat: false, keyCode: 17) {
+                NSApp.postEvent(event, atStart: true)
+                await pause(0.8)
+            }
+            note("simulated failed-page focus released: \(focused && released); command-T opened: \(browser.commandBar != nil)")
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_GLANCE_BOOST_CHECK_ONLY"] == "1" {
             browser.newTab(url: first)
             await pause(1)

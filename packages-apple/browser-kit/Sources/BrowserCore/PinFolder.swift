@@ -165,6 +165,7 @@ extension Space {
     public func refreshLiveFolder(_ id: UUID, minimumAge: TimeInterval = 0, allowActivation: Bool = true) async throws -> Bool {
         guard !isPrivate,
               let folder = pinFolders.first(where: { $0.id == id }), let oldFeed = folder.feed,
+              !oldFeed.isGitHubPullRequests,
               allowActivation || folder.feedNeedsActivation != true,
               Date.now.timeIntervalSince(liveFolderRefreshTimes[id] ?? .distantPast) >= minimumAge,
               refreshingLiveFolderIDs.insert(id).inserted else { return false }
@@ -177,6 +178,22 @@ extension Space {
         pinFolders[index].feed = feed
         pinFolders[index].feedNeedsActivation = nil
         return true
+    }
+
+    /// Creates or refreshes the one signed-in GitHub Pull Requests folder for this Space.
+    @discardableResult
+    public func refreshGitHubPullRequests(cookies: [HTTPCookie]) async throws -> PinFolder? {
+        guard !isPrivate else { return nil }
+        let feed = try await LiveFolderFeed.loadGitHubPullRequests(cookies: cookies)
+        if let index = pinFolders.firstIndex(where: { $0.feed?.isGitHubPullRequests == true }) {
+            pinFolders[index].feed = feed
+            liveFolderRefreshTimes[pinFolders[index].id] = .now
+            return pinFolders[index]
+        }
+        guard let folder = addPinFolder(named: feed.title), let index = pinFolders.firstIndex(where: { $0.id == folder.id }) else { return nil }
+        pinFolders[index].feed = feed
+        liveFolderRefreshTimes[folder.id] = .now
+        return pinFolders[index]
     }
 
     public func setPinFolder(_ id: UUID?, for tab: BrowserTab) {

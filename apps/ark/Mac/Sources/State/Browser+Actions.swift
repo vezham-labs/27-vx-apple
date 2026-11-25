@@ -123,6 +123,9 @@ extension Browser {
         if canExportSpaceLinks {
             out.append(BrowserCommand(id: "export-space-links", title: "Export Space Links…", keywords: ["save", "tabs", "bookmarks", "json"]))
         }
+        if !currentSpace.isPrivate {
+            out.append(BrowserCommand(id: "github-pull-requests", title: "GitHub Pull Requests Live Folder", subtitle: "Sidebar", keywords: ["github", "pull", "review", "live folder"]))
+        }
         out.append(BrowserCommand(id: "import-space-links", title: "Import Space Links…", keywords: ["restore", "tabs", "bookmarks", "json"]))
         if let host = editableSiteStyleHost {
             out.append(BrowserCommand(id: "edit-site-style", title: "Edit Boosts…", subtitle: host, keywords: ["css", "site style", "customize"]))
@@ -225,6 +228,7 @@ extension Browser {
         case ShortcutAction.recentTabs.rawValue: showRecentTabs()
         case "export-space-links": exportSpaceLinks()
         case "import-space-links": importSpaceLinks()
+        case "github-pull-requests": refreshGitHubPullRequests()
         case "edit-site-style": editSiteStyle()
         case "hide-site-element": selectSiteElementToHide()
         case "split-view": isSplitPickerPresented = true

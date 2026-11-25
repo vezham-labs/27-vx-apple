@@ -4,6 +4,23 @@ import WebKit
 import UniformTypeIdentifiers
 
 extension Browser {
+    func refreshGitHubPullRequests() {
+        let space = currentSpace
+        guard !space.isPrivate, let github = URL(string: "https://github.com/pulls") else { return }
+        showToast("Refreshing GitHub pull requests…")
+        Task { [weak self] in
+            guard let self else { return }
+            let cookies = await engine.cookies(for: library.browsingProfile(in: space), url: github)
+            do {
+                guard let folder = try await space.refreshGitHubPullRequests(cookies: cookies) else { return }
+                library.scheduleSave()
+                showToast("GitHub Pull Requests: \(folder.feed?.articles.count ?? 0) open")
+            } catch {
+                showToast("Sign in to GitHub in this Space to add Pull Requests")
+            }
+        }
+    }
+
     var editableSiteStyleHost: String? {
         guard let tab = currentTab, !tab.isPrivate, !library.agents.isInAgentSpace(tab) else { return nil }
         return SiteStyles.host(of: tab.url)

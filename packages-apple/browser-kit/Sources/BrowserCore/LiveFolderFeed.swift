@@ -19,6 +19,10 @@ public struct LiveFolderFeed: Codable, Equatable, Sendable {
 
     static let byteLimit = 2_000_000
     static let articleLimit = 30
+    private static let gitHubPullsSource = URL(string: "https://github.com/_ark/live-pull-requests")!
+
+    /// True for Ark's signed-in GitHub Pull Requests folder rather than an RSS/Atom feed.
+    public var isGitHubPullRequests: Bool { source == Self.gitHubPullsSource }
 
     enum LoadError: LocalizedError {
         case invalidAddress, requestFailed, tooLarge, missingFeed
@@ -56,6 +60,37 @@ public struct LiveFolderFeed: Codable, Equatable, Sendable {
             if let feed = parse(feedData, source: feedURL) { return feed }
         }
         throw LoadError.missingFeed
+    }
+
+    /// Reads GitHub's Pull Requests page with the Space's existing GitHub cookies. Cookies are
+    /// supplied by the engine, stay in memory, and are sent only to github.com.
+    public static func loadGitHubPullRequests(cookies: [HTTPCookie]) async throws -> LiveFolderFeed {
+        var components = URLComponents(string: "https://github.com/pulls")!
+        components.queryItems = [URLQueryItem(name: "q", value: "is:pr is:open archived:false involves:@me sort:updated-desc")]
+        var request = URLRequest(url: components.url!)
+        request.timeoutInterval = 15
+        request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
+        request.setValue("Ark", forHTTPHeaderField: "User-Agent")
+        let matching = cookies.filter { cookie in
+            let domain = cookie.domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+            return domain == "github.com" || domain.hasSuffix(".github.com")
+        }
+        let headers = HTTPCookie.requestHeaderFields(with: matching)
+        for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.urlCredentialStorage = nil
+        let (data, response) = try await URLSession(configuration: configuration).data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw LoadError.requestFailed
+        }
+        let finalPath = http.url?.path ?? ""
+        let body = String(decoding: data, as: UTF8.self)
+        if finalPath == "/login" || body.contains("name=\"user-login\" content=\"\"") {
+            throw LoadError.requestFailed
+        }
+        return LiveFolderFeed(source: gitHubPullsSource, title: "Pull Requests", articles: GitHubPullReader.articles(from: body))
     }
 
     private static func fetch(_ url: URL) async throws -> (Data, URL) {
@@ -112,6 +147,27 @@ public struct LiveFolderFeed: Codable, Equatable, Sendable {
         parser.delegate = reader
         guard parser.parse(), reader.recognized else { return nil }
         return LiveFolderFeed(source: source, title: reader.title ?? source.host() ?? "Live Folder", articles: reader.articles)
+    }
+}
+
+private enum GitHubPullReader {
+    static func articles(from html: String) -> [LiveFolderFeed.Article] {
+        let pattern = #"<a\b([^>]*\bhref=[\"'](/[^\"'#?\s]+/[^\"'#?\s]+/pull/(\d+))[^>]*)(?:>([\s\S]*?)</a>)"#
+        guard let expression = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return [] }
+        let text = html as NSString
+        var seen = Set<URL>()
+        return expression.matches(in: html, range: NSRange(location: 0, length: text.length)).compactMap { match in
+            guard match.numberOfRanges >= 5 else { return nil }
+            let path = text.substring(with: match.range(at: 2))
+            let inner = text.substring(with: match.range(at: 4))
+            guard let url = URL(string: "https://github.com" + path), seen.insert(url).inserted else { return nil }
+            let title = inner.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                .replacingOccurrences(of: "&amp;", with: "&")
+                .replacingOccurrences(of: "&quot;", with: "\"")
+                .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            let label = title.isEmpty ? path.split(separator: "/").dropLast().joined(separator: "/") + " #" + text.substring(with: match.range(at: 3)) : title
+            return LiveFolderFeed.Article(title: label, url: url)
+        }.prefix(LiveFolderFeed.articleLimit).map { $0 }
     }
 }
 

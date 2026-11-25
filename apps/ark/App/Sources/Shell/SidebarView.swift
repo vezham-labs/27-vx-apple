@@ -27,6 +27,20 @@ struct SidebarView: View {
                 .padding(.horizontal, 12)
         }
         .padding(.vertical, 12)
+        .task(id: space.id) {
+            guard space.pinFolders.contains(where: { $0.feed?.isGitHubPullRequests == true }) else { return }
+            let refreshInterval: TimeInterval = 900
+            while !Task.isCancelled {
+                await refreshGitHubPullRequests(in: space)
+                try? await Task.sleep(for: .seconds(refreshInterval))
+            }
+        }
+    }
+
+    private func refreshGitHubPullRequests(in space: Space) async {
+        let cookies = await browser.cookies(for: space)
+        guard (try? await space.refreshGitHubPullRequests(cookies: cookies)) != nil else { return }
+        browser.scheduleSave()
     }
 
     /// Everything that changes with the space.

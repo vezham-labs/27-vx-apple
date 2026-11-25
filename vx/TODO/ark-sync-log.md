@@ -84,6 +84,8 @@ Added a Mac **Share…** action for the active Easel. It renders the same lossle
 
 GitHub Pull Requests Live Folders now use the same visible-sidebar 15-minute refresh cadence as regular feeds. A background pass only runs for a Space that already contains the signed-in GitHub folder, reads that Space's in-memory GitHub cookies, saves only the refreshed folder, and is deliberately silent. Manual refresh still reports a missing GitHub sign-in. This closes the prior background-refresh implementation gap; signed-in response parsing, filters, and live interaction evidence remain open.
 
+The shared iPhone, iPad, and Duo app now exposes the same GitHub Pull Requests folder in its plus-menu and uses the selected Space's WebKit cookie store only for that request. Its visible sidebar also refreshes an existing GitHub folder every 15 minutes without a background toast. The generic iOS Simulator build passed without booting a simulator; signed-in and device runtime verification remain open.
+
 ### Mac favorite web-app previews — November 25, 2026
 
 Added a Mac hover preview for Notion, Figma, and Linear favourites. It reads up to five recent visits from the active website profile's local history and opens a selected page in a new tab; Private Space is excluded. The pinned Search source and reviewed Browsa history have no service-specific preview implementation, so this is an Ark-native first pass based on Arc's behavior rather than a copied upstream feature. `pnpm nx run ark:build-mac --output-style=static` passed. The running Finder app still maps the pre-build executable, so interaction and screenshot checks are pending. Mac Previews moves from No to Partial; service APIs/actions, mobile, and the dedicated feature screenshot remain open.

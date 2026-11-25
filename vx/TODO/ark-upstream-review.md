@@ -18,7 +18,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 25, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 267 of 332 unique commits reviewed (80.4%). Of the remaining 65, 62 belong to the earlier batch and three to the November 26 Search pull. Source review is tracked separately from implementation and runtime verification.
+**Review progress:** 270 of 332 unique commits reviewed (81.3%). All nine commits in the November 26 Search pull have a disposition; the remaining 62 belong to the earlier batch. Source review is tracked separately from implementation and runtime verification.
 
 ### November 26 pull
 
@@ -26,10 +26,10 @@ Browsa HEAD and `origin/main` remain at `46fe04bedb0f13521328c69d0f1f6814a18e618
 
 | Search commit | Change | Disposition |
 | --- | --- | --- |
-| `a35ea54` | Default preferences and inline predictions | Pending comparison against Ark defaults and address suggestions. |
+| `a35ea54` | Default preferences and inline predictions | Reviewed. Search flips a broad set of its own feature flags and defers inline predictions to the macOS global default. Ark does not carry those flags or Search’s AppKit text-field model; changing Ark defaults wholesale would be a separate product decision, not an Arc comparison gap. |
 | `0d049ee` | Probe fixture preferences | Reviewed file scope. Only Search probes changed, with no Ark product port. |
-| `4f3228a` | Sidebar player stays available after pause | Pending comparison against Ark’s media controls. |
-| `3dffd16` | Repeat close on tucked group tabs | Pending comparison against Ark’s pin and Split View close behavior. |
+| `4f3228a` | Sidebar player stays available after pause | Reviewed. Search’s custom sidebar player pauses media through WebKit suspension, including shadow-root players. Ark uses its Mini Player and system PiP for video; it has no matching sidebar-audio controller. No UI or suspension port without an Arc-directed media-controls design. |
+| `3dffd16` | Repeat close on tucked group tabs | Reviewed. Search’s tab group keeps a put-away row and changes a second ⌘W into a real close. Ark’s pin folders and Split View are different persistent models; closing an Ark pin/tab does not have Search’s put-away cycle. No equivalent behavior to port. |
 | `69902d0` | New-tab shortcuts with all windows closed | Reviewed. Ark’s command handlers already call `library.openWindow()` or `library.openWindow(.privateTab)` without a focused browser. Keyboard runtime check remains open. |
 | `9d4ce76` | Preserve popup sizing while an extension is loading | Reviewed. Search guards its custom popover’s measured size and cache. Ark uses WebKit’s native popover. Check slow-start extension behavior before porting. |
 | `d649f64` | Default to site icons and respect explicit synced choices | Reviewed. Ark already displays site favicons in the sidebar and has no corresponding glyph preference to migrate. |

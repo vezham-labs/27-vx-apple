@@ -280,6 +280,24 @@ struct SnapshotTour {
         if let color = try? await browser.currentController?.page.evaluate(check, inWorld: world) as? String {
             note("heading after clearing: \(color)")
         }
+        let easelID = browser.library.easels.firstBoard?.id ?? browser.library.easels.addBoard().id
+        _ = browser.library.easels.addPage(first, title: "Atlas · Field Guide", to: easelID)
+        if let noteID = browser.library.easels.addNote(to: easelID) {
+            browser.library.easels.updateText("A collected page and a note, arranged on one board.", for: noteID, in: easelID)
+        }
+        if let capture = await browser.currentController?.page.snapshot() {
+            let pasteboard = NSPasteboard.withUniqueName()
+            let image = NSBitmapImageRep(cgImage: capture)
+            if let png = image.representation(using: .png, properties: [:]) {
+                pasteboard.setData(png, forType: .png)
+                _ = browser.library.easels.addClipboardImage(to: easelID, pasteboard: pasteboard)
+            }
+            pasteboard.releaseGlobally()
+        }
+        browser.openLibrary("easels")
+        await pause(1)
+        saveVisible("easels", in: window)
+        note("Easels preview fixture: page card, editable note, and page capture")
         await baselinePreviews(browser, window: window, atlas: atlas, otherPage: second)
         await settingsPreviews(browser, window: window)
     }

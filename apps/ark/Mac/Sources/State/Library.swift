@@ -95,6 +95,8 @@ final class Library {
     let profileHistory: ProfileHistoryStores
     @ObservationIgnored private let suggestionSeeds = SeedProvider.bundled()
     @ObservationIgnored let siteStyles: SiteStyles
+    /// Local Mac canvases; intentionally not part of browser sync yet.
+    let easels: EaselStore
     /// Live pages, by tab. The least recently used are unloaded past `capacity`.
     @ObservationIgnored private(set) var controllers: [UUID: TabController] = [:]
     @ObservationIgnored private var lru: [UUID] = []
@@ -130,6 +132,7 @@ final class Library {
         (engine as? WebKitEngine)?.videoKeyControls = Preferences.videoKeyControls
         let support = snapshotURL?.deletingLastPathComponent()
         siteStyles = SiteStyles(fileURL: support?.appending(path: "site-styles.json"))
+        easels = EaselStore(fileURL: (support ?? FileManager.default.temporaryDirectory).appending(path: "easels.json"))
         extensionCatalog = ExtensionCatalog(fileURL: support?.appending(path: "extensions.json"))
         extensionInstaller = ExtensionInstaller(
             root: (support ?? FileManager.default.temporaryDirectory).appending(path: "Extensions"),

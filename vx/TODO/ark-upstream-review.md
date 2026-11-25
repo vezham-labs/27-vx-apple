@@ -18,7 +18,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 25, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 117 of 272 commits assessed (43.0%); 155 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
+**Review progress:** 119 of 272 commits assessed (43.8%); 153 remain pending. This measures upstream commit review, not Arc feature parity or runtime verification.
 
 ### Browsa
 
@@ -223,7 +223,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `659f74dc35
 | `4dbc44ec9c64e454493a7fe66730c3b5d08d67c1` | Search 1.0.19 | Pending |
 | `b467bb244c30c85f8205e2326757c20bb02fe55a` | Space menu: Switch to Profile, not "Profile: Personal" (idea 983) | Pending |
 | `6a10b64c1a3c865b3d220c11caee05e7efa10e6b` | The field in the middle of the window has the keys (idea 1033) | Pending |
-| `d123cdc909f7a423e26cc89c6b664a26324c323b` | An extension's popup sends its window's sign-ins (idea 1045) | Pending |
+| `d123cdc909f7a423e26cc89c6b664a26324c323b` | An extension's popup sends its window's sign-ins (idea 1045) | Reviewed; Search's custom extension-fetch bridge tags popup requests and selects cookies from the Browser owning that popup. Ark uses WebKit's native `WKWebExtension.Action.popupWebView` and has no equivalent fetch bridge or per-popup website-data-store assignment. Do not port Search's message flag alone; it would have no consumer. Cross-profile popup sign-in behavior remains an open Chrome Extensions compatibility check; see the comparison row. |
 | `80f8f1364c6471131e88544a7cb7ea773af6cdfb` | Drag a finished download out of the Downloads list as its file (idea 566) | Pending |
 | `8755ef84d74f8e2f95a86aea4e66fd05d6198b49` | docs: ROADMAP: dragging a download out is done (idea 566) | Pending |
 | `39ab8c5db4af5d2c37838ae22ec121c9ccc352bd` | A peek can share the screen: asked over it, as a tab is | Adapted: Ark's visible Glance now asks through its explicit screen-sharing permission sheet; close, navigation, and promotion cancel pending requests. Mac build passed; live WebKit screen-share request remains unverified. |
@@ -243,7 +243,7 @@ Baseline: `6f2b186bfa862d282ee9f424be1dfd5eb8ddc316`. Review target: `659f74dc35
 | `60248b85d41ab55b19c057fd68b47e56f6ad9949` | The Dock icon brings a browser window, and the first window is in the Window menu (idea 1047) | Adapted in Ark commit [`8948a8fa`](../../commit/8948a8fa): Dock reopen now checks registered Ark browser windows rather than auxiliary app windows, restores a minimized/out-of-sight browser window, and opens one if none exists. Browser windows are also included in the Window menu. Mac build passed; Dock behavior and Window menu remain runtime-unverified. No matching Arc row. |
 | `241966e70c3072a8eaac0360429acfae6bf9f404` | Each puzzle button has its own open state, so the hidden copy can't close the list (idea 1021) | Reviewed; Ark has one extension-action menu in the address pill and no duplicated puzzle-button row at the sidebar footer, so the shared hidden-copy state bug has no Ark path. No code or matrix change. |
 | `ecb0d861e37416997002a3ecebc69704270e0707` | Passwords: a bare email box with its caption drawn beside it is a sign-in's name box (idea 1031) | Pending |
-| `2214b1263b6a04334a06f6152468336fb4cac526` | Extension popups size to their content on load and follow it both ways (idea 1022) | Pending |
+| `2214b1263b6a04334a06f6152468336fb4cac526` | Extension popups size to their content on load and follow it both ways (idea 1022) | Reviewed; Search owns a custom popup `WKWebView`, sizing observers, and persisted per-extension dimensions. Ark presents WebKit's native `popupPopover` and does not own its sizing lifecycle or dimensions. A custom observer would duplicate or fight WebKit's popup management; no safe Ark port identified. Popup resizing is not a separate Arc row; Chrome Extensions remains Partial pending broader compatibility checks. |
 | `824664a4291b8d99fe00ecfb1857d1b2796fc4f3` | Closing a pin goes back to the tab before it, pins included (idea 1063) | Adapted as an off-by-default Mac setting for tab closes; Split View partners retain priority, and moving tabs is unaffected. Mac build passed. Runtime verification is blocked by the repeated SwiftUI `BrowserWindow.background` crash in SnapshotTour. |
 | `cfeed018cfbea714abd831b58571b8c5c0340fa5` | Extension popups: bound the kept size when read, forget it on uninstall | Reviewed; Ark presents extension action popups through WebKit's native `WKWebExtension.Action.popupPopover`; Ark does not persist popup dimensions. Search's custom sizing cache and uninstall cleanup therefore have no Ark counterpart. No code or matrix change. |
 | `cf21241b244cd4af9b77013ce7d453b93843df50` | Links from pinned tabs can open in a new tab (idea 1039) | Adapted as an off-by-default Mac setting for plain, unmodified main-frame link clicks; same-page fragments and common sign-in routes stay in the pin. Mac build passed. Runtime verification is blocked by a SwiftUI `BrowserWindow.body` crash before SnapshotTour reaches the interaction. |

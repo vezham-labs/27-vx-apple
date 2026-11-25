@@ -6,7 +6,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 The [incoming review inventory](ark-upstream-review.md) lists 149 Browsa and 123 Search commits between the recorded baselines and the pulled heads, with a refined execution order that preserves the full goal. Browsa's clean worktree matches `origin/main` at `e981df56`. Search's clean worktree is at `33ec7aea`, with nine additional commits available on `origin/main` at `659f74dc`; those diffs were assessed without changing the upstream checkout. Review dispositions do not advance the last-synced baseline until adoption and verification are complete.
 
-Current review progress: 117/272 incoming commits assessed (43.0%); 155 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
+Current review progress: 119/272 incoming commits assessed (43.8%); 153 remain pending. The Arc feature matrix remains at 21/42 Mac rows rated Yes (50%); these are separate measures, and several matrix rows still need runtime evidence.
 
 Arc is the reference for the entire sidebar's layout, styling, interactions, and animations. Browsa and Search supply implementation references; their UI is not the visual acceptance target. Prioritize Mac fixes while mobile runtime verification remains deferred.
 
@@ -17,6 +17,14 @@ Before reviewing incoming commits, Ark added insertion positions and a visible i
 Re-tested the existing sidebar drag interaction in SpikeArk's isolated mock profile. The control endpoint initially targeted a non-key window and did not deliver the drag; after activating SpikeArk, dragging **Checkout · Northwind** below **Northwind Shop** changed the mock tab order in `/state`. This verifies root pinned-tab reorder in the shared Mac UI source without touching Ark's installed profile or adding test files. The comparison row remains Partial: this check does not cover pin-folder reorder, Mac multi-selection/undo, or iPhone/iPad/Duo behavior. Existing Mac preview for this feature remains [pinned folders](../../preview/ark/mac/features/pinned-folders.png).
 
 Fetched upstream heads: Browsa `e981df56c551fc83efc39efe1b7d61cd7abe3071`; Search `33ec7aea1823c81c77a2be196e442dd54e36efa7`. These are review targets, not fully synced baselines. Neither reference checkout was switched or merged.
+
+### Search extension popup behavior — November 25, 2026
+
+Reviewed Search [`d123cdc909f7a423e26cc89c6b664a26324c323b`](https://github.com/driceroland/Search/commit/d123cdc909f7a423e26cc89c6b664a26324c323b) and [`2214b1263b6a04334a06f6152468336fb4cac526`](https://github.com/driceroland/Search/commit/2214b1263b6a04334a06f6152468336fb4cac526). Search owns its extension popup WebView and custom fetch bridge, so it can size popups itself and choose cookies from the popup's originating Browser. Ark uses WebKit-managed native action popovers; copying the custom observer/fetch marker would not have a compatible Ark consumer and could conflict with WebKit's popup lifecycle. No source change was made. Cross-profile extension-popup sign-in behavior remains unverified, so Chrome Extensions stays Partial. Incoming review is now 119/272 commits (43.8%); the Mac matrix remains 21/42 rows rated Yes (50%).
+
+### Mac Easels first pass — November 25, 2026
+
+Added `EaselStore` and `EaselView` in `apps/ark/Mac/Sources/Library/Easels.swift`. The Library opens local boards; page context menus add the current page as a card, and the canvas supports editable notes, movable cards, and PNG cards imported from the clipboard. Image files stay beside the local board data under Ark's support folder; Easels are not synced. The existing `SnapshotTour` now seeds a page card, note, and captured page image and writes an `easels.png` preview when its feature tour runs. `pnpm nx run ark:build-mac --output-style=static` passed. Runtime behavior and the generated preview are not yet verified because the tour has not been run against the rebuilt app. The matrix moves Mac Easels from No to Partial; drawing/markup, direct canvas capture, export, sharing, sync, and mobile remain open.
 
 Adapted Browsa `85f6092a072347c472cc7e841ecbced7707e5ba5` in Ark's `PageActivity.swift`: coalesce media events over 200 ms instead of rescanning media for every event. Ark additionally cancels the pending report on `pagehide` so an old timer cannot overwrite the inactive report. Input and submit reporting remain immediate. An in-memory Node check of the extracted script verified that 100 media events scheduled one scan and page hide cancelled the pending timer. This uses a mock DOM, not live WebKit, and does not establish a measured CPU improvement. Live timing verification remains pending.
 
@@ -318,7 +326,7 @@ The Mac importer reads Arc's legacy string markers and newer object markers, usi
 
 The Mac build passed. A local fixture verified the new and legacy markers in one Space, nested folder membership, pin order, continued import of open tabs, and skipping local file URLs. The [Mac preview](../../preview/ark/mac/features/arc-folder-import.png) shows the imported fixture Space.
 
-Compared Browsa [`a4de8f2cf9d98a0d633c05bb6762105175c16ba7`](https://github.com/jmaorr/Browsa/commit/a4de8f2cf9d98a0d633c05bb6762105175c16ba7), adapted in Ark commit [`0fe4739f`](../../commit/0fe4739f): Ark already matches its nested-folder layout, ordered pins, safe traversal, and Arc import behavior. Ark now also imports Arc’s `isExpanded` flag into its native collapsed-folder state; the existing SnapshotTour fixture includes expanded and collapsed folders and asserts both. `ark:build-mac` passed. The built app’s import flow has not yet been manually rechecked. No new test file or simulator was used; the Arc import row stays Yes.
+Compared Browsa [`a4de8f2cf9d98a0d633c05bb6762105175c16ba7`](https://github.com/jmaorr/Browsa/commit/a4de8f2cf9d98a0d633c05bb6762105175c16ba7), adapted in Ark commit [`84207079`](../../commit/84207079): Ark already matches its nested-folder layout, ordered pins, safe traversal, and Arc import behavior. Ark now also imports Arc’s `isExpanded` flag into its native collapsed-folder state; the existing SnapshotTour fixture includes expanded and collapsed folders and asserts both. `ark:build-mac` passed. The built app’s import flow has not yet been manually rechecked. No new test file or simulator was used; the Arc import row stays Yes.
 
 ### Live Folders
 

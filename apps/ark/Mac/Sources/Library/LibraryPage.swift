@@ -198,6 +198,7 @@ enum LibraryActions {
 
 /// One thing the keyboard can land on, in page order.
 enum LibraryItem: Hashable {
+    case easels
     case pack(String)
     case plugin(String)
     case verified(String)
@@ -239,13 +240,15 @@ struct LibraryView: View {
 
     /// Everything the arrow keys move through, in reading order.
     private var order: [LibraryItem] {
-        packs.map { .pack($0.id) } + tools.map { .plugin($0.id) } + privacy.map { .plugin($0.id) }
+        [.easels] + packs.map { .pack($0.id) } + tools.map { .plugin($0.id) } + privacy.map { .plugin($0.id) }
             + verified.map { .verified($0.id) } + installed.map { .installed($0.id) }
     }
 
     var body: some View {
         Group {
-            if let detail, let item = extensionItem(detail) {
+            if detail == "easels" {
+                EaselView(store: library.easels)
+            } else if let detail, let item = extensionItem(detail) {
                 ExtensionDetail(item: item) { close() }
             } else if let detail, let pack = LibraryCatalog.pack(detail) {
                 PackDetail(pack: pack) { id in parentPack = pack.id; self.detail = id } back: { close() }
@@ -290,6 +293,7 @@ struct LibraryView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     header
+                    easelCard
                     ForEach(packs) { pack in
                         PackCard(pack: pack, isFocused: focused == .pack(pack.id)) { detail = pack.id }.id(LibraryItem.pack(pack.id))
                     }
@@ -344,6 +348,29 @@ struct LibraryView: View {
         }
     }
 
+    private var easelCard: some View {
+        Button { browser.openLibrary("easels") } label: {
+            HStack(spacing: 16) {
+                Image(systemName: "rectangle.on.rectangle.angled")
+                    .font(.system(size: 21, weight: .medium)).foregroundStyle(.orange)
+                    .frame(width: 48, height: 48).background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 13))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Easels").font(.system(size: 16, weight: .semibold))
+                    Text("Collect pages, notes, and captures on a freeform canvas.").font(.system(size: 13)).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(.tertiary)
+            }
+            .padding(16)
+            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 16))
+            .contentShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(focused == .easels ? Color.accentColor : .clear, lineWidth: 2))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens the Easels canvas")
+        .id(LibraryItem.easels)
+    }
+
     /// Down from the search field lands on the first item; up from the first goes back to search.
     private func move(_ step: Int) -> KeyPress.Result {
         let items = order
@@ -365,6 +392,8 @@ struct LibraryView: View {
 
     private func toggleFocused() -> KeyPress.Result {
         switch focused {
+        case .easels:
+            detail = "easels"
         case .pack(let id):
             guard let pack = LibraryCatalog.packs.first(where: { $0.id == id }) else { return .ignored }
             let on = LibraryActions.isPackOn(pack, in: browser)
@@ -382,6 +411,9 @@ struct LibraryView: View {
 
     private func openFocused() -> KeyPress.Result {
         switch focused {
+        case .easels:
+            detail = "easels"
+            return .handled
         case .plugin(let id), .pack(let id):
             detail = id
             return .handled

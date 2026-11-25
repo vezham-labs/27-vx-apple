@@ -54,7 +54,16 @@ final class NotesUI {
                 }
             }
             item.image = NSImage(systemSymbolName: "text.bubble", accessibilityDescription: nil)
-            return [item]
+            let easel = ClosureMenuItem(title: "Add to Easel") {
+                Task { @MainActor in
+                    guard let tab = browser.currentTab, let url = tab.url else { return }
+                    let boardID = library.easels.firstBoard?.id ?? library.easels.addBoard().id
+                    _ = library.easels.addPage(url, title: tab.title, to: boardID)
+                    browser.openLibrary("easels")
+                }
+            }
+            easel.image = NSImage(systemSymbolName: "rectangle.on.rectangle.angled", accessibilityDescription: nil)
+            return [item, easel]
         }
     }
 

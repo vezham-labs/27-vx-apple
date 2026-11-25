@@ -94,10 +94,30 @@ struct NewTabMenu: View {
                 browser.presentNewTab()
             }
         }
+        Divider()
+        Button("GitHub Pull Requests Live Folder", systemImage: "arrow.triangle.branch") {
+            refreshGitHubPullRequests()
+        }
         if browser.privateSpace != nil {
             Divider()
             Button("Close Private Tabs", systemImage: "xmark", role: .destructive) {
                 withAnimation(Motion.spring) { browser.closePrivateSpace() }
+            }
+        }
+    }
+
+    private func refreshGitHubPullRequests() {
+        let space = browser.currentSpace
+        guard !space.isPrivate else { return }
+        browser.toast = "Refreshing GitHub pull requests…"
+        Task {
+            let cookies = await browser.cookies(for: space)
+            do {
+                guard let folder = try await space.refreshGitHubPullRequests(cookies: cookies) else { return }
+                browser.scheduleSave()
+                browser.toast = "GitHub Pull Requests: \(folder.feed?.articles.count ?? 0) open"
+            } catch {
+                browser.toast = "Sign in to GitHub in this Space to add Pull Requests"
             }
         }
     }

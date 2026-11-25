@@ -24,6 +24,13 @@ extension BrowserState {
         if currentTab?.isPrivate == false { reload() }
     }
 
+    /// Returns only cookies that WebKit already holds for this Space's website profile.
+    /// Callers must further restrict the destination domain before sending a request.
+    public func cookies(for space: Space) async -> [HTTPCookie] {
+        guard !space.isPrivate else { return [] }
+        return await pool.regularConfiguration(for: space.websiteProfileID).websiteDataStore.httpCookieStore.allCookies()
+    }
+
     // MARK: Spaces
 
     func websiteProfileID(for tab: BrowserTab) -> UUID? {

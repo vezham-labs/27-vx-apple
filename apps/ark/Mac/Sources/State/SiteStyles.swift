@@ -1,5 +1,7 @@
 import BrowserCore
+import AppKit
 import WebKit
+import UniformTypeIdentifiers
 
 extension Browser {
     var editableSiteStyleHost: String? {
@@ -40,6 +42,37 @@ extension Browser {
     func restoreAllSiteElements(for host: String) throws {
         try library.siteStyles.restoreAll(for: host)
         applySiteStyle(for: host)
+    }
+
+    func exportSiteStyle(for host: String) {
+        guard let data = library.siteStyles.exportData(for: host) else {
+            showToast("Couldn’t export these Boosts")
+            return
+        }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = host + ".arkboost"
+        panel.allowedContentTypes = [UTType(filenameExtension: "arkboost") ?? .json]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try data.write(to: url, options: .atomic)
+            showToast("Exported Boosts for \(host)")
+        } catch { showToast("Couldn’t export these Boosts") }
+    }
+
+    func importSiteStyle() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "arkboost") ?? .json, .json]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            guard let host = try library.siteStyles.importData(Data(contentsOf: url)) else {
+                showToast("That file isn’t an Ark Boost")
+                return
+            }
+            applySiteStyle(for: host)
+            if host == editableSiteStyleHost { closeSiteStyleEditor() }
+            showToast("Imported Boosts for \(host)")
+        } catch { showToast("Couldn’t import those Boosts") }
     }
 
     func previewSiteElement(_ selector: String?) {

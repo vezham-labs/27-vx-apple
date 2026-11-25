@@ -17,6 +17,27 @@ public struct HiddenSiteElement: Codable, Identifiable, Equatable, Sendable {
     }
 }
 
+/// The portable, inspectable representation of one Ark Boost.
+/// It deliberately contains only page presentation rules—never cookies, history, or account data.
+public struct SharedSiteStyle: Codable, Sendable {
+    public let arkBoost: Int
+    public let host: String
+    public let css: String?
+    public let font: SiteStyleFont
+    public let accent: String?
+    public let hiddenElements: [HiddenSiteElement]
+
+    public init(arkBoost: Int = 1, host: String, css: String?, font: SiteStyleFont,
+                accent: String?, hiddenElements: [HiddenSiteElement]) {
+        self.arkBoost = arkBoost
+        self.host = host
+        self.css = css
+        self.font = font
+        self.accent = accent
+        self.hiddenElements = hiddenElements
+    }
+}
+
 public enum SiteStyleFont: String, Codable, CaseIterable, Identifiable, Sendable {
     case original
     case system
@@ -119,6 +140,30 @@ public final class SiteStyles {
         }
         accents = updated
         revision += 1
+    }
+
+    public func exportData(for host: String) -> Data? {
+        let file = SharedSiteStyle(host: host, css: styles[host], font: font(for: host),
+                                   accent: accent(for: host), hiddenElements: hiddenElements(for: host))
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try? encoder.encode(file)
+    }
+
+    /// Imports a portable Ark Boost after validating its host and version.
+    /// Existing presentation choices for that host are deliberately replaced as one user action.
+    @discardableResult
+    public func importData(_ data: Data) throws -> String? {
+        let file = try JSONDecoder().decode(SharedSiteStyle.self, from: data)
+        guard file.arkBoost == 1,
+              let host = Self.host(of: URL(string: "https://" + file.host)), host == file.host else {
+            return nil
+        }
+        try set(file.css ?? "", for: host)
+        try setFont(file.font, for: host)
+        try setAccent(file.accent, for: host)
+        try setHidden(file.hiddenElements, for: host)
+        return host
     }
 
     /// Avoid putting arbitrary persisted text into a page stylesheet.

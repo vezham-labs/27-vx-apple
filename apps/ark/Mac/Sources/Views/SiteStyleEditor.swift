@@ -76,6 +76,8 @@ struct SiteStyleEditor: View {
                 Text("Couldn’t save these Boosts.").font(.caption).foregroundStyle(.red)
             }
             HStack {
+                Button("Import…", action: browser.importSiteStyle)
+                Button("Export…") { browser.exportSiteStyle(for: host) }
                 Spacer()
                 Button("Cancel") { browser.closeSiteStyleEditor() }
                     .keyboardShortcut(.cancelAction)

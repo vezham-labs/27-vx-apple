@@ -106,7 +106,7 @@ extension Browser {
         guard let host = editableSiteStyleHost, let tab = currentTab, let url = tab.url,
               let view = currentController?.page.view as? WKWebView else { return nil }
         let picker = RegionCaptureView.present(on: view, mode: .element) { [weak self, weak view] selection in
-            guard case .element(let point) = selection, let self, let view,
+            guard case .element(let point, let allRelated) = selection, let self, let view,
                   currentTab === tab, tab.url == url else { return }
             Task { [weak self] in
                 let selection = await PageCaptureImage.selection(at: point, in: view)
@@ -114,12 +114,24 @@ extension Browser {
                       library.existingController(for: tab)?.page.view === view else { return }
                 guard let selection else { showToast("Couldn’t hide this element"); return }
                 do {
-                    try library.siteStyles.hide(HiddenSiteElement(selector: selection.selector, label: selection.label,
-                                                                  note: selection.note, fingerprint: selection.fingerprint,
-                                                                  family: selection.family), for: host)
+                    let element: HiddenSiteElement
+                    if allRelated {
+                        guard let family = selection.family, !family.isEmpty, selection.relatedCount > 1 else {
+                            showToast("No related elements found")
+                            return
+                        }
+                        element = HiddenSiteElement(selector: family,
+                                                    label: "All like \(selection.label) (\(selection.relatedCount))",
+                                                    note: selection.note)
+                    } else {
+                        element = HiddenSiteElement(selector: selection.selector, label: selection.label,
+                                                    note: selection.note, fingerprint: selection.fingerprint,
+                                                    family: selection.family)
+                    }
+                    try library.siteStyles.hide(element, for: host)
                     applySiteStyle(for: host)
-                    showToast("Hidden: \(selection.label)", actions: [ToastAction(title: "Undo") { [weak self] in
-                        do { try self?.restoreSiteElement(selection.selector, for: host) }
+                    showToast("Hidden: \(element.label)", actions: [ToastAction(title: "Undo") { [weak self] in
+                        do { try self?.restoreSiteElement(element.selector, for: host) }
                         catch { self?.showToast("Couldn’t restore this element") }
                     }])
                 } catch { showToast("Couldn’t save the hidden element") }

@@ -83,7 +83,7 @@ extension Browser {
                 let rect: CGRect?
                 switch selection {
                 case .area(let area): rect = area
-                case .element(let point): rect = await PageCaptureImage.element(at: point, in: webView)
+                case .element(let point, _): rect = await PageCaptureImage.element(at: point, in: webView)
                 }
                 guard currentTab === tab, tab.url == url else { return }
                 let failure = mode == .area ? "Couldn’t capture this area" : "Couldn’t capture this element"

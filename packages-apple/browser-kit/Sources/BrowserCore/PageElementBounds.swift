@@ -6,13 +6,16 @@ public struct PageElementSelection: Equatable, Sendable {
     public let note: String
     public let fingerprint: String?
     public let family: String?
+    public let relatedCount: Int
 
-    public init(selector: String, label: String, note: String, fingerprint: String? = nil, family: String? = nil) {
+    public init(selector: String, label: String, note: String, fingerprint: String? = nil, family: String? = nil,
+                relatedCount: Int = 0) {
         self.selector = selector
         self.label = label
         self.note = note
         self.fingerprint = fingerprint
         self.family = family
+        self.relatedCount = relatedCount
     }
 }
 
@@ -98,10 +101,14 @@ extension PageCaptureImage {
             const side = centerX < innerWidth / 3 ? 'left' : centerX > innerWidth * 2 / 3 ? 'right' : 'centre';
             const band = centerY < innerHeight / 3 ? 'top' : centerY > innerHeight * 2 / 3 ? 'bottom' : 'middle';
             const note = Math.round(rect.width) + '×' + Math.round(rect.height) + ' · ' + band + ' ' + side;
-            const finish = (selector, guarded = false) => selector && unique(selector) ? {
-                selector, label: clip(label, 40), note,
-                fingerprint: guarded ? fingerprint(element) : '', family: guarded ? family(element) : ''
-            } : null;
+            const finish = (selector, guarded = false) => {
+                if (!selector || !unique(selector)) return null;
+                const related = family(element);
+                let relatedCount = 0;
+                try { relatedCount = related ? document.querySelectorAll(related).length : 0; } catch {}
+                return { selector, label: clip(label, 40), note,
+                    fingerprint: guarded ? fingerprint(element) : '', family: related, relatedCount: String(relatedCount) };
+            };
             if (element.id) {
                 const selector = '#' + CSS.escape(element.id);
                 if (unique(selector)) return finish(selector);
@@ -139,6 +146,7 @@ extension PageCaptureImage {
         guard let value = result as? [String: String], let selector = value["selector"], !selector.isEmpty,
               let label = value["label"], let note = value["note"] else { return nil }
         return PageElementSelection(selector: selector, label: label, note: note,
-                                    fingerprint: value["fingerprint"], family: value["family"])
+                                    fingerprint: value["fingerprint"], family: value["family"],
+                                    relatedCount: Int(value["relatedCount"] ?? "") ?? 0)
     }
 }

@@ -18,7 +18,7 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 25, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 266 of 332 unique commits reviewed (80.1%). Of the remaining 66, 62 belong to the earlier batch and four to the November 26 Search pull. Source review is tracked separately from implementation and runtime verification.
+**Review progress:** 267 of 332 unique commits reviewed (80.4%). Of the remaining 65, 62 belong to the earlier batch and three to the November 26 Search pull. Source review is tracked separately from implementation and runtime verification.
 
 ### November 26 pull
 
@@ -34,7 +34,7 @@ Browsa HEAD and `origin/main` remain at `46fe04bedb0f13521328c69d0f1f6814a18e618
 | `9d4ce76` | Preserve popup sizing while an extension is loading | Reviewed. Search guards its custom popover’s measured size and cache. Ark uses WebKit’s native popover. Check slow-start extension behavior before porting. |
 | `d649f64` | Default to site icons and respect explicit synced choices | Reviewed. Ark already displays site favicons in the sidebar and has no corresponding glyph preference to migrate. |
 | `464240b` | Preserve hidden-element identity on dynamic pages | Adapted in the current Ark workspace: newly selected unstable elements store a small DOM fingerprint and class family, then re-hide only one exact match after dynamic page construction. Legacy saved selectors remain plain CSS. BrowserKit’s existing 79-test suite passed; live dynamic-page verification remains open. |
-| `b9fcbb45` | Hide similar elements from the picker | Pending comparison against Ark’s Boost picker. |
+| `b9fcbb45` | Hide similar elements from the picker | Partially adapted for Mac: Option-click in Ark’s existing element picker hides the selected element’s stable class family when two or more match; a plain click remains a single-element hide. Mac build passed. Count preview and touch-native mobile interaction remain open. |
 
 ### Browsa
 

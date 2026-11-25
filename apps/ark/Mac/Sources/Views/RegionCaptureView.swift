@@ -5,7 +5,7 @@ final class RegionCaptureView: NSView {
     enum Mode { case area, element }
     enum Selection {
         case area(NSRect)
-        case element(NSPoint)
+        case element(NSPoint, allRelated: Bool)
     }
 
     private var start: NSPoint?
@@ -31,7 +31,7 @@ final class RegionCaptureView: NSView {
         super.init(frame: page.frame)
         autoresizingMask = [.width, .height]
         setAccessibilityLabel(mode == .area ? "Drag to select a page area. Press Escape to cancel."
-                                             : "Click a page element. Press Escape to cancel.")
+                                             : "Click a page element to hide it. Option-click hides related elements. Press Escape to cancel.")
     }
 
     required init?(coder: NSCoder) { nil }
@@ -99,7 +99,7 @@ final class RegionCaptureView: NSView {
             let point = convert(event.locationInWindow, from: nil)
             let inside = visibleRect.contains(point)
             dismiss()
-            if inside { completion(.element(point)) }
+            if inside { completion(.element(point, allRelated: event.modifierFlags.contains(.option))) }
             return
         }
         mouseDragged(with: event)

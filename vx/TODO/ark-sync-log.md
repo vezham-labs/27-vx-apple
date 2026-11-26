@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### iOS WebKit delegate signatures — November 26, 2026
+
+The generic iOS build exposed that the camera/microphone permission and link long-press menu methods did not match the current Swift `WKUIDelegate` requirements, so WebKit could use its default behavior instead of Ark's handlers. Corrected both signatures; the generic iOS Nx build passed and the signature warnings disappeared. Existing unrelated compiler warnings remain. Permission prompts and link-menu actions still require device runtime verification; no simulator was started and no comparison rating changed.
+
 ### GitHub cache on profile reassignment — November 26, 2026
 
 Explicitly assigning a different website profile now clears cached GitHub pull requests and account-specific owner filters, and pauses the folder until a user refreshes it with the new profile. This applies to Mac and iOS assignment paths. Sync merge likewise retains local feed data only for the same source and GitHub profile; a changed profile clears it and pauses the folder. Existing fixtures verify both paths and that sync projection excludes account data; all 90 BrowserCore tests and Mac and generic iOS builds passed. Live sync-driven interaction and signed-in refresh still need runtime verification; no simulator was started.

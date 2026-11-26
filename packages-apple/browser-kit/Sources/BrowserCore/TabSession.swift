@@ -354,8 +354,8 @@ extension TabSession: WKUIDelegate {
 
     // MARK: Permissions
 
-    public func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin,
-                        initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType) async -> WKPermissionDecision {
+    public func webView(_ webView: WKWebView, decideMediaCapturePermissionsFor origin: WKSecurityOrigin,
+                        initiatedBy frame: WKFrameInfo, type: WKMediaCaptureType) async -> WKPermissionDecision {
         guard let browser else { return .deny }
         let kind: SitePermission = switch type {
         case .camera: .camera
@@ -373,7 +373,7 @@ extension TabSession: WKUIDelegate {
 
     // MARK: Long-press on links
 
-    public func webView(_ webView: WKWebView, contextMenuConfigurationForElement elementInfo: WKContextMenuElementInfo) async
+    public func webView(_ webView: WKWebView, contextMenuConfigurationFor elementInfo: WKContextMenuElementInfo) async
         -> UIContextMenuConfiguration? {
         guard let url = elementInfo.linkURL else {
             // Images and other elements keep WebKit's own menu.

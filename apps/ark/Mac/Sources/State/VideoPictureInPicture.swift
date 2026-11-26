@@ -334,6 +334,10 @@ final class VideoPictureInPicture {
         return best == null ? { state: 'none' } : { state: 'candidate', index: best, area, supported };
         """
 
+    #if DEBUG
+    static var debugProbeScript: String { probeScript }
+    #endif
+
     private static let performScript = """
         const video = document.querySelectorAll('video')[index];
         if (!video || typeof video.webkitSetPresentationMode !== 'function') return false;

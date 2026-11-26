@@ -206,6 +206,32 @@ struct SnapshotTour {
         guard let window = browser.nsWindow else { note("missing window"); return }
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        if ProcessInfo.processInfo.environment["ARK_PIP_PROBE_CHECK_ONLY"] == "1" {
+            let tab = browser.newTab(url: URL(string: "about:blank"))
+            guard let page = browser.library.existingController(for: tab)?.page else { note("PiP probe page missing"); return }
+            await pause(1)
+            let source = VideoPictureInPicture.debugProbeScript
+            let fixture = """
+                const original = document.querySelectorAll.bind(document);
+                const parent = { tagName: 'DIV', className: 'video-preview', parentElement: document.body };
+                const video = { tagName: 'VIDEO', parentElement: parent, duration: 30, readyState: 4,
+                    paused: false, ended: false, muted: false, volume: 1, srcObject: null,
+                    hasAttribute: () => false, getBoundingClientRect: () => ({left:0, top:0, right:640, bottom:360}),
+                    webkitSupportsPresentationMode: () => true };
+                document.querySelectorAll = selector => selector === 'video' ? [video] : original(selector);
+                const run = new Function('automatic', \(String(reflecting: source)));
+                const result = { previewAuto: run(true).state, previewManual: run(false).state };
+                parent.className = 'player'; video.duration = 5;
+                result.shortAuto = run(true).state; result.shortManual = run(false).state;
+                video.duration = Infinity; result.liveAuto = run(true).state;
+                document.querySelectorAll = original;
+                return JSON.stringify(result);
+                """
+            let result = try? await page.evaluate(fixture, inWorld: "ark.pip-probe") as? String
+            note("WebKit PiP candidate fixture: \(result ?? "unavailable")")
+            browser.close(tab)
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_COMMAND_FIELD_CHECK_ONLY"] == "1" {
             browser.showCommandBar(.newTab)
             await pause(1)

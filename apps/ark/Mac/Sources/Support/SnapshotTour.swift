@@ -258,6 +258,21 @@ struct SnapshotTour {
                         await pause(0.7)
                         let after = try? await webPage.evaluate("return String(window.__arkVideoKeysOff);", inFrame: frameID, inWorld: "ark.video-keys") as? String
                         note("Cross-origin iframe video keys disabled live: \(before == "false" && after == "true") (before: \(before ?? "unavailable"), after: \(after ?? "unavailable"))")
+                        engine.videoKeyControls = true
+                        let known = Set(webPage.registeredFrameIDs)
+                        _ = try? await page.evaluate("const late = document.createElement('iframe'); late.src = \(literal); document.body.append(late);", inWorld: "page")
+                        engine.videoKeyControls = false
+                        var lateID: String?
+                        for _ in 0..<50 {
+                            lateID = webPage.registeredFrameIDs.first { !known.contains($0) }
+                            if lateID != nil { break }
+                            await pause(0.1)
+                        }
+                        await pause(0.5)
+                        if let lateID {
+                            let lateState = try? await webPage.evaluate("return String(window.__arkVideoKeysOff);", inFrame: lateID, inWorld: "ark.video-keys") as? String
+                            note("Late iframe reconciles disabled video keys: \(lateState == "true") (flag: \(lateState ?? "unavailable"))")
+                        } else { note("Late iframe video keys: frame unavailable") }
                     } else { note("Cross-origin iframe video keys: frame unavailable") }
                 }
             }

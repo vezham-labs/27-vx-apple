@@ -1542,6 +1542,8 @@ Fix: retaining the named `WKContentWorld` across user-script replacement keeps t
 
 Frame follow-up: the live preference change previously evaluated only in the main frame even though the user script is installed in all frames. It now updates registered live frames as well, including cross-origin frames. The Mac build passed; an isolated localhost/127.0.0.1 fixture verified the iframe listener's flag changes from enabled to disabled without a reload, and repeated the main-frame video check. This checks the iframe flag, not iframe playback or physical keys. Report: `/private/tmp/ark-video-keys-frames-20261127/report.txt`.
 
+Registration follow-up: newly registered frames reconcile their video-key state with the current preference, covering frames that start loading while the preference changes. The Mac build passed; the isolated fixture checked an existing cross-origin frame and a second frame created immediately before disabling, and both reported the disabled flag. This does not prove every possible scheduling order or physical iframe playback. Report: `/private/tmp/ark-video-keys-late-frame-20261127/report.txt`.
+
 ### Web App Preview workspace hosts — November 26, 2026
 
 Privacy follow-up, November 27: favorite history previews now also exclude Agent Space, in addition to private Spaces, so the agent context cannot surface regular-profile recent pages through a favorite. The Mac build passed; a live Agent Space hover check remains open.

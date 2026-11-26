@@ -144,6 +144,7 @@ public final class WebKitPage: NSObject, EnginePage {
         if report.registered {
             if frameInfos.count >= 64, frameInfos[report.frame] == nil { return }
             frameInfos[report.frame] = frameInfo
+            engine?.syncVideoKeys(in: self, frameID: report.frame)
             return
         }
         frameInfos[report.frame] = frameInfo

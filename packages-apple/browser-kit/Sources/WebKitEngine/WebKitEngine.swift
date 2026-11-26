@@ -59,6 +59,14 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
             }
         }
     }
+    /// A frame may register after the preference changed while it was loading.
+    func syncVideoKeys(in page: WebKitPage, frameID: String) {
+        Task { [weak self, weak page] in
+            guard let self, let page else { return }
+            let script = self.videoKeyControls ? VideoKeyControls.source : VideoKeyControls.off
+            _ = try? await page.evaluate(script, inFrame: frameID, inWorld: VideoKeyControls.worldName)
+        }
+    }
     /// Settings › Audio. Pages read it about once a second while a call runs, so changes apply live;
     /// switching processing to the system's applies to pages loaded after.
     public var callAudio = CallAudioTuning() {

@@ -14,7 +14,7 @@ This is the execution queue for the Mac pass. The [comparison](../../apps-docs/d
 
 - **Chrome extensions / MV2 / MV3 / Firefox / Safari extensions:** verify representative extensions and their actual required APIs; track missing APIs and format limitations individually. These rows overlap; one extension cannot prove all compatibility.
 - **Arc import:** verify fresh-import UI and folder visibility; parser and existing fixture evidence already exist.
-- **Export Spaces / Shared Collections:** verify file-dialog round trips; hosted links and access controls remain missing.
+- **Export Spaces / Shared Collections:** review incoming Search `7bc04c0` and Browsa `b337f69` / `6463465` for all-Space export and interoperable bookmarks, preserving privacy and existing Ark JSON import. Verify file-dialog round trips; hosted links and access controls remain missing.
 - **Sync:** verify real cross-device propagation and profile transitions; local folder-coordinator fixtures do not prove device convergence.
 
 ## External or informational rows

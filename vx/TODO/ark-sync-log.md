@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### New upstream intake — November 26, 2026
+
+Recorded the locally known Browsa commits `46fe04b..a39e03e` (8) and Search commits `b9fcbb4..d5948c4` (60) in the [intake inventory](ark-upstream-intake-2026-11-26.md). These are pending full diff review, not synced changes; the prior 270/332 review count excludes them. Initial inspection identified all-Space export as an applicable gap: Ark exports one Space as JSON, while the references add interoperable bookmarks and, in Search, a richer multi-Space format. No product code or feature rating changed, and no upstream baseline advanced.
+
 ### Mac batch intake and Easel drawing — November 26, 2026
 
 Created the [Mac batch queue](ark-mac-batch.md) to group the remaining feature, compatibility, and verification work. Easel page cards now reject non-HTTP(S), hostless, and credential-bearing URLs; an isolated fixture confirmed these rejections. The Mac Nx build passed. An isolated image-card audit found existing input-posting access and used a system-posted drag: both a plain SwiftUI control and the annotation gesture responded, a stroke was stored, and the Clear button removed it. The [drawn-stroke preview](../../preview/ark/mac/features/easel-image-annotation-drawn.png) captures that run. This supersedes the earlier inconclusive synthetic-drag attempts; physical pointer and VoiceOver checks remain open. The file-URL fixture cannot verify adding an HTTP page, so its unrelated aggregate check failed. No simulator was started.

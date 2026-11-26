@@ -20,6 +20,8 @@ This inventory records the pulled heads on November 25, 2026. Pending means the 
 
 **Review progress:** 270 of 332 unique commits reviewed (81.3%). All nine commits in the November 26 Search pull have a disposition; the remaining 62 belong to the earlier batch. Source review is tracked separately from implementation and runtime verification.
 
+Later locally known refs add 8 Browsa and 60 Search commits, listed separately in the [new intake](ark-upstream-intake-2026-11-26.md). They are not included in the 270/332 figure and have not been fully reviewed or synced. Both references add all-Space export; Ark currently exports one Space as JSON. The incoming Browsa HTML bookmarks format and Search HTML/JSON formats require a focused compatibility and privacy review before adoption. No upstream baseline has advanced.
+
 ### November 26 pull
 
 Browsa HEAD and `origin/main` remain at `46fe04bedb0f13521328c69d0f1f6814a18e6188`. Search HEAD and `origin/main` moved from the prior review target `9b67323c` to `b9fcbb45deecddcdc4a6f1f8b8aa38dcfde6d788`. The last-synced baselines are unchanged.

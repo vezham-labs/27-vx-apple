@@ -264,6 +264,11 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
         webExtensions?.pageActivated(page)
     }
 
+    public func pagePinDidChange(_ page: any EnginePage) {
+        guard #available(macOS 15.4, *), let page = page as? WebKitPage else { return }
+        webExtensions?.pagePinChanged(page)
+    }
+
     func page(for webView: WKWebView) -> WebKitPage? { livePages[ObjectIdentifier(webView)]?.page }
 
     // MARK: Blocking

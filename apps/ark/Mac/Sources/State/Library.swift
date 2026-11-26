@@ -830,6 +830,7 @@ final class Library {
             tab.pinnedHomeURL = tab.url
         }
         tab.isPinned.toggle()
+        if let page = existingController(for: tab)?.page { engine.pagePinDidChange(page) }
         scheduleSave()
     }
 
@@ -873,6 +874,7 @@ final class Library {
         from.today.removeAll { $0.id == tab.id }
         if pinned && !tab.isPinned { tab.pinnedHomeURL = tab.url }
         if !pinned { tab.pinnedHomeURL = nil }
+        let pinChanged = tab.isPinned != pinned
         tab.isPinned = pinned
         if pinned {
             let i = target.flatMap { t in to.pinned.firstIndex { $0.id == t.id } } ?? to.pinned.endIndex
@@ -885,6 +887,7 @@ final class Library {
             tab.windowKey = showingPinnedWindow?.windowKey ?? activeWindow?.windowKey ?? target?.windowKey
         }
         if from.id != to.id { for w in windows { w.tabLeft(tab, space: from) } }
+        if pinChanged, let page = existingController(for: tab)?.page { engine.pagePinDidChange(page) }
         scheduleSave()
     }
 
@@ -900,9 +903,11 @@ final class Library {
         from.today.removeAll { $0.id == tab.id }
         if from.selectedTabID == tab.id { from.selectedTabID = nil }
         if tab.isPinned { tab.windowKey = activeWindow?.windowKey }
+        let wasPinned = tab.isPinned
         tab.isPinned = false
         tab.pinnedHomeURL = nil
         space.today.insert(tab, at: 0)
+        if wasPinned, let page = existingController(for: tab)?.page { engine.pagePinDidChange(page) }
         scheduleSave()
     }
 
@@ -1309,15 +1314,31 @@ extension Library: EngineExtensionHost {
     }
 
     func openExtensionTab(url: URL?, windowID: UUID?, active: Bool) -> (any EnginePage)? {
+        openExtensionTab(url: url, windowID: windowID, active: active, pinned: false)
+    }
+
+    func openExtensionTab(url: URL?, windowID: UUID?, active: Bool, pinned: Bool) -> (any EnginePage)? {
         guard let window = windows.first(where: { $0.id == windowID }) ?? activeWindow else { return nil }
+        guard !pinned || !window.currentSpace.isPrivate else { return nil }
         // The page is made with its URL, so an extension page gets the web view setup it needs.
         let tab = BrowserTab(url: url, isPrivate: window.currentSpace.isPrivate)
         tab.windowKey = window.windowKey
         window.currentSpace.today.insert(tab, at: 0)
+        if pinned { togglePinned(tab) }
         let page = controller(for: tab).page
         if active { window.select(tab) }
         scheduleSave()
         return page
+    }
+
+    func isExtensionTabPinned(_ page: any EnginePage) -> Bool { tab(showing: page)?.isPinned ?? false }
+
+    func setExtensionTabPinned(_ page: any EnginePage, pinned: Bool) -> Bool {
+        guard let tab = tab(showing: page), space(containing: tab) != nil else { return false }
+        if tab.isPinned == pinned { return true }
+        guard !tab.isPrivate else { return false }
+        togglePinned(tab)
+        return tab.isPinned == pinned
     }
 
     func activateExtensionTab(_ page: any EnginePage) {

@@ -338,6 +338,11 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
         controller.didChangeTabProperties([.URL, .title, .loading], for: page)
     }
 
+    func pagePinChanged(_ page: WebKitPage) {
+        guard !contexts.isEmpty else { return }
+        controller.didChangeTabProperties([.pinned], for: page)
+    }
+
     // MARK: WKWebExtensionControllerDelegate
 
     func webExtensionController(_ controller: WKWebExtensionController, openWindowsFor extensionContext: WKWebExtensionContext) -> [any WKWebExtensionWindow] {
@@ -352,8 +357,10 @@ final class WebKitExtensions: NSObject, WKWebExtensionControllerDelegate {
                                 for extensionContext: WKWebExtensionContext,
                                 completionHandler: @escaping ((any WKWebExtensionTab)?, (any Error)?) -> Void) {
         let windowID = (configuration.window as? ExtensionWindow)?.id
-        let page = host?.openExtensionTab(url: configuration.url, windowID: windowID, active: configuration.shouldBeActive)
-        completionHandler(page as? WebKitPage, nil)
+        let page = host?.openExtensionTab(url: configuration.url, windowID: windowID, active: configuration.shouldBeActive,
+                                          pinned: configuration.shouldBePinned)
+        let error = page == nil ? NSError(domain: "Ark.Extensions", code: 1, userInfo: [NSLocalizedDescriptionKey: "Could not create the requested tab."]) : nil
+        completionHandler(page as? WebKitPage, error)
     }
 
     /// Ark has no extension popup windows: a new window's tabs open as tabs in the window in use.
@@ -684,6 +691,11 @@ extension WebKitPage: WKWebExtensionTab {
     public func url(for context: WKWebExtensionContext) -> URL? { webView.url }
     public func isLoadingComplete(for context: WKWebExtensionContext) -> Bool { !webView.isLoading }
     public func isSelected(for context: WKWebExtensionContext) -> Bool { windowInfo?.activePage === self }
+    public func isPinned(for context: WKWebExtensionContext) -> Bool { extensions?.host?.isExtensionTabPinned(self) ?? false }
+    public func setPinned(_ pinned: Bool, for context: WKWebExtensionContext, completionHandler: @escaping ((any Error)?) -> Void) {
+        let updated = extensions?.host?.setExtensionTabPinned(self, pinned: pinned) ?? false
+        completionHandler(updated ? nil : NSError(domain: "Ark.Extensions", code: 2, userInfo: [NSLocalizedDescriptionKey: "This tab cannot be pinned or unpinned."]))
+    }
     public func zoomFactor(for context: WKWebExtensionContext) -> Double { webView.pageZoom }
 
     public func activate(for context: WKWebExtensionContext, completionHandler: @escaping ((any Error)?) -> Void) {

@@ -80,6 +80,8 @@ public protocol BrowserEngine: AnyObject {
     func extensionActionState(extensionID: String, for page: (any EnginePage)?) -> EngineActionState?
     /// A tab came to the front of its window, or its window came to the front.
     func pageDidBecomeActive(_ page: any EnginePage)
+    /// A tab's pinned state changed through the browser or an extension.
+    func pagePinDidChange(_ page: any EnginePage)
 }
 
 public extension BrowserEngine {
@@ -100,6 +102,7 @@ public extension BrowserEngine {
     func performAction(extensionID: String, for page: (any EnginePage)?, anchor: PlatformView?) {}
     func extensionActionState(extensionID: String, for page: (any EnginePage)?) -> EngineActionState? { nil }
     func pageDidBecomeActive(_ page: any EnginePage) {}
+    func pagePinDidChange(_ page: any EnginePage) {}
 }
 
 public enum LinkPreviewModifier: String, CaseIterable, Identifiable, Sendable {
@@ -189,6 +192,9 @@ public protocol EngineExtensionHost: AnyObject {
     func focusExtensionWindow(_ id: UUID)
     /// A new tab, in `windowID` or the focused window. Returns its page.
     func openExtensionTab(url: URL?, windowID: UUID?, active: Bool) -> (any EnginePage)?
+    func openExtensionTab(url: URL?, windowID: UUID?, active: Bool, pinned: Bool) -> (any EnginePage)?
+    func isExtensionTabPinned(_ page: any EnginePage) -> Bool
+    func setExtensionTabPinned(_ page: any EnginePage, pinned: Bool) -> Bool
     func activateExtensionTab(_ page: any EnginePage)
     func closeExtensionTab(_ page: any EnginePage)
     /// An extension changed its toolbar action (badge, icon, label) for some page.
@@ -200,6 +206,12 @@ public protocol EngineExtensionHost: AnyObject {
 }
 
 public extension EngineExtensionHost {
+    func openExtensionTab(url: URL?, windowID: UUID?, active: Bool, pinned: Bool) -> (any EnginePage)? {
+        guard !pinned else { return nil }
+        return openExtensionTab(url: url, windowID: windowID, active: active)
+    }
+    func isExtensionTabPinned(_ page: any EnginePage) -> Bool { false }
+    func setExtensionTabPinned(_ page: any EnginePage, pinned: Bool) -> Bool { false }
     var extensionManagementEntries: [EngineExtensionManagementEntry] { [] }
     func extensionActionsDidChange() {}
     func showExtensionPanel(extensionID: String, pageURL: URL? = nil) -> Bool { false }

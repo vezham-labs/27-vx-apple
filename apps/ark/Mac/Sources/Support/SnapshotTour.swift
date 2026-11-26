@@ -222,6 +222,62 @@ struct SnapshotTour {
         }
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
+        if ProcessInfo.processInfo.environment["ARK_EXTENSION_PIN_CHECK_ONLY"] == "1" {
+            let original = browser.currentTab
+            guard let page = browser.library.openExtensionTab(url: first, windowID: browser.id, active: false, pinned: true) else {
+                note("extension pin creation failed"); return
+            }
+            let created = browser.library.isExtensionTabPinned(page)
+                && browser.currentSpace.pinned.contains { browser.library.existingController(for: $0)?.page === page }
+                && browser.currentTab === original
+            let unpinned = browser.library.setExtensionTabPinned(page, pinned: false) && !browser.library.isExtensionTabPinned(page)
+            let repinned = browser.library.setExtensionTabPinned(page, pinned: true) && browser.library.isExtensionTabPinned(page)
+            browser.library.closeExtensionTab(page)
+            note("extension-created background pin and pin updates: \(created && unpinned && repinned) (created: \(created), unpinned: \(unpinned), repinned: \(repinned))")
+            guard let engine = browser.library.engine as? WebKitEngine else { return }
+            let fixture = directory.appending(path: "pin-extension", directoryHint: .isDirectory)
+            do {
+                try FileManager.default.createDirectory(at: fixture, withIntermediateDirectories: true)
+                let manifest = """
+                    {"manifest_version":3,"name":"Ark Pin Audit","description":"Local pin API audit","version":"1.0","permissions":["tabs"],"action":{"default_popup":"popup.html"}}
+                    """
+                try Data(manifest.utf8).write(to: fixture.appending(path: "manifest.json"))
+                try Data("<html><body>Pin audit</body></html>".utf8).write(to: fixture.appending(path: "popup.html"))
+                let errors = await engine.loadInstalledExtensions(folders: [ExtensionFolder(id: "ark-pin-audit", url: fixture)], includeApps: false)
+                guard errors.isEmpty, let popup = engine.debugExtensionPopups().first(where: { $0.name == "Ark Pin Audit" })?.popup,
+                      let extensionPage = browser.library.openExtensionTab(url: popup, windowID: browser.id, active: false) else {
+                    note("extension pin API fixture failed to load: \(errors)"); return
+                }
+                await pause(1)
+                let script = """
+                    const tab = await chrome.tabs.create({url: \(String(reflecting: first.absoluteString)), active: false, pinned: true});
+                    const created = tab.pinned === true;
+                    const off = await chrome.tabs.update(tab.id, {pinned: false});
+                    const on = await chrome.tabs.update(tab.id, {pinned: true});
+                    await chrome.tabs.remove(tab.id);
+                    return JSON.stringify({created, unpinned: off.pinned === false, repinned: on.pinned === true});
+                    """
+                let result = try await extensionPage.evaluate(script, inWorld: "page") as? String
+                note("extension pin API result: \(result ?? "nil")")
+                if let manualPage = browser.library.openExtensionTab(url: first, windowID: browser.id, active: false) {
+                    await pause(1)
+                    let watch = """
+                        globalThis.arkPinEvents = [];
+                        chrome.tabs.onUpdated.addListener((id, change) => { if ('pinned' in change) arkPinEvents.push(change.pinned); });
+                        return true;
+                        """
+                    let watching = try await extensionPage.evaluate(watch, inWorld: "page") as? Bool ?? false
+                    let changed = browser.library.setExtensionTabPinned(manualPage, pinned: true)
+                    await pause(1)
+                    let events = try await extensionPage.evaluate("return JSON.stringify(globalThis.arkPinEvents)", inWorld: "page") as? String
+                    note("manual pin notification to extension: \(watching && changed && events == "[true]") (events: \(events ?? "nil"))")
+                    browser.library.closeExtensionTab(manualPage)
+                }
+                browser.library.closeExtensionTab(extensionPage)
+                engine.unloadExtensions()
+            } catch { note("extension pin API fixture error: \(error)") }
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_CAPTURE_PROFILE_CHECK_ONLY"] == "1" {
             let tab = browser.newTab(url: first)
             await pause(2)

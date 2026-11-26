@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Extension blank-tab behavior — November 26, 2026
+
+Reviewed Search `b3bd4e35c53dbb17625c9b707aae7561250fb740`. Ark's extension delegate returns a real blank page for a nil URL; Command-T instead opens the command bar, so the previous note did not establish equivalent behavior. Ark now passes the requested pinned state to its host, exposes pin state and extension-driven updates to WebKit, rejects pinning private tabs, and notifies extensions when the browser changes pin state. An isolated Mac run verified background pinned creation and host updates, then a local MV3 extension verified `tabs.create`, `tabs.update` and an `onUpdated` pinned event after the browser's pin path. The Mac build and existing BrowserKit suite passed. Private pin rejection and a compatible blank-tab design remain to be verified; Chrome Extensions stays Partial.
+
 ### Mac capture session guard — November 26, 2026
 
 Full-page, region, element, and Easel capture now also confirm that the original WebView and browsing profile remain active after asynchronous work. Profile reassignment starts asynchronous page cleanup while tab identity and URL stay the same; an old capture must not be copied or added to an Easel during that transition. An isolated Mac fixture started a full-page capture, reassigned the profile immediately, and verified the tab stayed selected and the clipboard remained unchanged. It repeated the transition during an Easel capture and verified no image card was added. For area and element capture it switched profiles both between picker mouse-down and mouse-up and immediately after capture began; the clipboard stayed unchanged. The Mac Nx build passed. Existing normal capture fixture evidence is unchanged.

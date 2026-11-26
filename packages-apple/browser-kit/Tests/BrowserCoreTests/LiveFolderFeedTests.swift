@@ -54,6 +54,25 @@ struct LiveFolderFeedTests {
         space.websiteProfileID = UUID()
         #expect(try await profileRefresh.value == nil)
         #expect(space.pinFolders.first { $0.id == newFolder.id }?.feed == feed)
+        var cancellationStarted = false
+        let cancelledRefresh = Task { @MainActor in
+            try await space.refreshGitHubPullRequests {
+                cancellationStarted = true
+                // A transport may finish despite cancellation; the refresh must still reject it.
+                try? await Task.sleep(for: .seconds(1))
+                return changedFeed
+            }
+        }
+        await Task.yield()
+        #expect(cancellationStarted)
+        cancelledRefresh.cancel()
+        do {
+            _ = try await cancelledRefresh.value
+            Issue.record("Cancelled refresh should throw")
+        } catch is CancellationError {
+            // Expected: no stale response should replace the cache.
+        }
+        #expect(space.pinFolders.first { $0.id == newFolder.id }?.feed == feed)
     }
 
     @MainActor @Test func githubOwnerFiltersAreLocalReversibleAndPersisted() throws {

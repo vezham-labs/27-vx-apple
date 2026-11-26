@@ -4,7 +4,7 @@ Start each upstream review at the last synced commit. After applying and verifyi
 
 ### GitHub refresh in-flight changes — November 26, 2026
 
-An existing-suite asynchronous fixture delays the GitHub feed result while changing an owner filter, removing the folder, and reassigning the Space profile. It verifies that the filter remains applied, the removed folder is not recreated, and the old profile's response does not replace the cached feed. All 88 BrowserKit tests passed. The fixture injects a feed result; actual signed-in GitHub networking remains unverified.
+An existing-suite asynchronous fixture delays the GitHub feed result while changing an owner filter, removing the folder, reassigning the Space profile, and cancelling the refresh. It verifies that the filter remains applied, the removed folder is not recreated, and neither an old-profile response nor a response returned after cancellation replaces the cached feed. All 88 BrowserKit tests passed. The fixture injects a feed result; actual signed-in GitHub networking remains unverified.
 
 ### GitHub owner matching — November 26, 2026
 

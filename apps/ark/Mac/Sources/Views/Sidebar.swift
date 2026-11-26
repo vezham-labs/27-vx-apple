@@ -277,6 +277,16 @@ private struct SiteMenu: View {
             reader.keyEquivalent = "r"
             reader.keyEquivalentModifierMask = [.command, .shift]
             menu.addItem(reader)
+            if browser.currentTab?.isPrivate == false, let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme) {
+                let site = host.lowercased()
+                let item = actions.item("Float Videos Automatically") {
+                    if !browser.settings.automaticPiPDisabledHosts.insert(site).inserted {
+                        browser.settings.automaticPiPDisabledHosts.remove(site)
+                    }
+                }
+                item.state = browser.settings.automaticPiPDisabledHosts.contains(site) ? .off : .on
+                menu.addItem(item)
+            }
             if browser.settings.blockContent {
                 let item = actions.item("Block Ads and Trackers") { browser.toggleBlockingForCurrentSite() }
                 item.state = browser.blockingDisabledForCurrentSite ? .off : .on

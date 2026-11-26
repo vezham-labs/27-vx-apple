@@ -75,6 +75,7 @@ import Suggest
         #expect(s.sitePermissions.isEmpty)
         #expect(s.websiteProfiles.isEmpty)
         #expect(s.unloadIdlePagesAfterMinutes == 30)
+        #expect(s.automaticPiPDisabledHosts.isEmpty)
     }
 
     @Test func roundTrips() throws {
@@ -82,8 +83,11 @@ import Suggest
         s.siteDesktopOverrides["example.com"] = false
         s.sitePermissions["meet.google.com"] = ["camera": true]
         s.unloadIdlePagesAfterMinutes = 10
+        s.automaticPiPDisabledHosts = ["video.example.com"]
         let back = try JSONDecoder().decode(BrowserSettings.self, from: JSONEncoder().encode(s))
         #expect(back == s)
+        #expect(back.automaticPiPDisabledHosts.contains("video.example.com"))
+        #expect(!back.automaticPiPDisabledHosts.contains("example.com"))
     }
 
     @Test @MainActor func websiteProfileMetadataSurvivesSnapshot() throws {

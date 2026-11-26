@@ -124,6 +124,7 @@ final class VideoPictureInPicture {
                 guard !Task.isCancelled, Preferences.automaticVideoPiP else { return }
                 guard library.videoMiniPlayer.tabID != id else { continue }
                 guard let tab = library.tab(id: id), !tab.isPrivate, tab.call == nil,
+                      let host = tab.url?.host()?.lowercased(), !library.settings.automaticPiPDisabledHosts.contains(host),
                       !library.agents.isInAgentSpace(tab), isAway(from: tab, in: browser, applicationInactive: applicationInactive),
                       let controller = library.existingController(for: tab),
                       !controller.page.state.isCapturing, let candidate = controller.page.view as? WKWebView else { continue }
@@ -131,6 +132,7 @@ final class VideoPictureInPicture {
                 let result = await Self.start(page: controller.page, view: candidate)
                 guard result == "in" || result == "already" else { continue }
                 guard !Task.isCancelled, Preferences.automaticVideoPiP, library.tab(id: id) === tab,
+                      tab.url?.host()?.lowercased() == host, !library.settings.automaticPiPDisabledHosts.contains(host),
                       library.existingController(for: tab)?.page.view === candidate,
                       isAway(from: tab, in: browser, applicationInactive: applicationInactive) else {
                     await candidate.closeAllMediaPresentations()

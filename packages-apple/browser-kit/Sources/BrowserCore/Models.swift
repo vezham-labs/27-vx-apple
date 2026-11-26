@@ -378,6 +378,8 @@ public struct BrowserSettings: Codable, Equatable, Sendable {
     public var filterGroups: Set<FilterGroup> = Set(FilterGroup.allCases)
     /// Sites where blocking (ads, trackers, cookie banners) is switched off. Hosts.
     public var blockingDisabledHosts: Set<String> = []
+    /// Hosts where videos stay inline when automatically leaving a tab or app.
+    public var automaticPiPDisabledHosts: Set<String> = []
     /// Exact leaf certificates the user chose to trust, keyed by normalized host and port.
     public var certificateExceptions: [String: String] = [:]
 
@@ -408,6 +410,7 @@ public struct BrowserSettings: Codable, Equatable, Sendable {
         cleanLinks = try c.decodeIfPresent(Bool.self, forKey: .cleanLinks) ?? true
         filterGroups = try c.decodeIfPresent(Set<FilterGroup>.self, forKey: .filterGroups) ?? Set(FilterGroup.allCases)
         blockingDisabledHosts = try c.decodeIfPresent(Set<String>.self, forKey: .blockingDisabledHosts) ?? []
+        automaticPiPDisabledHosts = try c.decodeIfPresent(Set<String>.self, forKey: .automaticPiPDisabledHosts) ?? []
         certificateExceptions = try c.decodeIfPresent([String: String].self, forKey: .certificateExceptions) ?? [:]
     }
 }

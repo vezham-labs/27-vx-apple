@@ -172,6 +172,7 @@ private struct GeneralSettings: View {
     @AppStorage(Preferences.externalLinksInPreviewKey) private var externalLinksInPreview = false
     @AppStorage(Preferences.externalLinksFindExistingTabKey) private var externalLinksFindExistingTab = false
     @AppStorage(Preferences.automaticVideoPiPKey) private var automaticVideoPiP = false
+    @AppStorage(Preferences.automaticVideoPiPOnSpaceSwitchKey) private var automaticVideoPiPOnSpaceSwitch = true
     @AppStorage(Preferences.videoKeyControlsKey) private var videoKeyControls = false
     @AppStorage(Preferences.pinnedLinkActionKey) private var pinnedLinkAction = Preferences.pinnedLinkAction.rawValue
     @AppStorage(Preferences.closeTabGoesBackKey) private var closeTabGoesBack = false
@@ -211,6 +212,8 @@ private struct GeneralSettings: View {
                 Text("Turn it off to move through tabs in sidebar order instead.")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Float videos when switching tabs or apps", isOn: $automaticVideoPiP)
+                Toggle("Also float them when switching Spaces", isOn: $automaticVideoPiPOnSpaceSwitch)
+                    .disabled(!automaticVideoPiP)
                 Toggle("Space and arrow keys control videos", isOn: $videoKeyControls)
                     .onChange(of: videoKeyControls) { _, enabled in
                         (browser.engine as? WebKitEngine)?.videoKeyControls = enabled

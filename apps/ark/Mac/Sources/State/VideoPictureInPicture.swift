@@ -18,12 +18,19 @@ final class VideoPictureInPicture {
     private weak var awayWindow: NSWindow?
     private weak var awayBrowser: Browser?
     private var awayCandidates: [UUID] = []
+    /// `visibleTabIDs` changes for both tab and Space selection.  Keep that distinction per
+    /// Ark window so people can leave a video playing in its original Space when they choose.
+    private var lastVisibleSpaceIDs: [UUID: UUID] = [:]
 
     func isFloating(_ id: UUID) -> Bool { tabID == id }
 
     func visibleTabsChanged(in browser: Browser, from previous: [UUID], to current: [UUID]) {
         stopAwayWatch()
         if let tabID, current.contains(tabID) { stop() }
+        let currentSpaceID = browser.currentSpace.id
+        let changedSpace = lastVisibleSpaceIDs[browser.id].map { $0 != currentSpaceID } ?? false
+        lastVisibleSpaceIDs[browser.id] = currentSpaceID
+        guard !changedSpace || Preferences.automaticVideoPiPOnSpaceSwitch else { return }
         startAutomatically(in: browser, candidates: previous.filter { !current.contains($0) }, applicationInactive: false)
     }
 

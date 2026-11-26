@@ -908,6 +908,10 @@ enum Preferences {
     static var externalLinksFindExistingTab: Bool { d.bool(forKey: externalLinksFindExistingTabKey) }
     static let automaticVideoPiPKey = "automaticVideoPiP"
     static var automaticVideoPiP: Bool { d.bool(forKey: automaticVideoPiPKey) }
+    static let automaticVideoPiPOnSpaceSwitchKey = "automaticVideoPiPOnSpaceSwitch"
+    static var automaticVideoPiPOnSpaceSwitch: Bool {
+        d.object(forKey: automaticVideoPiPOnSpaceSwitchKey) as? Bool ?? true
+    }
     static let videoKeyControlsKey = "videoKeyControls"
     static var videoKeyControls: Bool { d.bool(forKey: videoKeyControlsKey) }
     static let pinnedLinksOpenInNewTabKey = "pinnedLinksOpenInNewTab"

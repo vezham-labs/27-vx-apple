@@ -1494,6 +1494,8 @@ Adapted Browsa `afc2c39fc2e1a083050056fe9477b20d593d1a61`: Ark's automatic PiP n
 
 Follow-up: initialize the tracked Space when each browser window registers so the first visible-tab transition can be recognized as a Space switch. Re-registration preserves the prior value and window closure removes it. The Mac build passed; first-switch behavior with a real playing video remains unverified.
 
+The existing isolated Debug tour confirmed the tracking entry is created on registration, advances on a simulated visible-tab change, survives re-registration, and is removed on unregister. This check invokes the transition directly; it does not verify SwiftUI event ordering or real PiP playback.
+
 ### Batched Search sidebar/performance review — November 26, 2026
 
 Reviewed 30 incoming Search commits in one architecture-sized pass. Search's benchmarks, test probes, and custom virtualized Column are not portable to Ark's SwiftUI sidebar without replacing its drag/drop and Arc-led presentation architecture, so no test files or renderer were copied. The directly compatible behavioral change was adopted: the hidden floating-sidebar edge target is now 28 pt rather than 10 pt. The consolidated `ark:build-mac --skip-nx-cache` passed in 12.9 seconds; live pointer interaction and measured many-tab performance remain explicitly open. Source review advances from **278/332 (83.7%)** to **308/332 (92.8%)**, leaving 24 commits for product-diff review.

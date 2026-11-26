@@ -206,6 +206,22 @@ struct SnapshotTour {
         guard let window = browser.nsWindow else { note("missing window"); return }
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        if ProcessInfo.processInfo.environment["ARK_PIP_SPACE_TRACK_CHECK_ONLY"] == "1" {
+            let pip = browser.library.videoPictureInPicture
+            let initial = browser.currentSpace.id
+            let registered = pip.trackedSpace(for: browser) == initial
+            let next = browser.library.addSpace()
+            browser.selectSpace(next)
+            await pause(0.5)
+            pip.visibleTabsChanged(in: browser, from: [], to: [])
+            let advanced = pip.trackedSpace(for: browser) == next.id
+            pip.registerWindow(browser)
+            let retained = pip.trackedSpace(for: browser) == next.id
+            pip.unregisterWindow(browser)
+            let cleared = pip.trackedSpace(for: browser) == nil
+            note("PiP Space tracking registered, advanced, retained and cleared: \(registered && advanced && retained && cleared)")
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_PIP_PROBE_CHECK_ONLY"] == "1" {
             let tab = browser.newTab(url: URL(string: "about:blank"))
             guard let page = browser.library.existingController(for: tab)?.page else { note("PiP probe page missing"); return }

@@ -32,6 +32,10 @@ final class VideoPictureInPicture {
         lastVisibleSpaceIDs[browser.id] = nil
     }
 
+    #if DEBUG
+    func trackedSpace(for browser: Browser) -> UUID? { lastVisibleSpaceIDs[browser.id] }
+    #endif
+
     func visibleTabsChanged(in browser: Browser, from previous: [UUID], to current: [UUID]) {
         stopAwayWatch()
         if let tabID, current.contains(tabID) { stop() }

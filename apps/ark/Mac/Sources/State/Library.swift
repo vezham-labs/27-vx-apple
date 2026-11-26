@@ -99,6 +99,8 @@ final class Library {
     let profileHistory: ProfileHistoryStores
     @ObservationIgnored private let suggestionSeeds = SeedProvider.bundled()
     @ObservationIgnored let siteStyles: SiteStyles
+    /// Temporary presentation edits for individual private tabs; never persisted.
+    @ObservationIgnored var privateSiteShapes: [UUID: SiteStyles] = [:]
     /// Local Mac canvases; intentionally not part of browser sync yet.
     let easels: EaselStore
     /// Live pages, by tab. The least recently used are unloaded past `capacity`.
@@ -807,6 +809,7 @@ final class Library {
         }
         guard let space = space(containing: tab) else { return }
         if tab.isPrivate {
+            privateSiteShapes[tab.id] = nil
             let prefix = "\(tab.id.uuidString):"
             privateReloadWithoutCacheSites = privateReloadWithoutCacheSites.filter { !$0.hasPrefix(prefix) }
         }
@@ -1050,6 +1053,7 @@ final class Library {
         for w in windows where w.selectedSpaceID == space.id { w.leaveSpace() }
         spaces.removeAll { $0.id == space.id }
         privateReloadWithoutCacheSites.removeAll()
+        privateSiteShapes.removeAll()
         privatePermissions = [:]
         privateCertificateExceptions = [:]
         engine.resetEphemeralProfile()

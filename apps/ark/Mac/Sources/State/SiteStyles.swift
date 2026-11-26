@@ -31,6 +31,11 @@ extension Browser {
         return SiteStyles.host(of: tab.url)
     }
 
+    var shapeableSiteHost: String? {
+        guard let tab = currentTab, !library.agents.isInAgentSpace(tab) else { return nil }
+        return SiteStyles.host(of: tab.url)
+    }
+
     func editSiteStyle() {
         siteStyleHost = editableSiteStyleHost
         isSiteStyleEditorPresented = siteStyleHost != nil
@@ -151,7 +156,7 @@ extension Browser {
 
     @discardableResult
     func selectSiteElementToShape() -> RegionCaptureView? {
-        guard let host = editableSiteStyleHost, let tab = currentTab, let url = tab.url,
+        guard let host = shapeableSiteHost, let tab = currentTab, let url = tab.url,
               let view = currentController?.page.view as? WKWebView else { return nil }
         let picker = RegionCaptureView.present(on: view, mode: .shape) { [weak self, weak view] result in
             guard case .shape(let point, let delta, let resize) = result, let self, let view,
@@ -159,13 +164,18 @@ extension Browser {
             Task { [weak self] in
                 let selection = await PageCaptureImage.selection(at: point, in: view, requireFingerprint: true)
                 let rect = resize ? await PageCaptureImage.element(at: point, in: view) : nil
-                guard let self, currentTab === tab, tab.url == url, editableSiteStyleHost == host,
+                guard let self, currentTab === tab, tab.url == url, shapeableSiteHost == host,
                       library.existingController(for: tab)?.page.view === view,
                       let selection, selection.fingerprint?.isEmpty == false else { return }
                 let scale = max(view.pageZoom, 0.01)
                 let dx = Double(delta.x / scale), dy = Double(delta.y / scale)
                 guard abs(dx) + abs(dy) >= 2 else { return }
-                let previous = library.siteStyles.hiddenElements(for: host).first { $0.selector == selection.selector }
+                let store: SiteStyles
+                if tab.isPrivate {
+                    if let existing = library.privateSiteShapes[tab.id] { store = existing }
+                    else { store = SiteStyles(fileURL: nil); library.privateSiteShapes[tab.id] = store }
+                } else { store = library.siteStyles }
+                let previous = store.hiddenElements(for: host).first { $0.selector == selection.selector }
                 let oldShape = previous?.shape
                 var element = HiddenSiteElement(selector: selection.selector, label: selection.label,
                                                 note: selection.note, fingerprint: selection.fingerprint, family: selection.family)
@@ -178,17 +188,18 @@ extension Browser {
                 }
                 else { showToast("Couldn’t resize this element"); return }
                 do {
-                    try library.siteStyles.shape(element, for: host)
-                    applySiteStyle(for: host)
-                    showToast(resize ? "Element resized" : "Element moved", actions: [ToastAction(title: "Undo") { [weak self] in
+                    try store.shape(element, for: host)
+                    if tab.isPrivate { await store.apply(to: view, on: host) } else { applySiteStyle(for: host) }
+                    showToast(tab.isPrivate ? "Changed for this private tab" : (resize ? "Element resized" : "Element moved"), actions: [ToastAction(title: "Undo") { [weak self, weak view] in
                         guard let self else { return }
                         do {
-                            try library.siteStyles.restore(element.selector, for: host)
+                            try store.restore(element.selector, for: host)
                             if let previous {
-                                if previous.shape == nil { try library.siteStyles.hide(previous, for: host) }
-                                else { try library.siteStyles.shape(previous, for: host) }
+                                if previous.shape == nil { try store.hide(previous, for: host) }
+                                else { try store.shape(previous, for: host) }
                             }
-                            applySiteStyle(for: host)
+                            if tab.isPrivate, let view { Task { await store.apply(to: view, on: host, includingRemoval: true) } }
+                            else if !tab.isPrivate { applySiteStyle(for: host) }
                         } catch { showToast("Couldn’t undo this change") }
                     }])
                 } catch { showToast("Couldn’t save this change") }

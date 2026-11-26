@@ -113,7 +113,7 @@ struct BrowserCommands: Commands {
             Button("Hide Page Element…") { browser?.selectSiteElementToHide() }
                 .disabled(browser?.editableSiteStyleHost == nil)
             Button("Move or Resize Page Element…") { browser?.selectSiteElementToShape() }
-                .disabled(browser?.editableSiteStyleHost == nil)
+                .disabled(browser?.shapeableSiteHost == nil)
             Button("Picture in Picture") {
                 if let browser, let tab = browser.currentTab {
                     browser.library.videoPictureInPicture.toggle(for: tab, in: browser)

@@ -222,6 +222,44 @@ struct SnapshotTour {
         }
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
+        if ProcessInfo.processInfo.environment["ARK_PRIVATE_SHAPE_CHECK_ONLY"] == "1" {
+            let url = base.appending(path: "boost-shape.html")
+            let tab = browser.newTab(url: url, isPrivate: true)
+            await pause(3)
+            guard let view = browser.currentController?.page.view as? WKWebView,
+                  let picker = browser.selectSiteElementToShape(),
+                  let down = captureMouseEvent(.leftMouseDown, at: NSPoint(x: 30, y: 30), in: picker, window: window),
+                  let up = captureMouseEvent(.leftMouseUp, at: NSPoint(x: 70, y: 50), in: picker, window: window) else {
+                note("private shape picker unavailable"); return
+            }
+            picker.mouseDown(with: down); picker.mouseUp(with: up)
+            await pause(2)
+            let host = SiteStyles.host(of: url) ?? ""
+            let privateShape = browser.library.privateSiteShapes[tab.id]?.hiddenElements(for: host).first?.shape
+            let regularEmpty = browser.library.siteStyles.hiddenElements(for: host).isEmpty
+            let applied = (try? await view.evaluateJavaScript("getComputedStyle(document.querySelector('#box')).translate")) as? String
+            note("private shape applied without changing regular store: \(privateShape?.dx == 40 && regularEmpty && applied == "40px 20px")")
+            view.reload()
+            await pause(3)
+            let reloaded = (try? await view.evaluateJavaScript("getComputedStyle(document.querySelector('#box')).translate")) as? String
+            note("private shape reapplied after reload: \(reloaded == "40px 20px")")
+            if let undo = browser.toastActions.first(where: { $0.title == "Undo" }) {
+                browser.runToastAction(undo)
+                await pause(1)
+                let undone = (try? await view.evaluateJavaScript("getComputedStyle(document.querySelector('#box')).translate")) as? String
+                note("private shape Undo removes change: \(undone == "none")")
+            } else { note("private shape Undo unavailable") }
+            browser.close(tab)
+            note("private shape store removed on tab close: \(browser.library.privateSiteShapes[tab.id] == nil)")
+            let firstPrivate = browser.newTab(url: url, isPrivate: true)
+            let secondPrivate = browser.newTab(url: url, isPrivate: true)
+            let storeOne = SiteStyles(fileURL: nil), storeTwo = SiteStyles(fileURL: nil)
+            browser.library.privateSiteShapes[firstPrivate.id] = storeOne
+            browser.library.privateSiteShapes[secondPrivate.id] = storeTwo
+            browser.library.closePrivateSpace()
+            note("closing Private Space clears all temporary shape stores: \(browser.library.privateSiteShapes.isEmpty && browser.library.privateSpace == nil)")
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_BOOST_SHAPE_CHECK_ONLY"] == "1" {
             let tab = browser.newTab(url: base.appending(path: "boost-shape.html"))
             await pause(2)

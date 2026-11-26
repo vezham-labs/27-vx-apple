@@ -432,10 +432,11 @@ final class TabController: EnginePageDelegate {
             let z = Preferences.zoom(for: host)
             if abs(page.zoom - z) > 0.001 { setZoom(z) }
         }
-        guard !tab.isPrivate, let library, !library.agents.isInAgentSpace(tab),
-              let host = SiteStyles.host(of: url), library.siteStyles.hasStyle(for: host),
+        guard let library, !library.agents.isInAgentSpace(tab), let host = SiteStyles.host(of: url),
               let view = page.view as? WKWebView else { return }
-        Task { await library.siteStyles.apply(to: view, on: host) }
+        let styles = tab.isPrivate ? library.privateSiteShapes[tab.id] : library.siteStyles
+        guard let styles, styles.hasStyle(for: host) else { return }
+        Task { await styles.apply(to: view, on: host) }
     }
 
     func page(_ page: any EnginePage, didFinish url: URL, title: String) {

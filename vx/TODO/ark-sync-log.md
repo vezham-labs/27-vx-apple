@@ -1,5 +1,13 @@
 # Ark upstream sync log
 
+### Private Boost shaping — November 26, 2026
+
+Mac shaping now uses an in-memory `SiteStyles` store per private tab, separate from regular Boosts. Private shapes reapply on that tab's navigation and are discarded on tab or Private Space closure. The Mac build passed. Private shaping, isolation, reload, Undo and cleanup still need runtime verification before this behavior is considered validated.
+
+The isolated Mac audit passed for a private-tab drag, regular-store isolation, reload reapplication, direct Undo action and store removal on tab close. Closing an entire Private Space and physical pointer interaction remain unverified.
+
+The Mac build and isolated audit also passed for closing an entire Private Space with two temporary stores: both were cleared. The stores were inserted directly for this cleanup check; multiple real private-tab drags and physical pointer interaction remain unverified.
+
 ### Search element shaping review — November 26, 2026
 
 Reviewed Search `0909fdfe2795fe4ef13938523589a8ceb101f108` against Ark's Boost picker and shared `SiteStyles`. Search opts into drag/resize, stores shape alongside selector fingerprints, reapplies guarded CSS, and keeps private changes temporary. Ark has host-scoped CSS and guarded hide records, but its Mac picker currently only selects elements to hide and disallows private Boost editing. No shaping implementation was added in this review; the picker, structured geometry, guarded reapplication, undo and private behavior remain open.

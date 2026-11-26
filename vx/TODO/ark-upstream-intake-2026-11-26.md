@@ -1,6 +1,6 @@
 # Ark upstream intake — November 26, 2026
 
-These locally available refs are an intake inventory, not a completed diff review or a synced baseline. The previous ledger still has 62 pending reviews. Entries below require diff review, an Ark disposition, and appropriate verification before advancing any baseline. No network fetch or upstream checkout change was made.
+This locally available intake is the source-review ledger for the pinned Search and Browsa refs. Product-diff review has been completed for the entries listed here; applicable adaptations and their verification are recorded in the sync log. Ref review does not itself establish runtime parity or advance a release baseline. No network fetch or upstream checkout change was made.
 
 ## Browsa: 46fe04b → a39e03e (8 commits)
 
@@ -91,7 +91,7 @@ These additional local commits were discovered after the initial inventory. Prod
 
 ## Later Search commits: bcfc8da → 66c4358 (5 commits)
 
-Locally available after the earlier intake; each still needs product-diff review and disposition.
+Locally available after the earlier intake; each received product-diff review and is retained with its disposition below.
 
 | Commit | Subject | Status |
 | --- | --- | --- |

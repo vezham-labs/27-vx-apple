@@ -704,15 +704,18 @@ struct FavoriteTile: View {
         browser.library.allTabs.first { $0.favoriteID == favorite.id && $0.call != nil }?.call
     }
 
-    /// The app name and its stable root host. A favourite can point at a
-    /// redirect or `www` host while the useful recent pages live on workspace
-    /// subdomains, so use the app root rather than the literal tile host.
+    /// The app name and its stable history host. Every ordinary web favourite
+    /// can offer a local recent-page preview. Known workspace apps use their
+    /// root host, so a redirect or `www` favourite also includes workspace
+    /// subdomains.
     private var appPreview: (name: String, host: String)? {
-        guard !browser.currentSpace.isPrivate, let host = favorite.url.host()?.lowercased() else { return nil }
+        guard !browser.currentSpace.isPrivate,
+              let host = favorite.url.host()?.lowercased(),
+              favorite.url.scheme == "http" || favorite.url.scheme == "https" else { return nil }
         if host == "notion.so" || host.hasSuffix(".notion.so") { return ("Notion", "notion.so") }
         if host == "figma.com" || host.hasSuffix(".figma.com") { return ("Figma", "figma.com") }
         if host == "linear.app" || host.hasSuffix(".linear.app") { return ("Linear", "linear.app") }
-        return nil
+        return (URLNormalizer.displayHost(favorite.url), host)
     }
 
     private func updateAppPreview(hovered: Bool) {

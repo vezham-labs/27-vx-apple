@@ -276,6 +276,18 @@ struct SnapshotTour {
                 browser.library.closeExtensionTab(extensionPage)
                 engine.unloadExtensions()
             } catch { note("extension pin API fixture error: \(error)") }
+            let privateSpace = browser.library.openPrivateSpace()
+            browser.selectSpace(privateSpace)
+            let count = privateSpace.allTabs.count
+            let rejected = browser.library.openExtensionTab(url: first, windowID: browser.id, active: false, pinned: true) == nil
+                && privateSpace.allTabs.count == count
+            if let privatePage = browser.library.openExtensionTab(url: first, windowID: browser.id, active: false) {
+                let unpinOK = browser.library.setExtensionTabPinned(privatePage, pinned: false)
+                let pinRejected = !browser.library.setExtensionTabPinned(privatePage, pinned: true)
+                    && !browser.library.isExtensionTabPinned(privatePage)
+                note("private extension pin requests rejected without creating a pin: \(rejected && unpinOK && pinRejected)")
+                browser.library.closeExtensionTab(privatePage)
+            } else { note("private extension pin fixture could not open an unpinned tab") }
             return
         }
         if ProcessInfo.processInfo.environment["ARK_CAPTURE_PROFILE_CHECK_ONLY"] == "1" {

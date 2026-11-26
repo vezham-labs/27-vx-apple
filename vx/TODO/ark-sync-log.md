@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### GitHub owner migration — November 26, 2026
+
+Older GitHub folders can contain cached entries without a remembered-owner list. Changing an owner filter now records the currently known owners before saving, so an owner remains available if it disappears on the next refresh. The existing BrowserKit test now covers that migration, persistence, disappearance, and restoration; all 86 tests passed. Signed-in refresh and menu interaction remain open.
+
 ### GitHub organization filters — November 26, 2026
 
 Adapted Browsa `910f5a4d6ee5a43b8a239e38e2c2ddef20bd8221`: GitHub Live Folder menus can hide owners per Space without discarding cached items or making a request. Previously seen owners remain available after refresh, and account-specific filter data is stripped from shared Space archives. GitHub folder refresh/resume now uses the Space profile's cookie flow instead of the RSS loader. Existing BrowserKit tests cover Space isolation, restoration, persistence and archive privacy; Mac and generic iOS builds passed. An isolated Mac fixture programmatically filtered and restored two sample entries and captured [the filtered folder](../../preview/ark/mac/features/github-filter-hidden.png). Menu interaction, signed-in GitHub refresh and mobile device checks remain open; no simulator was started.

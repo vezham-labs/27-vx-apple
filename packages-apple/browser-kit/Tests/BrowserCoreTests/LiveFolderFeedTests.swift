@@ -18,7 +18,6 @@ struct LiveFolderFeedTests {
         personal.pinFolders[0].feed = feed
         #expect(work.pinFolders[0].githubOwners == ["acme", "me"])
         work.setGitHubOwner("ACME", shown: false, in: workFolder.id)
-        work.pinFolders[0].knownGitHubOwners = ["acme", "me"]
         #expect(work.pinFolders[0].visibleArticles.map(\.title) == ["Personal"])
         #expect(work.pinFolders[0].feed?.articles.count == 2)
         #expect(personal.pinFolders[0].visibleArticles.count == 2)
@@ -29,7 +28,10 @@ struct LiveFolderFeedTests {
         #expect(!shared.contains("hiddenGitHubOwners"))
         let restored = Space(try JSONDecoder().decode(SpaceRecord.self, from: JSONEncoder().encode(work.record)))
         #expect(restored.pinFolders[0].visibleArticles.map(\.title) == ["Personal"])
+        restored.pinFolders[0].feed = LiveFolderFeed(source: feed.source, title: feed.title, articles: [feed.articles[1]])
+        #expect(restored.pinFolders[0].githubOwners == ["acme", "me"])
         restored.setGitHubOwner("acme", shown: true, in: workFolder.id)
+        restored.pinFolders[0].feed = feed
         #expect(restored.pinFolders[0].visibleArticles.count == 2)
     }
 

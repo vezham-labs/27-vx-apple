@@ -45,7 +45,10 @@ extension Space {
     public func setGitHubOwner(_ owner: String, shown: Bool, in folderID: UUID) {
         guard let index = pinFolders.firstIndex(where: { $0.id == folderID && $0.feed?.isGitHubPullRequests == true }) else { return }
         let normalized = owner.lowercased()
-        guard pinFolders[index].githubOwners.contains(normalized) else { return }
+        let owners = pinFolders[index].githubOwners
+        guard owners.contains(normalized) else { return }
+        // Older saved folders may not have a remembered-owner list yet.
+        pinFolders[index].knownGitHubOwners = owners
         var hidden = Set(pinFolders[index].hiddenGitHubOwners ?? [])
         if shown { hidden.remove(normalized) } else { hidden.insert(normalized) }
         pinFolders[index].hiddenGitHubOwners = hidden.isEmpty ? nil : hidden.sorted()

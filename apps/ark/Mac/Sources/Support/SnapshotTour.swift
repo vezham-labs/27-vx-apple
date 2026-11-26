@@ -206,6 +206,43 @@ struct SnapshotTour {
         guard let window = browser.nsWindow else { note("missing window"); return }
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        if ProcessInfo.processInfo.environment["ARK_BOOST_DYNAMIC_CHECK_ONLY"] == "1" {
+            let url = URL(string: "https://boost-fixture.ark.local/")!
+            let tab = browser.newTab(url: url)
+            guard let view = browser.library.existingController(for: tab)?.page.view as? WKWebView else { note("Boost dynamic fixture: page missing"); return }
+            view.loadHTMLString("<!doctype html><main><div class='card'>Other</div><div class='card'>Target</div></main>", baseURL: url)
+            for _ in 0..<50 where view.isLoading || view.url?.host() != url.host() { await pause(0.1) }
+            let world = WKContentWorld.world(name: "ark.site-style")
+            _ = try? await view.callAsyncJavaScript("""
+                const NativeObserver = MutationObserver;
+                globalThis.arkObserverCounts = { starts: 0, stops: 0 };
+                globalThis.MutationObserver = class extends NativeObserver {
+                    observe(...args) { globalThis.arkObserverCounts.starts++; return super.observe(...args); }
+                    disconnect() { globalThis.arkObserverCounts.stops++; return super.disconnect(); }
+                };
+                """, arguments: [:], in: nil, contentWorld: world)
+            let styles = SiteStyles(fileURL: nil)
+            let rule = HiddenSiteElement(selector: "main > div:nth-child(2)", label: "Target", fingerprint: "div\n\nTarget", family: "div.card")
+            do {
+                try styles.hide(rule, for: "boost-fixture.ark.local")
+                await styles.apply(to: view, on: "boost-fixture.ark.local")
+                let before = (try? await view.evaluateJavaScript("getComputedStyle(document.querySelectorAll('.card')[1]).display")) as? String
+                _ = try? await view.evaluateJavaScript("document.querySelector('main').prepend(document.querySelectorAll('.card')[1])")
+                await pause(0.3)
+                let moved = (try? await view.evaluateJavaScript("JSON.stringify([...document.querySelectorAll('.card')].map(x => [x.textContent, getComputedStyle(x).display]))")) as? String
+                try styles.restore(rule.selector, for: "boost-fixture.ark.local")
+                await styles.apply(to: view, on: "boost-fixture.ark.local", includingRemoval: true)
+                let restored = (try? await view.evaluateJavaScript("getComputedStyle(document.querySelector('.card')).display")) as? String
+                let counts = (try? await view.callAsyncJavaScript("return JSON.stringify(globalThis.arkObserverCounts)", arguments: [:], in: nil, contentWorld: world)) as? String
+                try styles.hide(rule, for: "boost-fixture.ark.local")
+                await styles.apply(to: view, on: "boost-fixture.ark.local")
+                let rehidden = (try? await view.evaluateJavaScript("getComputedStyle(document.querySelector('.card')).display")) as? String
+                let reconnected = (try? await view.callAsyncJavaScript("return JSON.stringify(globalThis.arkObserverCounts)", arguments: [:], in: nil, contentWorld: world)) as? String
+                note("Boost dynamic guard: initial \(before ?? "nil"), reordered \(moved ?? "nil"), restored \(restored ?? "nil"), observers \(counts ?? "nil"), rehidden \(rehidden ?? "nil"), observers after reapply \(reconnected ?? "nil")")
+            } catch { note("Boost dynamic fixture failed: \(error)") }
+            browser.close(tab)
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_PIP_VIDEO_CHECK_ONLY"] == "1" {
             let previous = UserDefaults.standard.object(forKey: Preferences.automaticVideoPiPKey)
             let previousSpaceSetting = UserDefaults.standard.object(forKey: Preferences.automaticVideoPiPOnSpaceSwitchKey)

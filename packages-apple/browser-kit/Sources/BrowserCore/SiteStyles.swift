@@ -381,12 +381,17 @@ public final class SiteStyles {
                             }
                         }
                         items = next;
+                        if (!next.length) {
+                            observer?.disconnect();
+                            observer = undefined;
+                            document.querySelectorAll('[data-ark-hidden]').forEach(element => element.removeAttribute('data-ark-hidden'));
+                            return;
+                        }
                         if (!observer && next.length) {
                             observer = new MutationObserver(applyGuards);
                             observer.observe(document, { childList: true, subtree: true, characterData: true,
                                 attributes: true, attributeFilter: ['src', 'class', 'id'] });
                         }
-                        if (!next.length) document.querySelectorAll('[data-ark-hidden]').forEach(element => element.removeAttribute('data-ark-hidden'));
                         applyGuards();
                     }
                 };

@@ -1514,6 +1514,10 @@ Subsequent fix: observe the selected Space together with visible tab IDs, so swi
 
 Reviewed 30 incoming Search commits in one architecture-sized pass. Search's benchmarks, test probes, and custom virtualized Column are not portable to Ark's SwiftUI sidebar without replacing its drag/drop and Arc-led presentation architecture, so no test files or renderer were copied. The directly compatible behavioral change was adopted: the hidden floating-sidebar edge target is now 28 pt rather than 10 pt. The consolidated `ark:build-mac --skip-nx-cache` passed in 12.9 seconds; live pointer interaction and measured many-tab performance remain explicitly open. Source review advances from **278/332 (83.7%)** to **308/332 (92.8%)**, leaving 24 commits for product-diff review.
 
+### Boosts dynamic element lifecycle — November 27, 2026
+
+The guarded-element observer now disconnects after the last guarded rule is restored and reconnects when a rule is added. An isolated Mac WebKit page verified that a target remains hidden after sibling reordering, restoring reveals it, the observer disconnects, and reapplying hides it with a new observation. Mac and generic iOS builds passed. This verifies that fixture, not real-site mutations, physical picker input, mobile runtime, or an end-to-end performance benchmark. Report: `/private/tmp/ark-boost-dynamic-20261127/report.txt`.
+
 ### Web App Preview workspace hosts — November 26, 2026
 
 Privacy follow-up, November 27: favorite history previews now also exclude Agent Space, in addition to private Spaces, so the agent context cannot surface regular-profile recent pages through a favorite. The Mac build passed; a live Agent Space hover check remains open.

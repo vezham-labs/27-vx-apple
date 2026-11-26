@@ -242,10 +242,11 @@ extension Space {
         guard refreshingLiveFolderIDs.insert(refreshID).inserted else { return nil }
         defer { refreshingLiveFolderIDs.remove(refreshID) }
         let profileID = websiteProfileID
+        let profileRevision = websiteProfileRevision
         try Task.checkCancellation()
         let feed = try await load()
         try Task.checkCancellation()
-        guard websiteProfileID == profileID else { return nil }
+        guard websiteProfileID == profileID, websiteProfileRevision == profileRevision else { return nil }
         if let index = pinFolders.firstIndex(where: { $0.feed?.isGitHubPullRequests == true }) {
             let folder = pinFolders[index]
             guard folder.id == original?.id else { return nil }

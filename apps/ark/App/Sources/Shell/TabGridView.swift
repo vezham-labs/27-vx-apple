@@ -223,8 +223,9 @@ struct TabGridOverlay: View {
                         browser.isTabSwitcherPresented = false
                     }, refreshGitHub: { folderID in
                         let profileID = space.websiteProfileID
+                        let profileRevision = space.websiteProfileRevision
                         let cookies = await browser.cookies(for: space)
-                        guard space.websiteProfileID == profileID,
+                        guard space.websiteProfileID == profileID, space.websiteProfileRevision == profileRevision,
                               space.pinFolders.contains(where: { $0.id == folderID && $0.feed?.isGitHubPullRequests == true }) else { return }
                         if try await space.refreshGitHubPullRequests(cookies: cookies) != nil { browser.scheduleSave() }
                     }, moveTodayTab: { browser.moveTodayTabToPinned($0, in: space, into: $1, relativeTo: $2, after: $3) }) { tab, paneCount in

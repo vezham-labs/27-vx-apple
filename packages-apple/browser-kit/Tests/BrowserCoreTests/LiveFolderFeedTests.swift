@@ -54,6 +54,21 @@ struct LiveFolderFeedTests {
         space.websiteProfileID = UUID()
         #expect(try await profileRefresh.value == nil)
         #expect(space.pinFolders.first { $0.id == newFolder.id }?.feed == feed)
+        let originalProfile = space.websiteProfileID
+        var fourthStarted = false
+        let switchedBackRefresh = Task { @MainActor in
+            try await space.refreshGitHubPullRequests {
+                fourthStarted = true
+                try await Task.sleep(for: .milliseconds(100))
+                return changedFeed
+            }
+        }
+        await Task.yield()
+        #expect(fourthStarted)
+        space.websiteProfileID = UUID()
+        space.websiteProfileID = originalProfile
+        #expect(try await switchedBackRefresh.value == nil)
+        #expect(space.pinFolders.first { $0.id == newFolder.id }?.feed == feed)
         var cancellationStarted = false
         let cancelledRefresh = Task { @MainActor in
             try await space.refreshGitHubPullRequests {

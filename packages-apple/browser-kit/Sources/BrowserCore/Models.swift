@@ -102,7 +102,10 @@ public final class Space: Identifiable {
     @ObservationIgnored var refreshingLiveFolderIDs: Set<UUID> = []
     public var today: [BrowserTab]
     public var selectedTabID: UUID?
-    public var websiteProfileID: UUID?
+    @ObservationIgnored public private(set) var websiteProfileRevision: UInt64 = 0
+    public var websiteProfileID: UUID? {
+        didSet { if websiteProfileID != oldValue { websiteProfileRevision &+= 1 } }
+    }
     /// A shared Space was removed elsewhere while this device still had local Today tabs open.
     /// The retained Space stays on this device and is omitted from browser sync.
     public var isSyncLocalOnly = false

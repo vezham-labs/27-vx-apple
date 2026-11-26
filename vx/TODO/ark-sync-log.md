@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### GitHub refresh rapid profile changes — November 26, 2026
+
+A profile ID comparison alone allowed an old in-flight response if a Space switched profiles and then switched back before the response arrived. Space now tracks an in-memory profile-change revision, and both the app's cookie retrieval and the GitHub refresh require that revision to remain unchanged. The existing asynchronous fixture verifies the feed-response away-and-back case; all 88 BrowserKit tests and Mac and generic iOS builds passed. Cookie-fetch timing and signed-in network behavior remain unverified; no simulator was started.
+
 ### GitHub refresh in-flight changes — November 26, 2026
 
 An existing-suite asynchronous fixture delays the GitHub feed result while changing an owner filter, removing the folder, reassigning the Space profile, and cancelling the refresh. It verifies that the filter remains applied, the removed folder is not recreated, and neither an old-profile response nor a response returned after cancellation replaces the cached feed. All 88 BrowserKit tests passed. The fixture injects a feed result; actual signed-in GitHub networking remains unverified.

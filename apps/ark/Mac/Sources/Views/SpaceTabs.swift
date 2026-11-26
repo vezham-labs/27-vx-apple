@@ -76,8 +76,9 @@ struct SpaceTabs: View {
                         openAllFolderTabs: { browser.openAllPinnedTabs(in: $0, space: space) },
                         refreshGitHub: { folderID in
                             let profileID = space.websiteProfileID
+                            let profileRevision = space.websiteProfileRevision
                             let cookies = await browser.engine.cookies(for: browser.library.browsingProfile(in: space), url: URL(string: "https://github.com/pulls")!)
-                            guard space.websiteProfileID == profileID,
+                            guard space.websiteProfileID == profileID, space.websiteProfileRevision == profileRevision,
                                   space.pinFolders.contains(where: { $0.id == folderID && $0.feed?.isGitHubPullRequests == true }) else { return }
                             if try await space.refreshGitHubPullRequests(cookies: cookies) != nil { browser.library.scheduleSave() }
                         },

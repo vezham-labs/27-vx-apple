@@ -13,9 +13,10 @@ extension Browser {
         guard !space.isPrivate, let github = URL(string: "https://github.com/pulls") else { return }
         let silently = existingFolderID != nil
         let profileID = space.websiteProfileID
+        let profileRevision = space.websiteProfileRevision
         if !silently { showToast("Refreshing GitHub pull requests…") }
         let cookies = await engine.cookies(for: library.browsingProfile(in: space), url: github)
-        guard space.websiteProfileID == profileID else { return }
+        guard space.websiteProfileID == profileID, space.websiteProfileRevision == profileRevision else { return }
         do {
             guard let folder = try await space.refreshGitHubPullRequests(cookies: cookies, existingFolderID: existingFolderID) else { return }
             library.scheduleSave()

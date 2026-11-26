@@ -39,8 +39,9 @@ struct SidebarView: View {
 
     private func refreshGitHubPullRequests(in space: Space, folderID: UUID) async {
         let profileID = space.websiteProfileID
+        let profileRevision = space.websiteProfileRevision
         let cookies = await browser.cookies(for: space)
-        guard space.websiteProfileID == profileID,
+        guard space.websiteProfileID == profileID, space.websiteProfileRevision == profileRevision,
               (try? await space.refreshGitHubPullRequests(cookies: cookies, existingFolderID: folderID)) != nil else { return }
         browser.scheduleSave()
     }
@@ -53,8 +54,9 @@ struct SidebarView: View {
                           openArticle: { browser.newTab(url: $0, in: space, source: .link) },
                           refreshGitHub: { folderID in
                               let profileID = space.websiteProfileID
+                              let profileRevision = space.websiteProfileRevision
                               let cookies = await browser.cookies(for: space)
-                              guard space.websiteProfileID == profileID,
+                              guard space.websiteProfileID == profileID, space.websiteProfileRevision == profileRevision,
                                     space.pinFolders.contains(where: { $0.id == folderID && $0.feed?.isGitHubPullRequests == true }) else { return }
                               if try await space.refreshGitHubPullRequests(cookies: cookies) != nil { browser.scheduleSave() }
                           },

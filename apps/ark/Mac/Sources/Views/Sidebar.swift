@@ -704,17 +704,20 @@ struct FavoriteTile: View {
         browser.library.allTabs.first { $0.favoriteID == favorite.id && $0.call != nil }?.call
     }
 
-    private var appPreviewName: String? {
+    /// The app name and its stable root host. A favourite can point at a
+    /// redirect or `www` host while the useful recent pages live on workspace
+    /// subdomains, so use the app root rather than the literal tile host.
+    private var appPreview: (name: String, host: String)? {
         guard !browser.currentSpace.isPrivate, let host = favorite.url.host()?.lowercased() else { return nil }
-        if host == "notion.so" || host.hasSuffix(".notion.so") { return "Notion" }
-        if host == "figma.com" || host.hasSuffix(".figma.com") { return "Figma" }
-        if host == "linear.app" || host.hasSuffix(".linear.app") { return "Linear" }
+        if host == "notion.so" || host.hasSuffix(".notion.so") { return ("Notion", "notion.so") }
+        if host == "figma.com" || host.hasSuffix(".figma.com") { return ("Figma", "figma.com") }
+        if host == "linear.app" || host.hasSuffix(".linear.app") { return ("Linear", "linear.app") }
         return nil
     }
 
     private func updateAppPreview(hovered: Bool) {
         previewTask?.cancel()
-        guard appPreviewName != nil else {
+        guard let appPreview else {
             previewTask = nil
             isAppPreviewPresented = false
             previewPages = []
@@ -723,15 +726,15 @@ struct FavoriteTile: View {
         if hovered {
             previewTask = Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(350))
-                guard !Task.isCancelled, let host = favorite.url.host() else { return }
+                guard !Task.isCancelled else { return }
                 let spaceID = browser.selectedSpaceID
                 let profileID = browser.currentSpace.websiteProfileID
                 let history = browser.library.profileHistory.store(for: profileID)
-                let pages = await history.recentVisits(forHost: host, limit: 5)
+                let pages = await history.recentVisits(forHost: appPreview.host, limit: 5)
                 guard !Task.isCancelled else { return }
                 guard browser.selectedSpaceID == spaceID, browser.currentSpace.websiteProfileID == profileID else { return }
                 previewPages = pages
-                isAppPreviewPresented = appPreviewName != nil && !previewPages.isEmpty
+                isAppPreviewPresented = self.appPreview != nil && !previewPages.isEmpty
             }
         } else {
             previewTask = Task { @MainActor in
@@ -783,8 +786,8 @@ struct FavoriteTile: View {
                 isAppPreviewPresented = false
             }
             .popover(isPresented: $isAppPreviewPresented, arrowEdge: .leading) {
-                if let appPreviewName {
-                    FavoriteAppPreview(name: appPreviewName, pages: previewPages) { url in
+                if let appPreview {
+                    FavoriteAppPreview(name: appPreview.name, pages: previewPages) { url in
                         browser.newTab(url: url, in: browser.currentSpace, source: .bookmark)
                         isAppPreviewPresented = false
                     }

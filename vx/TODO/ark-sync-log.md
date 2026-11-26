@@ -1483,3 +1483,7 @@ Adapted Browsa `afc2c39fc2e1a083050056fe9477b20d593d1a61`: Ark's automatic PiP n
 ### Batched Search sidebar/performance review — November 26, 2026
 
 Reviewed 30 incoming Search commits in one architecture-sized pass. Search's benchmarks, test probes, and custom virtualized Column are not portable to Ark's SwiftUI sidebar without replacing its drag/drop and Arc-led presentation architecture, so no test files or renderer were copied. The directly compatible behavioral change was adopted: the hidden floating-sidebar edge target is now 28 pt rather than 10 pt. The consolidated `ark:build-mac --skip-nx-cache` passed in 12.9 seconds; live pointer interaction and measured many-tab performance remain explicitly open. Source review advances from **278/332 (83.7%)** to **308/332 (92.8%)**, leaving 24 commits for product-diff review.
+
+### Web App Preview workspace hosts — November 26, 2026
+
+Mac Favorites previews now query the stable root host for each supported app (Notion, Figma, Linear), rather than the favorite's literal host. A `www` or redirect favorite can therefore surface its workspace-subdomain history without crossing an app boundary. Existing profile selection, private-Space exclusion, cancellation, five-result cap, and navigation behavior are preserved. `ark:build-mac --skip-nx-cache` passed in 11.2 seconds. Hover, pointer handoff, and profile-isolation interaction still need a live Mac check; the Previews row remains Partial.

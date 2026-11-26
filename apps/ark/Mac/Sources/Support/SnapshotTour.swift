@@ -268,6 +268,14 @@ struct SnapshotTour {
                 let reused = browser.currentTab === blankTab && browser.currentSpace.allTabs.count == beforeCount && browser.currentTab?.url == first
                 note("extension blank tab opens editor and reuses tab: \(openedEditor && reused) (editor: \(openedEditor), reused: \(reused))")
                 _ = try await extensionPage.evaluate("await chrome.tabs.remove(globalThis.arkBlankID); return true;", inWorld: "page")
+                let selectedBeforeBackground = browser.currentTab
+                let backgroundID = try await extensionPage.evaluate("const tab = await chrome.tabs.create({active: false}); globalThis.arkBackgroundID = tab.id; return tab.id;", inWorld: "page") as? NSNumber
+                let backgroundOK = backgroundID != nil && browser.currentTab === selectedBeforeBackground && browser.commandBar == nil
+                _ = try await extensionPage.evaluate("await chrome.tabs.remove(globalThis.arkBackgroundID); return true;", inWorld: "page")
+                let pinnedID = try await extensionPage.evaluate("const tab = await chrome.tabs.create({active: true, pinned: true}); globalThis.arkPinnedID = tab.id; return tab.id;", inWorld: "page") as? NSNumber
+                let pinnedOK = pinnedID != nil && browser.currentTab?.isPinned == true && browser.commandBar == nil
+                _ = try await extensionPage.evaluate("await chrome.tabs.remove(globalThis.arkPinnedID); return true;", inWorld: "page")
+                note("extension background and pinned blank tabs skip editor: \(backgroundOK && pinnedOK) (background: \(backgroundOK), pinned: \(pinnedOK))")
                 if let manualPage = browser.library.openExtensionTab(url: first, windowID: browser.id, active: false) {
                     await pause(1)
                     let watch = """

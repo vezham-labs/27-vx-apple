@@ -1473,6 +1473,20 @@ struct SnapshotTour {
             note("navigating Glance cancels its pending screen permission: \(queued && !approved && browser.activePrompt == nil)")
             browser.closeGlance()
         }
+        browser.openGlance(glanceURL, profile: browser.library.browsingProfile(in: browser.currentSpace))
+        if let glance = browser.glance {
+            glance.page.loadHTML("<!doctype html><title>Glance fixture</title>", baseURL: glanceURL)
+            for _ in 0..<30 where glance.loadedURL != glanceURL || glance.page.state.isLoading { await pause(0.1) }
+            let request = Task { @MainActor in await glance.page(glance.page, requestPermission: .screen, host: "glance-fixture.invalid") }
+            await pause(0.1)
+            let queued = browser.activePrompt?.tabID == glance.id
+            let originalPage = glance.page
+            browser.expandGlance()
+            let approved = await request.value
+            let kept = browser.currentController?.page === originalPage
+            note("promoting Glance cancels its pending screen permission and keeps its page: \(queued && !approved && browser.activePrompt == nil && kept) (queued: \(queued), approved: \(approved), prompt cleared: \(browser.activePrompt == nil), kept: \(kept), loaded: \(glance.loadedURL == glanceURL))")
+            if let promoted = browser.currentTab { browser.close(promoted) }
+        }
         browser.settings.blockContent = true
         SpaceRouter.shared.isEnabled = true
         let pageURL = URL(string: "https://reference.ark.local/design")!

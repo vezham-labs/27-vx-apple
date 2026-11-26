@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Glance promotion with a pending permission — November 26, 2026
+
+An isolated Mac Debug fixture promoted a fully loaded Glance while a synthetic screen-permission request was pending. The request was cancelled and the same page was retained in the new tab. The initial fixture checked before the page had finished loading and therefore exercised Ark's intentional reload fallback; after waiting for completion and matching the active profile, the handoff passed. Mac Nx build passed. Actual WebKit screen-sharing and system-picker interaction remain unverified; Peek remains Partial and no simulator was started.
+
 ### Glance screen-permission cancellation — November 26, 2026
 
 An isolated Mac Debug fixture requested screen permission through the Glance delegate, verified the prompt was queued, and confirmed both closing Glance and invoking its navigation-commit callback cancel the request. Mac Nx build passed. The fixture did not invoke WebKit screen capture, display a system recording picker, or verify real navigation or promotion; Peek remains Partial. No simulator was started.

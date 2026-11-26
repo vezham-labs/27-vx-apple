@@ -214,6 +214,7 @@ struct SnapshotTour {
             let tab = browser.newTab(url: base)
             guard let page = browser.library.existingController(for: tab)?.page else { note("Video keys: page unavailable"); return }
             for _ in 0..<50 where page.state.isLoading || page.state.url?.host() != base.host() { await pause(0.1) }
+            let initialState = try? await page.evaluate("return JSON.stringify({installed: window.__arkVideoKeys, off: window.__arkVideoKeysOff});", inWorld: "ark.video-keys") as? String
             let result = try? await page.evaluate("""
                 const video = document.createElement('video');
                 video.src = '/apps/ark/Mac/Resources/ark-film.mp4'; video.controls = true; video.muted = true;
@@ -221,17 +222,19 @@ struct SnapshotTour {
                 await new Promise((resolve, reject) => { video.onloadedmetadata = resolve; video.onerror = reject; });
                 video.currentTime = 10;
                 await new Promise(resolve => video.onseeked = resolve);
-                video.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
-                return video.currentTime;
-                """, inWorld: "ark.video-key-check") as? Double
-            note("Video keys seek right by five seconds: \(result.map { abs($0 - 15) < 0.2 } ?? false) (time: \(result.map(String.init(describing:)) ?? "unavailable"))")
+                const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+                video.dispatchEvent(event);
+                return JSON.stringify({time: video.currentTime, prevented: event.defaultPrevented});
+                """, inWorld: "ark.video-key-check") as? String
+            note("Video keys initial listener: \(initialState ?? "unavailable"), event result: \(result ?? "unavailable")")
             engine.videoKeyControls = false
             await pause(1)
             let offState = try? await page.evaluate("return String(window.__arkVideoKeysOff);", inWorld: "ark.video-keys") as? String
             let disabled = try? await page.evaluate("""
                 const video = document.querySelector('video'); const before = video.currentTime;
-                video.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
-                return JSON.stringify({ before, after: video.currentTime });
+                const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+                video.dispatchEvent(event);
+                return JSON.stringify({ before, after: video.currentTime, prevented: event.defaultPrevented });
                 """, inWorld: "ark.video-key-check") as? String
             note("Video keys disabled on existing page: flag \(offState ?? "unavailable"), times \(disabled ?? "unavailable")")
             browser.close(tab)

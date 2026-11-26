@@ -1536,6 +1536,8 @@ Rechecked Browsa `a55c720` against Ark's current extension lifecycle. The refere
 
 An isolated Mac Debug fixture loaded the local 36-second video and dispatched synthetic arrow-key events. The first moved the video from 10 to 15 seconds, but after disabling the setting a second moved it from 15 to 20 seconds; the diagnostic saw the isolated listener flag as undefined. This cannot yet distinguish Ark's listener from WebKit's own media controls, so neither live-disable behavior nor a defect is established. The Mac build passed. Check trusted physical key events, listener injection and editable/page-handled exclusions before marking Search `9a54ad2` verified. Report: `/private/tmp/ark-video-keys-retry-20261127/report.txt`.
 
+Follow-up: the same fixture observed the isolated listener installed with its off flag false and the first event marked prevented. After disabling, the flag read undefined and a second event was also marked prevented while seeking. This confirms the enabled listener exists, but does not explain the later missing flag or prove which handler consumed the second event. Investigate content-world/frame lifecycle and trusted input before changing the behavior. The Mac build passed. Report: `/private/tmp/ark-video-keys-state-20261127/report.txt`.
+
 ### Web App Preview workspace hosts — November 26, 2026
 
 Privacy follow-up, November 27: favorite history previews now also exclude Agent Space, in addition to private Spaces, so the agent context cannot surface regular-profile recent pages through a favorite. The Mac build passed; a live Agent Space hover check remains open.

@@ -1572,6 +1572,21 @@ struct SnapshotTour {
         let defaults = UserDefaults.standard
         let previousPane = defaults.object(forKey: "settingsTab")
         defer { defaults.set(previousPane, forKey: "settingsTab") }
+        let exportSpace = browser.library.addSpace()
+        exportSpace.name = "Audit & Space"
+        let exportPin = BrowserTab(url: URL(string: "https://example.com/pin?a=1&b=2")!, isPinned: true)
+        exportSpace.pinned.append(exportPin)
+        if let folder = exportSpace.addPinFolder(named: "Nested <Pins>") { exportSpace.setPinFolder(folder.id, for: exportPin) }
+        let exportToday = BrowserTab(url: URL(string: "https://example.com/open")!)
+        let unsafeTab = BrowserTab(url: URL(string: "https://user:secret@example.com/private")!)
+        let privateTab = BrowserTab(url: URL(string: "https://example.com/private-fixture")!, isPrivate: true)
+        exportSpace.today.append(contentsOf: [exportToday, unsafeTab, privateTab])
+        let bookmarks = browser.allSpacesBookmarksHTML()
+        let checks = [bookmarks.contains("Audit &amp; Space"), bookmarks.contains("Nested &lt;Pins&gt;"),
+                      bookmarks.contains("pin?a=1&amp;b=2"), bookmarks.contains("https://example.com/open"),
+                      !bookmarks.contains("user:secret"), !bookmarks.contains("private-fixture")]
+        note("All-Spaces bookmarks preserve folders and exclude private links: \(checks.allSatisfy { $0 }) (checks: \(checks))")
+        browser.library.deleteSpace(exportSpace)
         let closePreview = browser.library.showLinkPreview(nil)
         if let webView = closePreview.controller.page.view as? WKWebView, let uiDelegate = webView.uiDelegate {
             uiDelegate.webViewDidClose?(webView)

@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### All-Spaces bookmarks export in progress — November 26, 2026
+
+Started adapting the all-Space bookmarks capability from Browsa `b337f69` / `6463465` and Search `7bc04c0`. Mac now has an HTML export entry in the File menu and command bar; it uses Ark's portable Space link filtering, excludes the agent Space, nests pin folders, and uses pinned home URLs. The Mac Nx build passed. The initial fixture checked live tabs before WebKit populated their URLs; a corrected isolated fixture using explicit tab records verified escaped Space/folder names, pinned and open links, and exclusion of private and credentialed URLs. Save-dialog behavior, multiple browser import, and complete round-trip remain unverified. The existing single-Space JSON path remains separate. Do not advance upstream baselines or the Export Spaces rating.
+
 ### New upstream intake — November 26, 2026
 
 Recorded the locally known Browsa commits `46fe04b..a39e03e` (8) and Search commits `b9fcbb4..d5948c4` (60) in the [intake inventory](ark-upstream-intake-2026-11-26.md). These are pending full diff review, not synced changes; the prior 270/332 review count excludes them. Initial inspection identified all-Space export as an applicable gap: Ark exports one Space as JSON, while the references add interoperable bookmarks and, in Search, a richer multi-Space format. No product code or feature rating changed, and no upstream baseline advanced.

@@ -123,6 +123,7 @@ extension Browser {
         if canExportSpaceLinks {
             out.append(BrowserCommand(id: "export-space-links", title: "Export Space Links…", keywords: ["save", "tabs", "bookmarks", "json"]))
         }
+        out.append(BrowserCommand(id: "export-all-spaces", title: "Export All Spaces as Bookmarks…", keywords: ["save", "tabs", "bookmarks", "html"]))
         if !currentSpace.isPrivate {
             out.append(BrowserCommand(id: "github-pull-requests", title: "GitHub Pull Requests Live Folder", subtitle: "Sidebar", keywords: ["github", "pull", "review", "live folder"]))
         }
@@ -227,6 +228,7 @@ extension Browser {
         case ShortcutAction.lastUsedTab.rawValue: selectLastUsedTab()
         case ShortcutAction.recentTabs.rawValue: showRecentTabs()
         case "export-space-links": exportSpaceLinks()
+        case "export-all-spaces": exportAllSpacesBookmarks()
         case "import-space-links": importSpaceLinks()
         case "github-pull-requests": refreshGitHubPullRequests()
         case "edit-site-style": editSiteStyle()

@@ -1522,6 +1522,8 @@ The guarded-element observer now disconnects after the last guarded rule is rest
 
 Adapted Search `b666d1f`: Mac WebKit link menus now add a separate **Copy Clean Link** action. It asks WebKit to copy the selected link, then applies Ark's existing URL cleaner after the pasteboard changes; the normal Copy Link action remains available. The Mac build and existing BrowserKit suite passed (90 BrowserCore tests in 14 suites). A real WebKit context-menu selection and delayed pasteboard behavior remain unverified; the suite does not exercise the new menu action.
 
+Follow-up: an isolated Mac Debug fixture constructed the menu around a simulated WebKit copy target and used a private pasteboard. It verified the normal item remains, a delayed tracking link is cleaned, and a signed link remains unchanged. The Mac build passed. This does not establish how WebKit's real context-menu target behaves or verify physical menu input. Report: `/private/tmp/ark-clean-menu-20261127/report.txt`.
+
 ### Web App Preview workspace hosts — November 26, 2026
 
 Privacy follow-up, November 27: favorite history previews now also exclude Agent Space, in addition to private Spaces, so the agent context cannot surface regular-profile recent pages through a favorite. The Mac build passed; a live Agent Space hover check remains open.

@@ -206,6 +206,15 @@ struct SnapshotTour {
         guard let window = browser.nsWindow else { note("missing window"); return }
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        if ProcessInfo.processInfo.environment["ARK_CLEAN_MENU_CHECK_ONLY"] == "1" {
+            let tab = browser.newTab(url: URL(string: "about:blank"))
+            await pause(0.5)
+            if let view = browser.library.existingController(for: tab)?.page.view {
+                note("Clean link menu fixture: \(await PageMenuItems.checkCleanLinkMenu(in: view))")
+            } else { note("Clean link menu fixture: page missing") }
+            browser.close(tab)
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_BOOST_DYNAMIC_CHECK_ONLY"] == "1" {
             let url = URL(string: "https://boost-fixture.ark.local/")!
             let tab = browser.newTab(url: url)

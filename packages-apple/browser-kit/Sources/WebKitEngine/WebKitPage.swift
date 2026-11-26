@@ -598,7 +598,56 @@ extension WebKitPage: WKUIDelegate {
 @MainActor
 public enum PageMenuItems {
     public static var provider: ((NSView, CGPoint) -> [NSMenuItem])?
+    #if DEBUG
+    static var copyBoard: NSPasteboard?
+
+    public static func checkCleanLinkMenu(in view: NSView) async -> String {
+        guard let web = view as? ArkWebView, let window = web.window,
+              let event = NSEvent.mouseEvent(with: .rightMouseDown, location: .zero, modifierFlags: [],
+                                            timestamp: 0, windowNumber: window.windowNumber, context: nil,
+                                            eventNumber: 1, clickCount: 1, pressure: 1) else { return "fixture unavailable" }
+        let board = NSPasteboard(name: .init("ark-clean-menu-\(UUID().uuidString)"))
+        copyBoard = board
+        defer { copyBoard = nil; board.releaseGlobally() }
+        let target = CleanLinkMenuFixture(board: board)
+        let menu = NSMenu()
+        let original = NSMenuItem(title: "Copy Link", action: #selector(CleanLinkMenuFixture.copyLink(_:)), keyEquivalent: "")
+        original.identifier = .init("WKMenuItemIdentifierCopyLink")
+        original.target = target
+        menu.addItem(original)
+        web.willOpenMenu(menu, with: event)
+        guard let clean = menu.items.first(where: { $0.identifier?.rawValue == "ArkCopyCleanLink" }),
+              let action = clean.action else { return "clean menu item missing" }
+        target.text = "https://example.com/path?keep=1&utm_source=fixture#section"
+        target.delay = 0.1
+        NSApp.sendAction(action, to: clean.target, from: clean)
+        try? await Task.sleep(for: .milliseconds(350))
+        let delayed = board.string(forType: .string) == "https://example.com/path?keep=1#section"
+        target.text = "https://example.com/?utm_source=fixture&sig=abc"
+        target.delay = 0
+        NSApp.sendAction(action, to: clean.target, from: clean)
+        try? await Task.sleep(for: .milliseconds(100))
+        let signed = board.string(forType: .string) == target.text
+        return "normal item retained: \(menu.items.contains(original)), delayed copy cleaned: \(delayed), signed URL preserved: \(signed)"
+    }
+    #endif
 }
+
+#if DEBUG
+@MainActor private final class CleanLinkMenuFixture: NSObject {
+    let board: NSPasteboard
+    var text = ""
+    var delay = 0.0
+    init(board: NSPasteboard) { self.board = board }
+    @objc func copyLink(_ sender: Any?) {
+        let text = text
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [board] in
+            board.clearContents()
+            board.setString(text, forType: .string)
+        }
+    }
+}
+#endif
 
 /// WKWebView with Ark's link menu wording: windows are tabs here.
 final class ArkWebView: WKWebView {
@@ -640,7 +689,11 @@ final class ArkWebView: WKWebView {
 
     @objc private func copyCleanLink(_ item: NSMenuItem) {
         guard let linkCopyAction else { return }
+        #if DEBUG
+        let board = PageMenuItems.copyBoard ?? NSPasteboard.general
+        #else
         let board = NSPasteboard.general
+        #endif
         let previousChange = board.changeCount
         NSApp.sendAction(linkCopyAction, to: linkCopyTarget, from: item)
         Self.cleanCopiedLink(on: board, after: previousChange, attempts: 20)

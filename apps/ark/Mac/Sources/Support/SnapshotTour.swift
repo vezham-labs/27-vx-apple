@@ -273,6 +273,25 @@ struct SnapshotTour {
                     note("manual pin notification to extension: \(watching && changed && events == "[true]") (events: \(events ?? "nil"))")
                     browser.library.closeExtensionTab(manualPage)
                 }
+                engine.setExtension(id: "ark-pin-audit", allowedInPrivate: true)
+                let previousSpace = browser.currentSpace
+                let apiPrivateSpace = browser.library.openPrivateSpace()
+                browser.selectSpace(apiPrivateSpace)
+                await pause(0.5)
+                let privateScript = """
+                    let createError = '', updateError = '';
+                    try { await chrome.tabs.create({url: \(String(reflecting: first.absoluteString)), active: false, pinned: true}); }
+                    catch (error) { createError = String(error); }
+                    const tab = await chrome.tabs.create({url: \(String(reflecting: first.absoluteString)), active: false, pinned: false});
+                    try { await chrome.tabs.update(tab.id, {pinned: true}); }
+                    catch (error) { updateError = String(error); }
+                    await chrome.tabs.remove(tab.id);
+                    return JSON.stringify({createError, updateError});
+                    """
+                let privateResult = try await extensionPage.evaluate(privateScript, inWorld: "page") as? String
+                note("private-enabled extension pin API: \(privateResult ?? "nil"); private pins: \(apiPrivateSpace.pinned.count)")
+                browser.selectSpace(previousSpace)
+                engine.setExtension(id: "ark-pin-audit", allowedInPrivate: false)
                 browser.library.closeExtensionTab(extensionPage)
                 engine.unloadExtensions()
             } catch { note("extension pin API fixture error: \(error)") }

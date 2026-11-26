@@ -1495,6 +1495,30 @@ struct SnapshotTour {
         browser.select(noteTab)
         browser.library.existingController(for: noteTab)?.page.loadHTML(noteHTML, baseURL: pageURL)
         await pause(0.5)
+        if let view = browser.currentController?.page.view as? WKWebView {
+            view.loadHTMLString("""
+                <!doctype html><style>body{margin:0}.related-card{height:60px;background:#d9e7f5}</style>
+                <div class="related-card">First</div><div class="related-card">Second</div><div class="related-card">Third</div>
+                """, baseURL: pageURL)
+            await pause(0.5)
+            let previousMouseMoves = window.acceptsMouseMovedEvents
+            if let picker = browser.selectSiteElementToHide(),
+               let move = NSEvent.mouseEvent(with: .mouseMoved, location: picker.convert(NSPoint(x: 30, y: 30), to: nil),
+                                             modifierFlags: [.option], timestamp: 0, windowNumber: window.windowNumber,
+                                             context: nil, eventNumber: 0, clickCount: 0, pressure: 0) {
+                NSApp.postEvent(move, atStart: false)
+                await pause(0.5)
+                let value = picker.accessibilityValue() as? String
+                note("Boost Option-hover shows three related elements: \(value == "Hide 3 related elements") (value: \(value ?? "nil"))")
+                saveVisible("boost-related-count", in: window)
+                picker.cancelOperation(nil)
+                note("Boost picker restores mouse-move setting on dismissal: \(window.acceptsMouseMovedEvents == previousMouseMoves)")
+            } else {
+                note("Boost Option-hover fixture could not open picker")
+            }
+            view.loadHTMLString(noteHTML, baseURL: pageURL)
+            await pause(0.5)
+        }
         browser.library.margin.add(MarginNote(url: pageURL, pageTitle: "Design reference",
                                               anchor: .init(quote: "Collect design references"),
                                               body: "Keep this reference with the source page."))

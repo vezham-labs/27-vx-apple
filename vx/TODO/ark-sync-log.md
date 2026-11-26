@@ -2,6 +2,12 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Boost related-element count preview — November 26, 2026
+
+The Mac Boost picker now displays a count while Option is held over an element, before the existing Option-click hide action. The lookup is debounced and cancelled on pointer changes or picker dismissal, and checks that the original tab, URL, host, and WebView are still active. The count is exposed as accessibility value; the picker restores the window's mouse-move setting when removed. Mac Nx build passed. An isolated Mac fixture posted an Option-hover through AppKit over a local page with three related elements, confirmed the accessibility value, captured the [count preview](../../preview/ark/mac/features/boost-related-count.png), and confirmed mouse-move settings were restored on dismissal. Physical pointer and VoiceOver interaction, and count accuracy on a changing page remain open; Boosts stays Partial. No simulator was started.
+
+The first isolated audit exited with status 139 while synchronously dispatching a synthetic mouse event from its own task. A debugger retry stalled before startup and was stopped. Posting the synthetic event through AppKit's event queue allowed the subsequent fixture to complete; this does not establish the precise cause of the earlier exit.
+
 ### Glance promotion with a pending permission — November 26, 2026
 
 An isolated Mac Debug fixture promoted a fully loaded Glance while a synthetic screen-permission request was pending. The request was cancelled and the same page was retained in the new tab. The initial fixture checked before the page had finished loading and therefore exercised Ark's intentional reload fallback; after waiting for completion and matching the active profile, the handoff passed. Mac Nx build passed. Actual WebKit screen-sharing and system-picker interaction remain unverified; Peek remains Partial and no simulator was started.

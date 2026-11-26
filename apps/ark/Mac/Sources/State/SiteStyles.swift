@@ -106,7 +106,14 @@ extension Browser {
     func selectSiteElementToHide() -> RegionCaptureView? {
         guard let host = editableSiteStyleHost, let tab = currentTab, let url = tab.url,
               let view = currentController?.page.view as? WKWebView else { return nil }
-        let picker = RegionCaptureView.present(on: view, mode: .element) { [weak self, weak view] selection in
+        let picker = RegionCaptureView.present(on: view, mode: .element, relatedCount: { [weak self, weak view] point in
+            guard let self, let view, currentTab === tab, tab.url == url, editableSiteStyleHost == host,
+                  library.existingController(for: tab)?.page.view === view else { return nil }
+            let selection = await PageCaptureImage.selection(at: point, in: view)
+            guard currentTab === tab, tab.url == url, editableSiteStyleHost == host,
+                  library.existingController(for: tab)?.page.view === view else { return nil }
+            return selection?.relatedCount
+        }) { [weak self, weak view] selection in
             guard case .element(let point, let allRelated) = selection, let self, let view,
                   currentTab === tab, tab.url == url else { return }
             Task { [weak self] in
@@ -138,7 +145,7 @@ extension Browser {
                 } catch { showToast("Couldn’t save the hidden element") }
             }
         }
-        if picker != nil { showToast("Click an element to hide it · Esc to cancel") }
+        if picker != nil { showToast("Click to hide · Option-click for related elements · Esc to cancel") }
         return picker
     }
 

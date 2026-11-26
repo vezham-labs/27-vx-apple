@@ -87,7 +87,7 @@ public enum BrowserSyncItems {
             let pins = space.pinned.filter { isShareable($0.url) }
             values["pins:order:\(id)"] = BrowserSyncMerge.text(pins.map { $0.id.uuidString })
             for pin in pins {
-                let item = SyncedPin(id: pin.id, url: pin.url, homeURL: pin.pinnedHomeURL, title: pin.title,
+                let item = SyncedPin(id: pin.id, url: pin.url, homeURL: pin.pinnedHomeURL.flatMap(safeWebURL), title: pin.title,
                                      customTitle: pin.customTitle, favoriteID: pin.favoriteID,
                                      folderID: pin.pinFolderID, websiteProfileID: pin.websiteSessionProfileID)
                 values["pin:\(id):\(pin.id.uuidString)"] = BrowserSyncMerge.text(item)
@@ -208,7 +208,7 @@ public enum BrowserSyncItems {
                                      lastActive: previous?.lastActive ?? .distantPast,
                                      interactionState: samePage ? previous?.interactionState : nil,
                                      favoriteID: pin.favoriteID,
-                                     pinnedHomeURL: pin.homeURL ?? previous?.pinnedHomeURL,
+                                     pinnedHomeURL: pin.homeURL.flatMap(safeWebURL) ?? previous?.pinnedHomeURL,
                                      windowKey: nil, customTitle: pin.customTitle, pinFolderID: pin.folderID,
                                      websiteSessionProfileID: pin.websiteProfileID)
                 }

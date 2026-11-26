@@ -8,8 +8,9 @@ import Testing
     let pinID = UUID()
     let privateURL = URL(string: "https://user:secret@example.com/private")!
     let safeURL = URL(string: "https://example.com/pinned")!
-    let pinned = tab(id: pinID, url: safeURL, title: "Pinned", isPinned: true,
+    var pinned = tab(id: pinID, url: safeURL, title: "Pinned", isPinned: true,
                      interactionState: Data("local webkit state".utf8))
+    pinned.pinnedHomeURL = privateURL
     let today = tab(id: UUID(), url: URL(string: "https://example.com/today"), title: "Today",
                     isPinned: false, interactionState: Data("today state".utf8))
     let space = spaceRecord(id: spaceID, pinned: [pinned], today: [today])
@@ -22,6 +23,7 @@ import Testing
     let values = BrowserSyncItems.values(from: snapshot)
 
     #expect(values["pin:\(spaceID.uuidString):\(pinID.uuidString)"] != nil)
+    #expect(!values.values.contains { $0.contains("user:secret") })
     #expect(!values.keys.contains { $0.hasPrefix("tab:") })
     #expect(!values.keys.contains { $0.hasPrefix("favorite:") })
     #expect(!values.keys.contains { $0.contains("interactionState") })
@@ -69,6 +71,15 @@ import Testing
     #expect(preservedCredentialedPin.url == credentialedPin.url)
     #expect(today.id == todayID)
     #expect(today.interactionState == Data("today state".utf8))
+
+    let key = "pin:\(spaceID.uuidString):\(pinID.uuidString)"
+    let encoded = try #require(projected[key]?.data(using: .utf8))
+    var entry = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    entry["homeURL"] = "https://user:secret@example.com/private"
+    var untrusted = projected
+    untrusted[key] = String(decoding: try JSONSerialization.data(withJSONObject: entry), as: UTF8.self)
+    let safeResult = BrowserSyncItems.applying(untrusted, to: local)
+    #expect(safeResult.spaces.first?.pinned.first { $0.id == pinID }?.pinnedHomeURL == nil)
 }
 
 @Test func syncProfilesAndFavoritesKeepTheirStableIDsAndScopes() throws {

@@ -1538,6 +1538,8 @@ The subsequent isolated Mac feature tour passed the expanded Arc import fixture,
 
 Legacy snapshot follow-up: older persisted pinned tabs and synced snapshots without `pinnedHomeURL` now use their saved current URL as the home on Mac and iOS. Existing explicit home URLs remain unchanged; an original URL that was never saved cannot be recovered. The existing BrowserKit suite passed (91 BrowserCore tests), as did Mac and generic iOS builds. Device and multi-client runtime behavior remain open.
 
+Sync privacy follow-up: a pin with a safe current URL could previously project a credential-bearing or non-web home URL into shared sync data. Outgoing home URLs now use the same safe-web filter as the current URL, and unsafe home values received from a peer are ignored while an existing local home is retained. The existing BrowserKit suite passed (91 BrowserCore tests), including outbound and inbound credentialed-home checks; the Mac build passed. Physical multi-client sync remains unverified. Existing previously written sync files are not rewritten by this change until the normal next sync.
+
 ### External extension messaging review — November 27, 2026
 
 Rechecked Browsa `a55c720` against Ark's current extension lifecycle. The reference checks allowed destination IDs in `sendMessage`, while its `connect` forwards without that explicit check; whether WebKit rejects an unlisted destination is not yet verified. Ark shares an extension controller across regular and ephemeral pages but keeps per-extension private-access permissions. Before enabling this missing compatibility feature, verify per-destination access for both methods, private-page behavior, changes to private access, unload and already-open pages. No bridge or parity claim was added.

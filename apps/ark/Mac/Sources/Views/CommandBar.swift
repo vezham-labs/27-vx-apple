@@ -249,6 +249,9 @@ struct CommandBar: View {
                     onMove: { model?.moveHighlight($0) },
                     onHorizontal: { model?.moveToolHighlight($0) ?? false },
                     onSubmit: { text in submit(text) },
+                    onPasteAndGo: mode == .commands ? nil : { url in
+                        browser.perform(.open(url), mode: mode, rememberTypedAddress: true)
+                    },
                     onPreview: { text in preview(text) },
                     onCancel: { close() })
                     .frame(height: 24)
@@ -574,6 +577,7 @@ struct CommandField: NSViewRepresentable {
     /// ← and →: true when handled (⌘K's tool row), false to leave them to the field.
     var onHorizontal: (Int) -> Bool = { _ in false }
     let onSubmit: (String) -> Void
+    let onPasteAndGo: ((URL) -> Void)?
     let onPreview: (String) -> Bool
     let onCancel: () -> Void
 
@@ -590,7 +594,9 @@ struct CommandField: NSViewRepresentable {
         field.lineBreakMode = .byTruncatingTail
         field.cell?.usesSingleLineMode = true
         field.delegate = context.coordinator
+        field.pasteAndGo = onPasteAndGo
         context.coordinator.parent = self
+        field.pasteAndGo = onPasteAndGo
         context.coordinator.typed = initialText
         return field
     }
@@ -601,12 +607,69 @@ struct CommandField: NSViewRepresentable {
     }
 
     final class FocusingField: NSTextField {
+        override class var cellClass: AnyClass? {
+            get { AddressFieldCell.self }
+            set {}
+        }
+        var pasteAndGo: ((URL) -> Void)?
+        var pasteboard: NSPasteboard = .general
+        fileprivate lazy var addressEditor: AddressEditor = {
+            let editor = AddressEditor(frame: .zero)
+            editor.isFieldEditor = true
+            editor.field = self
+            return editor
+        }()
+
+        override func menu(for event: NSEvent) -> NSMenu? {
+            if pasteAndGo != nil, currentEditor() == nil { window?.makeFirstResponder(self) }
+            return (currentEditor() as? AddressEditor)?.menu(for: event) ?? super.menu(for: event)
+        }
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             guard let window else { return }
             window.makeFirstResponder(self)
             // Editing the current address starts with it all selected, like Safari.
             currentEditor()?.selectAll(nil)
+        }
+    }
+
+    final class AddressFieldCell: NSTextFieldCell {
+        override func fieldEditor(for controlView: NSView) -> NSTextView? {
+            (controlView as? FocusingField)?.addressEditor ?? super.fieldEditor(for: controlView)
+        }
+    }
+
+    final class AddressEditor: NSTextView {
+        weak var field: FocusingField?
+
+        private func clipboardURL() -> URL? {
+            guard let items = field?.pasteboard.pasteboardItems, items.count == 1,
+                  let raw = items.first?.string(forType: .URL) ?? items.first?.string(forType: .string) else { return nil }
+            let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard text.rangeOfCharacter(from: .whitespacesAndNewlines.union(.controlCharacters)) == nil,
+                  let url = URLNormalizer.urlIfNavigable(text),
+                  let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+                  url.host()?.isEmpty == false else { return nil }
+            return url
+        }
+
+        override func menu(for event: NSEvent) -> NSMenu? {
+            guard let native = super.menu(for: event), let field, field.currentEditor() === self,
+                  field.pasteAndGo != nil, clipboardURL() != nil, let menu = native.copy() as? NSMenu else {
+                return super.menu(for: event)
+            }
+            let item = NSMenuItem(title: "Paste and Go", action: #selector(go(_:)), keyEquivalent: "")
+            item.target = self
+            if let index = menu.items.firstIndex(where: { $0.action == #selector(NSText.paste(_:)) }) {
+                menu.insertItem(item, at: index + 1)
+            } else { menu.addItem(item) }
+            return menu
+        }
+
+        @objc private func go(_ sender: NSMenuItem) {
+            guard let field, field.currentEditor() === self, let url = clipboardURL() else { return }
+            field.pasteAndGo?(url)
         }
     }
 

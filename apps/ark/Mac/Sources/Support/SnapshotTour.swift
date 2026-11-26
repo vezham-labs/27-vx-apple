@@ -206,6 +206,30 @@ struct SnapshotTour {
         guard let window = browser.nsWindow else { note("missing window"); return }
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        if ProcessInfo.processInfo.environment["ARK_PASTE_GO_CHECK_ONLY"] == "1" {
+            let board = NSPasteboard.withUniqueName()
+            defer { board.releaseGlobally() }
+            let field = CommandField.FocusingField(frame: NSRect(x: 20, y: 20, width: 200, height: 30))
+            field.pasteboard = board
+            var opened: URL?
+            field.pasteAndGo = { opened = $0 }
+            window.contentView?.addSubview(field)
+            window.makeFirstResponder(field)
+            await pause(0.3)
+            board.clearContents()
+            board.setString("https://example.com/path", forType: .string)
+            let event = NSEvent.mouseEvent(with: .rightMouseDown, location: NSPoint(x: 30, y: 30), modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)
+            let menu = event.flatMap { field.currentEditor()?.menu(for: $0) }
+            let action = menu?.items.first { $0.title == "Paste and Go" }
+            if let action, let selector = action.action { _ = NSApp.sendAction(selector, to: action.target, from: action) }
+            note("Paste and Go native editor and action: \(field.currentEditor() is CommandField.AddressEditor && action != nil && opened?.absoluteString == "https://example.com/path")")
+            board.clearContents()
+            board.setString("javascript:alert(1)", forType: .string)
+            let unsafeMenu = event.flatMap { field.currentEditor()?.menu(for: $0) }
+            note("Paste and Go excludes unsafe clipboard scheme: \(unsafeMenu?.items.contains { $0.title == "Paste and Go" } == false)")
+            field.removeFromSuperview()
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_MINI_PLAYER_PREVIEW"] == "1" {
             await miniPlayerPreview(browser, base: base)
             return

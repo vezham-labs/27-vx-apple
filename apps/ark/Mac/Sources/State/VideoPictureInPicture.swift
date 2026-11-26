@@ -315,6 +315,15 @@ final class VideoPictureInPicture {
             // Short loops are often decorative previews. Keep manual PiP available,
             // and retain unknown/infinite durations for live streams.
             if (isAutomatic && Number.isFinite(video.duration) && video.duration > 0 && video.duration < 10) continue;
+            if (isAutomatic) {
+                let preview = false;
+                for (let node = video; node && node !== document.body && node !== document.documentElement; node = node.parentElement) {
+                    if (node !== video && node.tagName === 'A' && node.hasAttribute('href')) { preview = true; break; }
+                    const name = `${node.tagName} ${node.id || ''} ${typeof node.className === 'string' ? node.className : ''}`;
+                    if (/(^|[\\s_-])(preview|thumbnail)(?=$|[\\s_-])/i.test(name) || /(^|[\\s_-])(preview|thumbnail)[A-Z]/.test(name)) { preview = true; break; }
+                }
+                if (preview) continue;
+            }
             const rect = video.getBoundingClientRect();
             const width = Math.max(0, Math.min(innerWidth, rect.right) - Math.max(0, rect.left));
             const height = Math.max(0, Math.min(innerHeight, rect.bottom) - Math.max(0, rect.top));

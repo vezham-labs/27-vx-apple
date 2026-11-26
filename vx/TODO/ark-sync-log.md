@@ -1486,6 +1486,8 @@ Per-site follow-up: the Mac site menu now offers **Float Videos Automatically** 
 
 The host opt-out is now included in Ark's settings sync projection. The existing BrowserKit sync test confirms a projected remote choice applies to a local snapshot; the suite passed. Physical-device convergence remains unverified.
 
+Preview filtering follow-up: automatic PiP now skips video inside a link or an ancestor marked as a preview/thumbnail, following Search's `fb504002` heuristic. Manual PiP remains eligible. A mock-DOM run of the actual selection script verified preview and link exclusion plus ordinary and manual eligibility; the Mac build passed. Real sites, shadow DOM, and false-positive behavior remain unverified.
+
 Adapted Browsa `afc2c39fc2e1a083050056fe9477b20d593d1a61`: Ark's automatic PiP now distinguishes a tab change from a Space switch per browser window. **Also float them when switching Spaces** defaults on to preserve existing automatic PiP; switching it off leaves a playing video inline in its original Space while tab and app-switch PiP behavior continues. `ark:build-mac --skip-nx-cache` passed. This is a Mac Auto PiP refinement already rated Yes, not a rating change; real video, preference, and Space-switch interaction still need runtime verification. No simulator or new test file was used.
 
 ### Batched Search sidebar/performance review — November 26, 2026

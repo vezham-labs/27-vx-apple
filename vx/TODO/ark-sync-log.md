@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Upstream ledger correction — November 26, 2026
+
+Updated stale Browsa dispositions that still described GitHub Live Folders and owner filters as absent, and an older Boosts entry that claimed Mac parity. The entries now reflect the implemented command, profile-cookie flow, folder-menu filters, and manual accent, while preserving the signed-in, UI, and palette-engine gaps. Source review count and comparison ratings are unchanged; no runtime verification was performed.
+
 ### iOS WebKit delegate signatures — November 26, 2026
 
 The generic iOS build exposed that the camera/microphone permission and link long-press menu methods did not match the current Swift `WKUIDelegate` requirements, so WebKit could use its default behavior instead of Ark's handlers. Corrected both signatures; the generic iOS Nx build passed and the signature warnings disappeared. Existing unrelated compiler warnings remain. Permission prompts and link-menu actions still require device runtime verification; no simulator was started and no comparison rating changed.

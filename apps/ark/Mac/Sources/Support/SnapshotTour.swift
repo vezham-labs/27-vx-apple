@@ -206,6 +206,15 @@ struct SnapshotTour {
         guard let window = browser.nsWindow else { note("missing window"); return }
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        if ProcessInfo.processInfo.environment["ARK_PIN_UNREAD_CHECK_ONLY"] == "1" {
+            let cases = TabRow.unreadCount(title: "(3) Messages", host: "example.com") == "3"
+                && TabRow.unreadCount(title: "Inbox (1,234) – Mail", host: "mail.google.com") == "99+"
+                && TabRow.unreadCount(title: "Inbox (3) – Mail", host: "example.com") == nil
+                && TabRow.unreadCount(title: "(0) Messages", host: "example.com") == nil
+                && TabRow.unreadCount(title: "(12+) Messages", host: "example.com") == "12+"
+            note("pinned preview title unread parsing: \(cases)")
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_PASTE_GO_CHECK_ONLY"] == "1" {
             let board = NSPasteboard.withUniqueName()
             defer { board.releaseGlobally() }

@@ -3,6 +3,7 @@ import AppKit
 import BrowserCore
 import BrowserEngine
 import Suggest
+import WebKit
 
 /// The part of the sidebar that belongs to the current space. It slides out and the new space's
 /// tabs cascade in when the space changes, and all of it stays clipped inside the sidebar.
@@ -205,7 +206,7 @@ private struct DraggableTabRow: View {
 
     var body: some View {
         TabRow(tab: tab, selected: tab.id == browser.selectedTabID(in: space),
-               bulkSelected: browser.selectedSidebarPinIDs.contains(tab.id), paneCount: paneCount)
+               bulkSelected: browser.selectedSidebarPinIDs.contains(tab.id), paneCount: paneCount, isLifted: collapsed)
             .overlay(alignment: insertionEdge == .bottom ? .bottom : .top) {
                 if insertionEdge != nil {
                     Capsule().fill(Color.accentColor).frame(height: 2).allowsHitTesting(false)
@@ -341,6 +342,9 @@ struct TabRow: View {
     var isLifted = false
     @State private var hovering = false
     @State private var iconHovering = false
+    @State private var pinPreview: NSImage?
+    @State private var pinPreviewShown = false
+    @State private var pinPreviewTask: Task<Void, Never>?
     /// Renaming in place: double-click the tab, or Rename Tab… in its menu.
     @State private var draft: String?
     @State private var renameOriginal = ""
@@ -460,13 +464,81 @@ struct TabRow: View {
         // Moving to another tab, however it happens, finishes a rename left open (clicking a row
         // doesn't take focus from the field, so its own focus change never comes).
         .onChange(of: selected) { if !selected { commitRename() } }
-        .onHover { h in withAnimation(Motion.snappy) { hovering = h } }
+        .onHover { h in
+            withAnimation(Motion.snappy) { hovering = h }
+            updatePinPreview(hovered: h)
+        }
+        .onDisappear { pinPreviewTask?.cancel(); pinPreviewShown = false; pinPreview = nil }
+        .onChange(of: tab.isPinned) { _, pinned in
+            if !pinned { updatePinPreview(hovered: false) }
+        }
+        .onChange(of: tab.url) { _, _ in updatePinPreview(hovered: false) }
+        .onChange(of: isLifted) { _, lifted in
+            if lifted { updatePinPreview(hovered: false) }
+        }
+        .popover(isPresented: $pinPreviewShown, arrowEdge: .trailing) {
+            VStack(alignment: .leading, spacing: 8) {
+                if let pinPreview {
+                    Image(nsImage: pinPreview).resizable().scaledToFit()
+                        .frame(width: 240, height: 150).clipped()
+                }
+                Text(tab.displayTitle).font(.headline).lineLimit(2)
+                if let url = tab.url { Text(URLNormalizer.displayHost(url)).font(.caption).foregroundStyle(.secondary) }
+                if let unread = Self.unreadCount(title: tab.title, host: tab.url?.host()) {
+                    Text("\(unread) unread").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .padding(12).frame(width: 264, alignment: .leading)
+        }
         .contextMenu { TabMenu(tab: tab, rename: startRename) }
         .help(tab.url?.absoluteString ?? tab.displayTitle)
     }
 
+    /// A best-effort count from the loaded page title, not a mailbox query.
+    static func unreadCount(title: String, host: String?) -> String? {
+        let trimmed = title.trimmingCharacters(in: .whitespaces)
+        let mailHosts: Set<String> = ["mail.google.com", "outlook.live.com", "outlook.office.com",
+                                      "outlook.office365.com", "mail.proton.me", "app.fastmail.com",
+                                      "mail.yahoo.com", "mail.zoho.com", "app.hey.com"]
+        let prefix = trimmed.components(separatedBy: " - ").first?.components(separatedBy: " – ").first ?? trimmed
+        let source = trimmed.hasPrefix("(") ? trimmed : (mailHosts.contains(host?.lowercased() ?? "") ? prefix : "")
+        guard let open = source.firstIndex(of: "("), let close = source[open...].firstIndex(of: ")") else { return nil }
+        var digits = String(source[source.index(after: open)..<close])
+            .replacingOccurrences(of: ",", with: "").replacingOccurrences(of: ".", with: "")
+            .replacingOccurrences(of: "\u{202F}", with: "").replacingOccurrences(of: " ", with: "")
+        let more = digits.hasSuffix("+")
+        if more { digits.removeLast() }
+        guard (1...5).contains(digits.count), digits.allSatisfy({ $0.isASCII && $0.isNumber }),
+              let count = Int(digits), count > 0 else { return nil }
+        return count > 99 ? "99+" : "\(count)\(more ? "+" : "")"
+    }
+
+    private func updatePinPreview(hovered: Bool) {
+        pinPreviewTask?.cancel()
+        guard hovered, tab.isPinned, !tab.isPrivate, !isLifted, draft == nil else {
+            pinPreviewShown = false
+            pinPreview = nil
+            return
+        }
+        pinPreviewTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(650))
+            guard !Task.isCancelled, hovering, let url = tab.url,
+                  let web = browser.library.existingController(for: tab)?.page.view as? WKWebView,
+                  !web.bounds.isEmpty else { return }
+            let config = WKSnapshotConfiguration()
+            config.snapshotWidth = 240
+            let image = try? await web.takeSnapshot(configuration: config)
+            guard !Task.isCancelled, hovering, tab.isPinned, !tab.isPrivate, !isLifted,
+                  draft == nil, tab.url == url, browser.library.existingController(for: tab)?.page.view === web,
+                  let image else { return }
+            pinPreview = image
+            pinPreviewShown = true
+        }
+    }
+
     private func startRename() {
         guard draft == nil else { return }
+        updatePinPreview(hovered: false)
         renameOriginal = tab.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         draft = tab.displayTitle
         DispatchQueue.main.async {

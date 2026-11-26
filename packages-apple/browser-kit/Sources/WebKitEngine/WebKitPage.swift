@@ -657,6 +657,7 @@ final class DownloadBridge: NSObject, WKDownloadDelegate {
         progress[key] = nil
         items[key] = nil
         origins[key] = nil
+        requestedNames[key] = nil
     }
 
     /// Marks a finished download as coming from the internet, so Gatekeeper checks an app or

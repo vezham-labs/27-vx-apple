@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Download and redirect intake — November 26, 2026
+
+Reviewed the product diffs for Search `a93a437` and `9b609d4`. Ark does not automatically close download-source tabs, so Search's empty-tab closure guard has no matching path. Its typed cross-host redirect completion behavior is an applicable gap: Ark currently records the final destination, and its broad `.typed` source also covers non-address navigation. A focused implementation must distinguish explicit typed addresses and preserve profile/private isolation. Separately, Ark's download bridge now clears a requested filename when a download finishes or fails, including before destination selection. The existing BrowserKit suite passed, including 90 BrowserCore tests; it does not specifically exercise early download cancellation. Cross-Space download runtime and redirect completion remain unverified. No simulator was started.
+
 ### Named-profile bookmark export — November 26, 2026
 
 An isolated Mac fixture exported distinct favorites for two named profiles and verified each appeared only in its own named folder, including escaped profile names. The existing Default, folder, private-link and credential-filter checks also passed, as did the Mac Nx build. The save dialog and importing into external browsers remain unverified; Export Spaces stays Partial. No simulator was started.

@@ -21,8 +21,8 @@ These locally available refs are an intake inventory, not a completed diff revie
 | --- | --- | --- |
 | `181486f3bcb3541bd2abd174c0c2e6a9d8a1342f` | A #fragment jump on the same page keeps the click for its sign-in window (idea 1200) | Pending diff review |
 | `e62decaa29ab6b4297bacba788156827b85387b1` | Tests: HiddenPanelTests hides with a Veil (Curtain.hide's signature changed in 464240bb) | Pending diff review |
-| `a93a4379a090dfae756bb35b162b71664cea3b32` | A download never closes a tab whose page came in while in another space | Pending diff review |
-| `9b609d4c28d5bfa60ca57fed09e403b968df0818` | A typed address that redirects to another site finishes from its own name | Pending diff review |
+| `a93a4379a090dfae756bb35b162b71664cea3b32` | A download never closes a tab whose page came in while in another space | Reviewed product diff: Search fixes its empty-download-tab closure and parked-tab commit bookkeeping. Ark's download bridge adopts the download without closing its source tab; there is no matching closure to patch. Cross-Space download runtime remains unverified. |
+| `9b609d4c28d5bfa60ca57fed09e403b968df0818` | A typed address that redirects to another site finishes from its own name | Reviewed product diff: Search records the originally typed address after a cross-host redirect. Ark records the final destination and its `.typed` source also covers autocomplete, retries, and other paths. This is an applicable address-completion gap; distinguish explicit address entry from search and verify profile/private behavior before adopting. |
 | `84a4bede6ac5e3d3e5d6ebc124920483fc2fc2f4` | ⌘Tab back to a page in full screen brings the full screen, not its placeholder | Pending diff review |
 | `363d3fb7f420532b94453f51180552d40b93e640` | Apple Passwords rows under a sign-in box name their entry (idea 1206) | Pending diff review |
 | `d0c292d2f7c2f553de5a3893a2da952880fc69da` | Developer Mode, site by site: whole address and a bar of tools for local sites | Pending diff review |

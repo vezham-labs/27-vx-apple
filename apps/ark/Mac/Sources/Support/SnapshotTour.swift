@@ -223,6 +223,11 @@ struct SnapshotTour {
             let action = menu?.items.first { $0.title == "Paste and Go" }
             if let action, let selector = action.action { _ = NSApp.sendAction(selector, to: action.target, from: action) }
             note("Paste and Go native editor and action: \(field.currentEditor() is CommandField.AddressEditor && action != nil && opened?.absoluteString == "https://example.com/path")")
+            let before = browser.currentSpace.allTabs.count
+            field.pasteAndGo = { browser.perform(.open($0), mode: .newTab, rememberTypedAddress: true) }
+            if let action, let selector = action.action { _ = NSApp.sendAction(selector, to: action.target, from: action) }
+            await pause(2)
+            note("Paste and Go opens expected URL in a new tab: \(browser.currentSpace.allTabs.count == before + 1 && browser.currentTab?.url?.absoluteString == "https://example.com/path") (tabs: \(before) -> \(browser.currentSpace.allTabs.count), URL: \(browser.currentTab?.url?.absoluteString ?? "nil"))")
             board.clearContents()
             board.setString("javascript:alert(1)", forType: .string)
             let unsafeMenu = event.flatMap { field.currentEditor()?.menu(for: $0) }

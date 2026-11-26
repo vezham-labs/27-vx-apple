@@ -1486,7 +1486,7 @@ Reviewed 30 incoming Search commits in one architecture-sized pass. Search's ben
 
 ### Web App Preview workspace hosts — November 26, 2026
 
-Search `c6e7a984` Paste and Go is adapted in the Mac address command field. Its contextual menu offers the action for a single navigable HTTP(S) clipboard address and opens that address directly without applying a stale suggestion. The Mac Nx build passed. The existing Debug tour used a private pasteboard and verified native field-editor menu creation, action dispatch to the expected URL, and exclusion of `javascript:` input. Physical right-click and completed page navigation remain unverified.
+Search `c6e7a984` Paste and Go is adapted in the Mac address command field. Its contextual menu offers the action for a single navigable HTTP(S) clipboard address and opens that address directly without applying a stale suggestion. The Mac Nx build passed. The existing Debug tour used a private pasteboard and verified native field-editor menu creation, action dispatch, new-tab navigation to the expected URL after settling, and exclusion of `javascript:` input. Physical right-click and successful remote page loading remain unverified.
 
 Follow-up: reset the popover's hover state on dismissal, Space/profile changes and tile removal, preventing stale hover state from keeping a later preview open. The Mac Nx build passed; live pointer handoff and dismissal still need verification.
 

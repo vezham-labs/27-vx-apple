@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Boost related-element hide and restore — November 26, 2026
+
+The isolated Mac Debug fixture posted Option-hover and Option-click events over a local page with three matching elements. It verified that the preview counted three, all three became hidden, and restoring the rule made all three visible again. The Mac Nx build passed. Physical pointer and VoiceOver interaction, dynamic real sites, and mobile remain unverified; Boosts stays Partial. No simulator was started.
+
 ### Boost related-element count preview — November 26, 2026
 
 The Mac Boost picker now displays a count while Option is held over an element, before the existing Option-click hide action. The lookup is debounced and cancelled on pointer changes or picker dismissal, and checks that the original tab, URL, host, and WebView are still active. The count is exposed as accessibility value; the picker restores the window's mouse-move setting when removed. Mac Nx build passed. An isolated Mac fixture posted an Option-hover through AppKit over a local page with three related elements, confirmed the accessibility value, captured the [count preview](../../preview/ark/mac/features/boost-related-count.png), and confirmed mouse-move settings were restored on dismissal. Physical pointer and VoiceOver interaction, and count accuracy on a changing page remain open; Boosts stays Partial. No simulator was started.

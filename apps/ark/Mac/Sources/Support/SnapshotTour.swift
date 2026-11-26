@@ -1511,7 +1511,25 @@ struct SnapshotTour {
                 let value = picker.accessibilityValue() as? String
                 note("Boost Option-hover shows three related elements: \(value == "Hide 3 related elements") (value: \(value ?? "nil"))")
                 saveVisible("boost-related-count", in: window)
-                picker.cancelOperation(nil)
+                let location = picker.convert(NSPoint(x: 30, y: 30), to: nil)
+                if let down = NSEvent.mouseEvent(with: .leftMouseDown, location: location, modifierFlags: [.option],
+                                                 timestamp: 0, windowNumber: window.windowNumber, context: nil,
+                                                 eventNumber: 1, clickCount: 1, pressure: 1),
+                   let up = NSEvent.mouseEvent(with: .leftMouseUp, location: location, modifierFlags: [.option],
+                                               timestamp: 0, windowNumber: window.windowNumber, context: nil,
+                                               eventNumber: 2, clickCount: 1, pressure: 0) {
+                    NSApp.postEvent(down, atStart: false)
+                    NSApp.postEvent(up, atStart: false)
+                    await pause(0.8)
+                    let hidden = (try? await view.evaluateJavaScript("(() => { const e = [...document.querySelectorAll('.related-card')]; return e.length === 3 && e.every(x => getComputedStyle(x).display === 'none'); })()") as? Bool) == true
+                    try? browser.restoreSiteElement("div.related-card", for: "reference.ark.local")
+                    await pause(0.5)
+                    let restored = (try? await view.evaluateJavaScript("(() => { const e = [...document.querySelectorAll('.related-card')]; return e.length === 3 && e.every(x => getComputedStyle(x).display !== 'none'); })()") as? Bool) == true
+                    note("Boost Option-click hides and restores the three previewed elements: \(hidden && restored)")
+                } else {
+                    picker.cancelOperation(nil)
+                    note("Boost Option-click fixture could not create events")
+                }
                 note("Boost picker restores mouse-move setting on dismissal: \(window.acceptsMouseMovedEvents == previousMouseMoves)")
             } else {
                 note("Boost Option-hover fixture could not open picker")

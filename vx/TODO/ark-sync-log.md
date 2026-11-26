@@ -1486,6 +1486,8 @@ Reviewed 30 incoming Search commits in one architecture-sized pass. Search's ben
 
 ### Web App Preview workspace hosts — November 26, 2026
 
+Follow-up: reset the popover's hover state on dismissal, Space/profile changes and tile removal, preventing stale hover state from keeping a later preview open. The Mac Nx build passed; live pointer handoff and dismissal still need verification.
+
 Mac Favorites previews now appear for any HTTP(S) favorite that has local history. Notion, Figma, and Linear query their stable root host rather than the favorite's literal host, so a `www` or redirect favorite can surface workspace-subdomain history; other sites remain scoped to their literal host. Existing profile selection, private-Space exclusion, cancellation, five-result cap, and navigation behavior are preserved. `ark:build-mac --skip-nx-cache` passed in 11.2 seconds for root-host support and again in 14.8 seconds for generic web favorites. Hover, pointer handoff, and profile-isolation interaction still need a live Mac check; the Previews row remains Partial.
 
 ### Consolidated Mac runtime tour — November 26, 2026

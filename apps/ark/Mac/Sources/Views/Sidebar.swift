@@ -775,18 +775,24 @@ struct FavoriteTile: View {
                 previewTask?.cancel()
                 previewTask = nil
                 isAppPreviewPresented = false
+                isPreviewHovered = false
                 previewPages = []
             }
             .onChange(of: browser.currentSpace.websiteProfileID) { _, _ in
                 previewTask?.cancel()
                 previewTask = nil
                 isAppPreviewPresented = false
+                isPreviewHovered = false
                 previewPages = []
             }
             .onDisappear {
                 previewTask?.cancel()
                 previewTask = nil
                 isAppPreviewPresented = false
+                isPreviewHovered = false
+            }
+            .onChange(of: isAppPreviewPresented) { _, presented in
+                if !presented { isPreviewHovered = false }
             }
             .popover(isPresented: $isAppPreviewPresented, arrowEdge: .leading) {
                 if let appPreview {

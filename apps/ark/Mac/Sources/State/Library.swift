@@ -1262,7 +1262,7 @@ final class Library {
             result.url = record.url
             result.title = record.title
             result.isPinned = record.isPinned
-            result.pinnedHomeURL = record.isPinned ? record.pinnedHomeURL : nil
+            result.pinnedHomeURL = record.resolvedPinnedHomeURL
             result.lastActive = record.lastActive
             result.interactionState = profileChanged ? nil : record.interactionState
             result.isPrivate = false

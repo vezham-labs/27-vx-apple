@@ -1536,6 +1536,8 @@ Follow-up: Arc, Ardia and Yab Space imports now initialize each pin's home from 
 
 The subsequent isolated Mac feature tour passed the expanded Arc import fixture, including the imported pin-home values, nested folder hierarchy, pin order and Today tabs. The minimal local server did not include the separate Live Folder fixture, which returned 404; this run does not verify that feed. Report: `/private/tmp/ark-arc-home-20261127/report.txt`.
 
+Legacy snapshot follow-up: older persisted pinned tabs and synced snapshots without `pinnedHomeURL` now use their saved current URL as the home on Mac and iOS. Existing explicit home URLs remain unchanged; an original URL that was never saved cannot be recovered. The existing BrowserKit suite passed (91 BrowserCore tests), as did Mac and generic iOS builds. Device and multi-client runtime behavior remain open.
+
 ### External extension messaging review — November 27, 2026
 
 Rechecked Browsa `a55c720` against Ark's current extension lifecycle. The reference checks allowed destination IDs in `sendMessage`, while its `connect` forwards without that explicit check; whether WebKit rejects an unlisted destination is not yet verified. Ark shares an extension controller across regular and ephemeral pages but keeps per-extension private-access permissions. Before enabling this missing compatibility feature, verify per-destination access for both methods, private-page behavior, changes to private access, unload and already-open pages. No bridge or parity claim was added.

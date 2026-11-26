@@ -54,6 +54,17 @@ import Testing
         #expect(try SpaceLinkArchive(data: data).makeSpace(colorIndex: 0).pinned.first?.pinnedHomeURL == pin.url)
     }
 
+    @Test @MainActor func legacyPinnedRecordUsesItsSavedAddressAsHome() {
+        let url = URL(string: "https://example.com/saved")!
+        let legacy = TabRecord(id: UUID(), url: url, title: "Pin", isPinned: true, lastActive: .now, interactionState: nil)
+        #expect(BrowserTab(legacy).pinnedHomeURL == url)
+        var current = legacy
+        current.pinnedHomeURL = URL(string: "https://example.com/original")
+        #expect(BrowserTab(current).pinnedHomeURL == current.pinnedHomeURL)
+        current.isPinned = false
+        #expect(BrowserTab(current).pinnedHomeURL == nil)
+    }
+
     @Test func validatesExternalFilesBeforeImporting() {
         func payload(version: Int = 1, url: String) -> Data {
             Data("""

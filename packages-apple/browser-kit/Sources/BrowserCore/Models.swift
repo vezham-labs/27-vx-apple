@@ -538,6 +538,8 @@ public struct TabRecord: Codable, Sendable {
     public var favoriteID: UUID? = nil
     /// The original URL a pinned tab can return to; absent in older snapshots.
     public var pinnedHomeURL: URL? = nil
+    /// Older snapshots have no separate home; their current address is the best available value.
+    public var resolvedPinnedHomeURL: URL? { isPinned ? (pinnedHomeURL ?? url) : nil }
     /// Missing in state saved before each Mac window had its own Today tabs.
     public var windowKey: UUID? = nil
     /// Missing in state saved before tabs could be renamed.
@@ -651,7 +653,7 @@ extension BrowserTab {
         windowKey = r.windowKey
         customTitle = r.customTitle
         pinFolderID = r.isPinned ? r.pinFolderID : nil
-        pinnedHomeURL = r.isPinned ? r.pinnedHomeURL : nil
+        pinnedHomeURL = r.resolvedPinnedHomeURL
         websiteSessionProfileID = r.websiteSessionProfileID
     }
 }

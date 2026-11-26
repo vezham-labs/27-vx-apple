@@ -131,7 +131,11 @@ struct ImportedData: Sendable {
                     destinations[folder.sourceID] = parent
                 }
             }
-            space.pinned = pinned.map { BrowserTab(url: $0.url, title: $0.title, isPinned: true) }
+            space.pinned = pinned.map {
+                let tab = BrowserTab(url: $0.url, title: $0.title, isPinned: true)
+                tab.pinnedHomeURL = $0.url
+                return tab
+            }
             for (pin, tab) in zip(pinned, space.pinned) {
                 space.setPinFolder(pin.folderID.flatMap { destinations[$0] }, for: tab)
             }

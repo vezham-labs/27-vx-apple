@@ -173,7 +173,8 @@ public struct SpaceLinkArchive: Codable, Sendable, Transferable {
             tab.windowKey = windowKey
             if pinned {
                 tab.pinFolderID = link.pinFolderID.flatMap { folderIDs[$0] }
-                tab.pinnedHomeURL = link.pinnedHomeURL
+                // Older portable files did not carry a separate home address.
+                tab.pinnedHomeURL = link.pinnedHomeURL ?? link.url
             }
             return tab
         }

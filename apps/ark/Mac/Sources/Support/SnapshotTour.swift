@@ -1897,6 +1897,7 @@ struct SnapshotTour {
         let expected = names == ["Research", "Research / References"]
             && !space.pinFolders[0].isCollapsed && space.pinFolders[1].isCollapsed
             && space.pinned.map(\.displayTitle) == ["Root", "Research plan", "Reference"]
+            && space.pinned.allSatisfy { $0.pinnedHomeURL == $0.url }
             && space.rootPins.map(\.displayTitle) == ["Root"]
             && space.pinned.last?.pinFolderID == space.pinFolders.last?.id
             && space.today.map(\.displayTitle) == ["Today"]
@@ -2397,10 +2398,10 @@ struct SnapshotTour {
                     do { try browser.restoreAllSpacesBackup(Data("{}".utf8)); rejected = false } catch { rejected = true }
                     note("all-Spaces backup restores shared profile, favorite and appearance, rejects invalid input: \(shared && favorite && themed && rejected && library.regularSpaces.count == countBeforeInvalid)")
                     let legacy = """
-                        {"format":"ark-spaces","version":1,"profiles":[{"name":null,"favorites":[],"spaces":[{"version":1,"name":"Legacy Backup","pinned":[],"today":[]}]}]}
+                        {"format":"ark-spaces","version":1,"profiles":[{"name":null,"favorites":[],"spaces":[{"version":1,"name":"Legacy Backup","pinned":[{"title":"Old pin","url":"https://example.com/old-pin"}],"today":[]}]}]}
                         """
                     try browser.restoreAllSpacesBackup(Data(legacy.utf8))
-                    let legacyRestored = library.regularSpaces.contains { $0.name == "Legacy Backup" }
+                    let legacyRestored = library.regularSpaces.contains { $0.name == "Legacy Backup" && $0.pinned.first?.pinnedHomeURL?.absoluteString == "https://example.com/old-pin" }
                     let invalidInputs = [
                         """
                         {"format":"ark-spaces","version":1,"profiles":[{"name":null,"favorites":[{"title":"Bad","url":"javascript:alert(1)"}],"spaces":[]}]}

@@ -51,7 +51,7 @@ import Testing
         let sanitized = try #require(SpaceLinkArchive(space: Space(name: "Work", pinned: [pin])))
         let data = try sanitized.encoded()
         #expect(!String(decoding: data, as: UTF8.self).contains("secret"))
-        #expect(try SpaceLinkArchive(data: data).makeSpace(colorIndex: 0).pinned.first?.pinnedHomeURL == nil)
+        #expect(try SpaceLinkArchive(data: data).makeSpace(colorIndex: 0).pinned.first?.pinnedHomeURL == pin.url)
     }
 
     @Test func validatesExternalFilesBeforeImporting() {

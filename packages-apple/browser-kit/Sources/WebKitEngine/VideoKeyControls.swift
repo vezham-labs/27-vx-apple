@@ -5,11 +5,13 @@ import WebKit
 /// isolated world so page scripts cannot inspect or replace Ark's listener.
 enum VideoKeyControls {
     static let worldName = "ark.video-keys"
+    /// Retain the world while listeners exist, including after user scripts are replaced.
+    @MainActor static let world = WKContentWorld.world(name: worldName)
 
     @MainActor
     static var script: WKUserScript {
         WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: false,
-                     in: WKContentWorld.world(name: worldName))
+                     in: world)
     }
 
     static let off = "window.__arkVideoKeysOff = true;"

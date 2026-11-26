@@ -1538,6 +1538,8 @@ An isolated Mac Debug fixture loaded the local 36-second video and dispatched sy
 
 Follow-up: the same fixture observed the isolated listener installed with its off flag false and the first event marked prevented. After disabling, the flag read undefined and a second event was also marked prevented while seeking. This confirms the enabled listener exists, but does not explain the later missing flag or prove which handler consumed the second event. Investigate content-world/frame lifecycle and trusted input before changing the behavior. The Mac build passed. Report: `/private/tmp/ark-video-keys-state-20261127/report.txt`.
 
+Fix: retaining the named `WKContentWorld` across user-script replacement keeps the existing listener reachable when the preference changes. The same local-video fixture now reports the off flag true after disabling, no seek (15 seconds before and after), and an unconsumed event. With the setting enabled it seeks to 15 seconds and consumes the event. The Mac build passed. This covers synthetic events in the main frame; physical keys, frame behavior and page-handled inputs remain open. Report: `/private/tmp/ark-video-keys-world-20261127/report.txt`.
+
 ### Web App Preview workspace hosts — November 26, 2026
 
 Privacy follow-up, November 27: favorite history previews now also exclude Agent Space, in addition to private Spaces, so the agent context cannot surface regular-profile recent pages through a favorite. The Mac build passed; a live Agent Space hover check remains open.

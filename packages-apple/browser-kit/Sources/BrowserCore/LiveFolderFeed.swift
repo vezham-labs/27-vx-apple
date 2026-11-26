@@ -71,19 +71,25 @@ public struct LiveFolderFeed: Codable, Equatable, Sendable {
         request.timeoutInterval = 15
         request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
         request.setValue("Ark", forHTTPHeaderField: "User-Agent")
-        let matching = cookies.filter { cookie in
-            let domain = cookie.domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
-            return domain == "github.com" || domain.hasSuffix(".github.com")
-        }
+        let matching = cookies.filter(GitHubRedirectGuard.isSafeCookie)
         let headers = HTTPCookie.requestHeaderFields(with: matching)
         for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
         configuration.urlCredentialStorage = nil
-        let (data, response) = try await URLSession(configuration: configuration).data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+        let session = URLSession(configuration: configuration, delegate: GitHubRedirectGuard(), delegateQueue: nil)
+        defer { session.invalidateAndCancel() }
+        let (bytes, response) = try await session.bytes(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+              let finalURL = http.url, GitHubRedirectGuard.isAllowed(finalURL) else {
             throw LoadError.requestFailed
+        }
+        guard response.expectedContentLength <= byteLimit else { throw LoadError.tooLarge }
+        var data = Data()
+        for try await byte in bytes {
+            guard data.count < byteLimit else { throw LoadError.tooLarge }
+            data.append(byte)
         }
         let finalPath = http.url?.path ?? ""
         let body = String(decoding: data, as: UTF8.self)
@@ -147,6 +153,25 @@ public struct LiveFolderFeed: Codable, Equatable, Sendable {
         parser.delegate = reader
         guard parser.parse(), reader.recognized else { return nil }
         return LiveFolderFeed(source: source, title: reader.title ?? source.host() ?? "Live Folder", articles: reader.articles)
+    }
+}
+
+/// A manually supplied cookie header must never be forwarded to a different origin.
+final class GitHubRedirectGuard: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    static func isSafeCookie(_ cookie: HTTPCookie) -> Bool {
+        let domain = cookie.domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        return domain == "github.com" && cookie.path == "/" && (cookie.expiresDate.map { $0 > Date() } ?? true)
+    }
+
+    static func isAllowed(_ url: URL) -> Bool {
+        url.scheme?.lowercased() == "https" && url.host()?.lowercased() == "github.com"
+            && (url.port == nil || url.port == 443) && url.user == nil && url.password == nil
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
+        guard let url = request.url, Self.isAllowed(url) else { completionHandler(nil); return }
+        completionHandler(request)
     }
 }
 

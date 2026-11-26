@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### GitHub Live Folder request safety — November 26, 2026
+
+Reviewing Browsa `910f5a4d6ee5a43b8a239e38e2c2ddef20bd8221` corrected a stale inventory entry: Ark already has a GitHub Pull Requests folder, but not the per-Space organization filters. The review found that its manual Cookie header used an unrestricted redirecting session and buffered an unbounded response. The request now sends only unexpired GitHub root-path cookies, rejects redirects outside HTTPS `github.com` on its standard port, and reads at most 2 MB. Existing BrowserKit tests verify cookie selection and redirect-delegate decisions; the Mac and generic iOS builds passed without starting a simulator. Signed-in GitHub compatibility, real redirect behavior, and filters remain open.
+
 ### Extension blank-tab behavior — November 26, 2026
 
 Reviewed Search `b3bd4e35c53dbb17625c9b707aae7561250fb740`. An active, unpinned extension request without a URL now returns the real blank page WebKit requires and opens Ark's command bar in edit mode, so submitting fills that same tab. A local MV3 fixture verified the editor and same-tab navigation, and that background and active pinned blank requests do not open the editor. Ark also passes the requested pinned state to its host, exposes pin state and extension-driven updates to WebKit, rejects pinning private tabs, and notifies extensions when the browser changes pin state. The fixture verified `tabs.create`, `tabs.update` and an `onUpdated` pin event. With private access enabled, the extension received errors from both private pin API requests and no private pin was created. The Mac build and existing BrowserKit suite passed. Broader extension compatibility remains open; Chrome Extensions stays Partial.

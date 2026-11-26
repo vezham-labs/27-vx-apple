@@ -5,6 +5,41 @@ import Testing
 struct LiveFolderFeedTests {
     private let source = URL(string: "https://example.com/feeds/latest.xml")!
 
+    @Test func githubCredentialsStayOnTheExpectedOrigin() throws {
+        for value in ["https://github.com/pulls", "https://GITHUB.COM:443/login"] {
+            #expect(GitHubRedirectGuard.isAllowed(try #require(URL(string: value))))
+        }
+        for value in ["http://github.com/pulls", "https://github.com:444/pulls", "https://evilgithub.com/", "https://github.com.evil.test/", "https://user:pass@github.com/"] {
+            #expect(!GitHubRedirectGuard.isAllowed(try #require(URL(string: value))))
+        }
+        func cookie(_ domain: String, _ path: String) throws -> HTTPCookie {
+            try #require(HTTPCookie(properties: [.domain: domain, .path: path, .name: "session", .value: "fixture"]))
+        }
+        #expect(GitHubRedirectGuard.isSafeCookie(try cookie(".github.com", "/")))
+        #expect(!GitHubRedirectGuard.isSafeCookie(try cookie("gist.github.com", "/")))
+        #expect(!GitHubRedirectGuard.isSafeCookie(try cookie("github.com", "/other")))
+    }
+
+    @Test func githubRedirectDelegateBlocksOtherOrigins() async throws {
+        let source = try #require(URL(string: "https://github.com/pulls"))
+        let response = try #require(HTTPURLResponse(url: source, statusCode: 302, httpVersion: nil, headerFields: nil))
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.invalidateAndCancel() }
+        let task = session.dataTask(with: source)
+        let guardDelegate = GitHubRedirectGuard()
+        func redirect(_ target: String) async throws -> URLRequest? {
+            let request = URLRequest(url: try #require(URL(string: target)))
+            return await withCheckedContinuation { continuation in
+                guardDelegate.urlSession(session, task: task, willPerformHTTPRedirection: response, newRequest: request) {
+                    continuation.resume(returning: $0)
+                }
+            }
+        }
+        #expect(try await redirect("https://github.com/login") != nil)
+        #expect(try await redirect("https://attacker.test/") == nil)
+        #expect(try await redirect("http://github.com/") == nil)
+    }
+
     @MainActor @Test func scheduledGitHubRefreshSkipsPausedAndRemovedFolders() async throws {
         let space = Space(name: "Work")
         let folder = try #require(space.addPinFolder(named: "Pull Requests"))

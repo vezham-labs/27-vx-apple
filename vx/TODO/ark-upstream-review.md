@@ -379,9 +379,9 @@ These 18 commits bring the Browsa review target to `46fe04be`:
 | `28663a5102ec07f3d6fead3325c1432f4fad8487` | Mac 1.3 release notes and website media | Documentation/website assets only. |
 | `69e207cd2c110f7fabf75983be63e0a6dcb703af` | Clip command chips and shorten favorite labels | Ark's bounded strip and labels already ellipsize within its panel; no additional design change without Arc comparison. |
 | `873e965f954ab4df0b4bb469f70b176d3fc8bf41` | Sidebar announcement card | Product announcement surface, not a 42-row browser feature. |
-| `910f5a4d6ee5a43b8a239e38e2c2ddef20bd8221` | GitHub pull requests in Live Folders | Broader integration beyond feed-based Arc Live Folders; token handling and scope need separate design. |
+| `910f5a4d6ee5a43b8a239e38e2c2ddef20bd8221` | Filter GitHub pull requests by organization per Space | Reviewed product diff: Ark now has a GitHub Pull Requests Live Folder, but not this per-Space owner filter or its UI. Ark's existing cached feed and profile-specific cookies differ from Browsa's implementation; filter design and signed-in verification remain open. The earlier note incorrectly described this commit as the base integration. |
 | `ab748ccf40f03c7bf2cc016994f0defd69421124` | 1Password native-host onboarding | Launches external executables and needs separate trust, permissions, and security review; no code copied. |
-| `89352139c38cc4739f2a1325e7e51357dbba6a72` | Hide GitHub PR settings when disabled | Depends on the GitHub-specific Live Folder feature not adopted. |
+| `89352139c38cc4739f2a1325e7e51357dbba6a72` | Hide GitHub PR settings when disabled | Reviewed product diff: this hides Browsa's organization controls when a Space has no PR folder. Ark has the PR folder but no organization controls yet; carry this visibility requirement into that UI. |
 | `4794dbf6a3ab46bee0f250ba840c41db937c61e5` | Pin Browsa's WebKit fix commit | Ark pins the same upstream base and already carries the `::first-line` cache guard inside `webkit.patch`; no duplicate patch. |
 | `81e6c205a8578c1cfaffe83eaaca02f423b683ca` | Notes comment mode and composer behavior | Browsa-specific Notes interaction; Ark's note panel and Arc sidebar remain separate. |
 | `432416b6a604a9cf5c2430902f2f7d51631c0a6c` | Use Notes comment tool from composer | Same Notes-specific path; no direct Arc row gap. |

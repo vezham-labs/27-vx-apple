@@ -206,6 +206,34 @@ struct SnapshotTour {
         guard let window = browser.nsWindow else { note("missing window"); return }
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        if ProcessInfo.processInfo.environment["ARK_PIP_VIDEO_CHECK_ONLY"] == "1" {
+            let previous = UserDefaults.standard.object(forKey: Preferences.automaticVideoPiPKey)
+            defer {
+                if let previous { UserDefaults.standard.set(previous, forKey: Preferences.automaticVideoPiPKey) }
+                else { UserDefaults.standard.removeObject(forKey: Preferences.automaticVideoPiPKey) }
+                browser.library.videoPictureInPicture.stop()
+            }
+            UserDefaults.standard.set(true, forKey: Preferences.automaticVideoPiPKey)
+            let videoTab = browser.newTab(url: base)
+            guard let page = browser.library.existingController(for: videoTab)?.page else { note("PiP video fixture: page missing"); return }
+            for _ in 0..<50 where page.state.isLoading || page.state.url?.host() != base.host() { await pause(0.1) }
+            let setup = """
+                document.body.innerHTML = '<video controls muted playsinline style="width:640px;height:360px" src="/apps/ark/Mac/Resources/ark-film.mp4"></video>';
+                const video = document.querySelector('video');
+                try { await video.play(); video.muted = false; return true; } catch (_) { return false; }
+                """
+            var started = false
+            do { started = (try await page.evaluate(setup, inWorld: "ark.pip-video-check") as? Bool) == true }
+            catch { note("PiP video setup error: \(error.localizedDescription), URL: \(page.state.url?.absoluteString ?? "nil")") }
+            await pause(1)
+            let state = try? await page.evaluate("const v = document.querySelector('video'); return JSON.stringify({ready: v.readyState, paused: v.paused, muted: v.muted, duration: v.duration});", inWorld: "ark.pip-video-check") as? String
+            let other = browser.newTab(url: URL(string: "about:blank"))
+            await pause(2)
+            note("PiP real video playback started: \(started), state: \(state ?? "unavailable"), floated after tab switch: \(browser.library.videoPictureInPicture.isFloating(videoTab.id))")
+            browser.close(other)
+            browser.close(videoTab)
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_PIP_SPACE_TRACK_CHECK_ONLY"] == "1" {
             let pip = browser.library.videoPictureInPicture
             let initial = browser.currentSpace.id

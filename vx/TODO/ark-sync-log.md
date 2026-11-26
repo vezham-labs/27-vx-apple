@@ -1486,6 +1486,12 @@ Per-site follow-up: the Mac site menu now offers **Float Videos Automatically** 
 
 The host opt-out is now included in Ark's settings sync projection. The existing BrowserKit sync test confirms a projected remote choice applies to a local snapshot; the suite passed. Physical-device convergence remains unverified.
 
+Source review: the folder coordinator supplies `BrowserSyncItems.understands` to the merge, which preserves unknown newer-client keys rather than treating them as local deletions. This is not a physical mixed-version-device test. A local video asset exists at `apps/ark/Mac/Resources/ark-film.mp4`; the earlier PiP fixture HTML is no longer present and must be recreated or replaced before real playback verification.
+
+An isolated Debug attempt on November 27 served the local asset over loopback and tried to inject a video into the page. The server received the page request but no video request; playback did not start and the page state was unavailable. The result does not verify PiP. The server was stopped after the attempt; the existing Debug tour contains the retry path under `ARK_PIP_VIDEO_CHECK_ONLY`.
+
+The retry waited for navigation before injecting the video. The local 36-second asset played unmuted in WebKit and entered picture-in-picture after switching tabs. The Mac build passed; this does not verify the per-site preference or switching Spaces.
+
 Preview filtering follow-up: automatic PiP now skips video inside a link or an ancestor marked as a preview/thumbnail, following Search's `fb504002` heuristic. Manual PiP remains eligible. A mock-DOM run of the actual selection script verified preview and link exclusion plus ordinary and manual eligibility; the Mac build passed. Real sites, shadow DOM, and false-positive behavior remain unverified.
 
 The existing Debug tour now also runs the actual selection script inside a WebKit page against synthetic video objects: preview and short clips were excluded automatically but eligible manually, and an infinite-duration live candidate remained eligible. The Mac build and isolated check passed. This does not verify decoded video playback or native PiP presentation.

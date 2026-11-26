@@ -1532,6 +1532,10 @@ The Mac sidebar now opens a regular pin folder's nested pages on Command-click, 
 
 Rechecked Browsa `a55c720` against Ark's current extension lifecycle. The reference checks allowed destination IDs in `sendMessage`, while its `connect` forwards without that explicit check; whether WebKit rejects an unlisted destination is not yet verified. Ark shares an extension controller across regular and ephemeral pages but keeps per-extension private-access permissions. Before enabling this missing compatibility feature, verify per-destination access for both methods, private-page behavior, changes to private access, unload and already-open pages. No bridge or parity claim was added.
 
+### Video keyboard controls check — November 27, 2026
+
+An isolated Mac Debug fixture loaded the local 36-second video and dispatched synthetic arrow-key events. The first moved the video from 10 to 15 seconds, but after disabling the setting a second moved it from 15 to 20 seconds; the diagnostic saw the isolated listener flag as undefined. This cannot yet distinguish Ark's listener from WebKit's own media controls, so neither live-disable behavior nor a defect is established. The Mac build passed. Check trusted physical key events, listener injection and editable/page-handled exclusions before marking Search `9a54ad2` verified. Report: `/private/tmp/ark-video-keys-retry-20261127/report.txt`.
+
 ### Web App Preview workspace hosts — November 26, 2026
 
 Privacy follow-up, November 27: favorite history previews now also exclude Agent Space, in addition to private Spaces, so the agent context cannot surface regular-profile recent pages through a favorite. The Mac build passed; a live Agent Space hover check remains open.

@@ -95,6 +95,7 @@ extension Browser {
                 out.append(BrowserCommand(id: "save-page-area", title: "Save Page Area…", keywords: ["capture", "region", "screenshot", "png"]))
                 out.append(BrowserCommand(id: "save-page-element", title: "Save Page Element…", keywords: ["capture", "element", "screenshot", "png"]))
                 out.append(BrowserCommand(id: "reload", title: "Reload Page", keywords: ["refresh"]))
+                out.append(BrowserCommand(id: "toggle-reload-cache", title: reloadWithoutCacheForCurrentSite ? "Use Cache for Site Reloads" : "Reload This Site Without Cache", keywords: ["developer", "cache", "refresh"]))
                 out.append(BrowserCommand(id: "find", title: "Find on Page", keywords: ["search", "text"]))
                 out.append(BrowserCommand(id: "reader", title: isReaderShowing ? "Hide Reader" : "Show Reader",
                                           keywords: ["article", "reading", "clean"]))
@@ -233,6 +234,7 @@ extension Browser {
         case "copy-page-image": copyFullPageImage()
         case "copy-page-area": selectPageArea()
         case "copy-page-element": selectPageElement()
+        case "toggle-reload-cache": toggleReloadWithoutCacheForCurrentSite()
         case "save-page-image": copyFullPageImage(save: true)
         case "save-page-area": selectPageArea(save: true)
         case "save-page-element": selectPageElement(save: true)
@@ -312,7 +314,29 @@ extension Browser {
             return
         }
         c.tab.loadError = nil
-        c.page.reload()
+        if reloadWithoutCacheForCurrentSite { c.page.reloadFromOrigin() }
+        else { c.page.reload() }
+    }
+
+    private var currentReloadHost: String? {
+        guard let url = currentTab?.url, let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme), let host = url.host()?.lowercased(), !host.isEmpty else { return nil }
+        return host
+    }
+
+    var reloadWithoutCacheForCurrentSite: Bool {
+        guard let tab = currentTab, let host = currentReloadHost else { return false }
+        return tab.isPrivate ? library.privateReloadWithoutCacheSites.contains("\(tab.id.uuidString):\(host)") : library.reloadWithoutCacheHosts.contains(host)
+    }
+
+    func toggleReloadWithoutCacheForCurrentSite() {
+        guard let tab = currentTab, let host = currentReloadHost else { return }
+        if tab.isPrivate {
+            let key = "\(tab.id.uuidString):\(host)"
+            if !library.privateReloadWithoutCacheSites.insert(key).inserted { library.privateReloadWithoutCacheSites.remove(key) }
+        } else {
+            if !library.reloadWithoutCacheHosts.insert(host).inserted { library.reloadWithoutCacheHosts.remove(host) }
+        }
     }
 
     func visitAnyway() { currentController?.visitAnyway() }

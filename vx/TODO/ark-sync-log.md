@@ -1,5 +1,13 @@
 # Ark upstream sync log
 
+### Session cache bypass — November 26, 2026
+
+Adapted the reload portion of Search `d0c292d2f7c2f553de5a3893a2da952880fc69da`: Mac View and command-bar actions can toggle ordinary reloads to use WebKit's existing reload-from-origin for the current host until Ark quits. Private choices are scoped to a tab and host and removed on close. The Nx Mac build passed; an isolated local-page audit toggled the preference and reloaded, and the local server saw a subsequent 200 response. This does not prove cache bypass across every resource or service worker, private-tab behavior, menu interaction, or Search's per-site Developer Mode bar and persistence.
+
+Follow-up: the Mac build and isolated local-page audit passed for a regular host preference and a private tab on the same host. The private choice began off, could be enabled independently, and was removed when that tab closed while the regular choice remained. The menu and resource-level cache semantics remain unverified.
+
+Closing the whole Private Space bypasses individual tab closure, so it now clears its temporary reload preferences too. The Mac build and isolated audit passed with two private tabs; closing the space cleared both choices and retained the regular host choice.
+
 ### Paste and Go investigation — November 26, 2026
 
 Search `c6e7a984` adds a contextual Paste and Go action. A local Ark field-editor experiment built, but the isolated command-field audit reported no active field editor and could not exercise its menu or navigation. The experiment was removed to preserve the existing address field. Paste and Go remains unimplemented; diagnosing field focus and verifying the real context menu remain open.

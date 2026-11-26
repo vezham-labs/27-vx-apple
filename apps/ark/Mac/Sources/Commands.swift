@@ -135,6 +135,10 @@ struct BrowserCommands: Commands {
             Button("Reload Without Cache") { browser?.reloadFromOrigin() }
                 .keyboardShortcut(keys.shortcut(.hardReload))
                 .disabled(!hasPage)
+            Button(browser?.reloadWithoutCacheForCurrentSite == true ? "Use Cache for Site Reloads" : "Reload This Site Without Cache") {
+                browser?.toggleReloadWithoutCacheForCurrentSite()
+            }
+            .disabled(!hasPage)
             Button("Stop") { browser?.stopLoading() }
                 .keyboardShortcut(keys.shortcut(.stop))
                 .disabled(tab?.isLoading != true)

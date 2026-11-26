@@ -16,6 +16,9 @@ private let windowLog = Logger(subsystem: "app.vezham.ark", category: "windows")
 @MainActor @Observable
 final class Library {
     var spaces: [Space]
+    /// Temporary developer preference; private-tab choices are kept separately and never saved.
+    var reloadWithoutCacheHosts: Set<String> = []
+    var privateReloadWithoutCacheSites: Set<String> = []
     /// Saved sites scoped to each website profile, like Search's bookmark stores.
     var favoritesByProfile: [String: [Favorite]]
     var archive: [BrowserTab] = []
@@ -803,6 +806,10 @@ final class Library {
             if recentlyClosed.count > 30 { recentlyClosed.removeFirst() }
         }
         guard let space = space(containing: tab) else { return }
+        if tab.isPrivate {
+            let prefix = "\(tab.id.uuidString):"
+            privateReloadWithoutCacheSites = privateReloadWithoutCacheSites.filter { !$0.hasPrefix(prefix) }
+        }
         let index = space.today.firstIndex { $0.id == tab.id }
         // Windows showing it move on first, while it's still in the list to measure from.
         for w in windows { w.moveOff(tab, in: space, closing: true) }
@@ -1036,6 +1043,7 @@ final class Library {
         }
         for w in windows where w.selectedSpaceID == space.id { w.leaveSpace() }
         spaces.removeAll { $0.id == space.id }
+        privateReloadWithoutCacheSites.removeAll()
         privatePermissions = [:]
         privateCertificateExceptions = [:]
         engine.resetEphemeralProfile()

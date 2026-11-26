@@ -222,6 +222,39 @@ struct SnapshotTour {
         }
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
+        if ProcessInfo.processInfo.environment["ARK_RELOAD_CACHE_CHECK_ONLY"] == "1" {
+            browser.newTab(url: first)
+            await pause(2)
+            let initiallyOff = !browser.reloadWithoutCacheForCurrentSite
+            browser.toggleReloadWithoutCacheForCurrentSite()
+            let enabled = browser.reloadWithoutCacheForCurrentSite
+            browser.reload()
+            await pause(2)
+            let stillEnabled = browser.reloadWithoutCacheForCurrentSite
+            browser.toggleReloadWithoutCacheForCurrentSite()
+            note("site reload cache preference toggles and reloads: \(initiallyOff && enabled && stillEnabled && !browser.reloadWithoutCacheForCurrentSite)")
+            browser.toggleReloadWithoutCacheForCurrentSite()
+            let privateTab = browser.newTab(url: first, isPrivate: true)
+            await pause(2)
+            let isolated = !browser.reloadWithoutCacheForCurrentSite
+            browser.toggleReloadWithoutCacheForCurrentSite()
+            let privateEnabled = browser.reloadWithoutCacheForCurrentSite
+            let key = "\(privateTab.id.uuidString):127.0.0.1"
+            browser.close(privateTab)
+            await pause(0.5)
+            let cleaned = !browser.library.privateReloadWithoutCacheSites.contains(key)
+            note("private reload preference isolated and removed on close: \(isolated && privateEnabled && cleaned && browser.library.reloadWithoutCacheHosts.contains("127.0.0.1"))")
+            let privateOne = browser.newTab(url: first, isPrivate: true)
+            await pause(1)
+            browser.toggleReloadWithoutCacheForCurrentSite()
+            let privateTwo = browser.newTab(url: first, isPrivate: true)
+            await pause(1)
+            browser.toggleReloadWithoutCacheForCurrentSite()
+            let keysBefore = browser.library.privateReloadWithoutCacheSites.count == 2 && privateOne.id != privateTwo.id
+            browser.library.closePrivateSpace()
+            note("closing private space clears all private reload preferences: \(keysBefore && browser.library.privateReloadWithoutCacheSites.isEmpty && browser.library.reloadWithoutCacheHosts.contains("127.0.0.1"))")
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_WEBREQUEST_CHECK_ONLY"] == "1" {
             guard let engine = browser.library.engine as? WebKitEngine else { note("webRequest fixture: no WebKit engine"); return }
             let fixture = directory.appending(path: "request-extension", directoryHint: .isDirectory)

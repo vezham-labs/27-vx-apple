@@ -310,6 +310,9 @@ final class VideoPictureInPicture {
             const video = videos[i];
             if (video.readyState < 2 || video.hasAttribute('disablepictureinpicture')) continue;
             if (isAutomatic && (video.paused || video.ended || video.muted || video.volume === 0 || video.srcObject)) continue;
+            // Short loops are often decorative previews. Keep manual PiP available,
+            // and retain unknown/infinite durations for live streams.
+            if (isAutomatic && Number.isFinite(video.duration) && video.duration > 0 && video.duration < 10) continue;
             const rect = video.getBoundingClientRect();
             const width = Math.max(0, Math.min(innerWidth, rect.right) - Math.max(0, rect.left));
             const height = Math.max(0, Math.min(innerHeight, rect.bottom) - Math.max(0, rect.top));

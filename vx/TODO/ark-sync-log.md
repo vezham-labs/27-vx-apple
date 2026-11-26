@@ -1480,6 +1480,8 @@ Adapted Browsa `332fd52c30080743222b2dd1bae2f86f20a200e5`: Mac Ctrl-Tab and Ctrl
 
 ### Automatic PiP per Space — November 26, 2026
 
+November 27 follow-up: adapted Search `fb504002`'s short-loop filter for automatic PiP. Known finite videos under ten seconds are skipped; manual PiP and unknown/infinite-duration streams are unchanged. The Mac build passed, and a mock-DOM execution of the actual selection script confirmed short automatic exclusion and short manual, long, live and unknown-duration eligibility. Actual short clips, streams and manual PiP still require WebKit runtime verification. Search's preview-element filter and per-site suppression remain open.
+
 Adapted Browsa `afc2c39fc2e1a083050056fe9477b20d593d1a61`: Ark's automatic PiP now distinguishes a tab change from a Space switch per browser window. **Also float them when switching Spaces** defaults on to preserve existing automatic PiP; switching it off leaves a playing video inline in its original Space while tab and app-switch PiP behavior continues. `ark:build-mac --skip-nx-cache` passed. This is a Mac Auto PiP refinement already rated Yes, not a rating change; real video, preference, and Space-switch interaction still need runtime verification. No simulator or new test file was used.
 
 ### Batched Search sidebar/performance review — November 26, 2026

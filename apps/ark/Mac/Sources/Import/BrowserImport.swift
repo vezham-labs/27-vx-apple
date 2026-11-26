@@ -28,6 +28,7 @@ struct ImportSource: Identifiable, Hashable, Sendable {
     let profiles: [Profile]
     /// Arc keeps its spaces, pinned tabs and open tabs in its own sidebar file.
     var isArc: Bool { id == "arc" }
+    var supportsSpaces: Bool { isArc || id == "ardia" || id == "yab" }
     var isSafari: Bool { kind == .safari }
 }
 
@@ -115,7 +116,10 @@ struct ImportedData: Sendable {
         var folders: [Folder]
         var open: [(title: String, url: URL)]
 
-        @MainActor func populate(_ space: BrowserCore.Space) {
+        /// Imported open tabs belong to the importing window when there is one.  Without that
+        /// ownership, a newly-created Space can look empty until Ark is restarted because the
+        /// window deliberately only lists its own Today tabs.
+        @MainActor func populate(_ space: BrowserCore.Space, windowKey: UUID? = nil) {
             var destinations: [String: UUID] = [:]
             // Ark allows three levels. Deeper Arc pins stay in the nearest created ancestor.
             for folder in folders {
@@ -131,7 +135,11 @@ struct ImportedData: Sendable {
             for (pin, tab) in zip(pinned, space.pinned) {
                 space.setPinFolder(pin.folderID.flatMap { destinations[$0] }, for: tab)
             }
-            space.today = open.map { BrowserTab(url: $0.url, title: $0.title) }
+            space.today = open.map {
+                let tab = BrowserTab(url: $0.url, title: $0.title)
+                tab.windowKey = windowKey
+                return tab
+            }
         }
     }
 
@@ -161,17 +169,28 @@ enum BrowserImport {
     // MARK: Finding browsers
 
     /// The browsers on this Mac with something to import, Arc and Chrome first.
-    static func detect() -> [ImportSource] {
+    static func detect(supportRoot: URL? = nil) -> [ImportSource] {
+        let fm = FileManager.default
         let chromium: [(id: String, name: String, path: String)] = [
             ("arc", "Arc", "Arc/User Data"),
             ("chrome", "Chrome", "Google/Chrome"),
             ("edge", "Edge", "Microsoft Edge"),
             ("brave", "Brave", "BraveSoftware/Brave-Browser"),
             ("vivaldi", "Vivaldi", "Vivaldi"),
+            ("ardia", "Ardia", "com.ardia.browser/Chromium"),
+            ("yab", "Yab", "Yab/Chromium"),
         ]
         var found: [ImportSource] = chromium.compactMap { b in
-            let dir = support.appending(path: b.path, directoryHint: .isDirectory)
-            let profiles = chromiumProfiles(in: dir)
+            let dir = (supportRoot ?? support).appending(path: b.path, directoryHint: .isDirectory)
+            // Ardia and Yab may keep their sidebar session even when their Chromium profile
+            // has neither a bookmarks nor a history database yet.  Keep that profile visible
+            // so a Spaces-only import is possible.
+            let sessionRoot = dir.deletingLastPathComponent()
+            let hasSeparateSession = b.id == "ardia"
+                ? fm.fileExists(atPath: sessionRoot.appending(path: "session.json").path)
+                : b.id == "yab" && (fm.fileExists(atPath: sessionRoot.appending(path: "spaces.json").path)
+                    || fm.fileExists(atPath: sessionRoot.appending(path: "session.json").path))
+            let profiles = chromiumProfiles(in: dir, includeSessionOnlyProfiles: hasSeparateSession)
             guard !profiles.isEmpty else { return nil }
             return ImportSource(id: b.id, name: b.name, kind: .chromium(dataDir: dir), profiles: profiles)
         }
@@ -182,7 +201,7 @@ enum BrowserImport {
     }
 
     /// Profiles from Chromium's Local State, falling back to the folders that hold bookmarks or history.
-    private static func chromiumProfiles(in dir: URL) -> [ImportSource.Profile] {
+    private static func chromiumProfiles(in dir: URL, includeSessionOnlyProfiles: Bool = false) -> [ImportSource.Profile] {
         let fm = FileManager.default
         var profiles: [ImportSource.Profile] = []
         if let data = try? Data(contentsOf: dir.appending(path: "Local State")),
@@ -193,11 +212,15 @@ enum BrowserImport {
                 return ImportSource.Profile(folder: folder, name: name)
             }
         }
-        if profiles.isEmpty, fm.fileExists(atPath: dir.appending(path: "Default").path) {
+        if profiles.isEmpty, (fm.fileExists(atPath: dir.appending(path: "Default").path) || includeSessionOnlyProfiles) {
             profiles = [.init(folder: "Default", name: "Default")]
         }
         return profiles
-            .filter { p in ["Bookmarks", "History"].contains { fm.fileExists(atPath: dir.appending(path: p.folder).appending(path: $0).path) } }
+            .filter { p in
+                includeSessionOnlyProfiles || ["Bookmarks", "History"].contains {
+                    fm.fileExists(atPath: dir.appending(path: p.folder).appending(path: $0).path)
+                }
+            }
             .sorted { $0.folder == "Default" ? true : $1.folder == "Default" ? false : $0.name < $1.name }
     }
 
@@ -227,8 +250,9 @@ enum BrowserImport {
                 if options.bookmarks != .skip {
                     (out.bookmarks, out.bar) = chromiumBookmarks(profile.appending(path: "Bookmarks"))
                 }
-                if options.history {
-                    out.history = try chromiumHistory(profile.appending(path: "History"), since: options.historyRange.since)
+                let historyFile = profile.appending(path: "History")
+                if options.history, FileManager.default.fileExists(atPath: historyFile.path) {
+                    out.history = try chromiumHistory(historyFile, since: options.historyRange.since)
                 }
                 if source.isArc {
                     let arc = arcSidebar()
@@ -240,6 +264,17 @@ enum BrowserImport {
                         out.bookmarks += arc.topApps + pinned
                         if out.bar.isEmpty { out.bar = arc.topApps }
                     }
+                } else if source.id == "ardia", options.arcSpaces {
+                    let file = dir.deletingLastPathComponent().appending(path: "session.json")
+                    if let handle = try? FileHandle(forReadingFrom: file) {
+                        defer { try? handle.close() }
+                        let data = (try? handle.read(upToCount: 10 * 1024 * 1024 + 1)) ?? Data()
+                        if data.count <= 10 * 1024 * 1024 {
+                            out.spaces = ardiaSpaces(data, profile: folder)
+                        }
+                    }
+                } else if source.id == "yab", options.arcSpaces {
+                    out.spaces = yabSpaces(in: dir.deletingLastPathComponent(), profile: folder)
                 }
             case .safari:
                 guard canReadSafari else { throw ImportError.needsFullDiskAccess }
@@ -252,6 +287,154 @@ enum BrowserImport {
             }
             return out
         }.value
+    }
+
+    /// Yab stores a space list and a separate JSON session per space.
+    static func yabSpaces(in root: URL, profile wanted: String, sharedOverride: Bool? = nil) -> [ImportedData.Space] {
+        let first = "00000000-0000-0000-0000-000000000001"
+        func read(_ name: String) -> Any? {
+            let file = root.appending(path: name)
+            guard let handle = try? FileHandle(forReadingFrom: file) else { return nil }
+            defer { try? handle.close() }
+            guard let data = try? handle.read(upToCount: 10 * 1024 * 1024 + 1), data.count <= 10 * 1024 * 1024 else { return nil }
+            return try? JSONSerialization.jsonObject(with: data)
+        }
+        let listed = read("spaces.json") as? [[String: Any]]
+        guard listed != nil || FileManager.default.fileExists(atPath: root.appending(path: "session.json").path) else { return [] }
+        let spaces = listed?.isEmpty == false ? (listed ?? []) : [["id": first, "name": "Personal"]]
+        let sharedReceipt = read("ChromiumProfiles/\(first)-shared.json") as? [String: Any]
+        let sharedID = (sharedReceipt?["physical"] as? String).flatMap(UUID.init(uuidString:))?.uuidString ?? first
+        let sharedFolder = "space-" + sharedID
+        let sharedEnabled = sharedOverride ?? (UserDefaults(suiteName: "dev.serafim.fast")?.bool(forKey: "pins.everySpace") == true)
+        let sharedRows = ((read("session-00000000-0000-0000-0000-000000000A11.json") as? [String: Any])?["tabs"] as? [[String: Any]] ?? [])
+        var seenSpaceIDs = Set<String>()
+        return spaces.prefix(200).compactMap { item in
+            guard let rawID = item["id"] as? String, let id = UUID(uuidString: rawID)?.uuidString,
+                  seenSpaceIDs.insert(id).inserted else { return nil }
+            let own = item["ownSignIns"] as? Bool == true
+            let signsIn = (item["signInWith"] as? String).flatMap(UUID.init(uuidString:))?.uuidString ?? id
+            let receipt = read("ChromiumProfiles/\(signsIn)-named.json") as? [String: Any]
+            let physical = (receipt?["physical"] as? String).flatMap(UUID.init(uuidString:))?.uuidString ?? signsIn
+            let folder = own ? "space-" + physical : sharedFolder
+            guard wanted.caseInsensitiveCompare(folder) == .orderedSame || (!own && wanted == "Default") else { return nil }
+            let filename = id == first ? "session.json" : "session-\(id).json"
+            let entries = ((read(filename) as? [String: Any])?["tabs"] as? [[String: Any]] ?? [])
+            var pins: [ImportedData.Space.Pin] = [], folders: [ImportedData.Space.Folder] = []
+            var seenFolders = Set<String>(), open: [(title: String, url: URL)] = []
+            let rows = entries.map { ($0, false) } + (sharedEnabled && !own ? sharedRows.map { ($0, true) } : [])
+            for (entry, shared) in rows.prefix(5000) {
+                let isTile = !(entry["pin"] as? String ?? "").isEmpty
+                if shared && !isTile { continue }
+                if sharedEnabled && !own && isTile && !shared { continue }
+                let kept = entry["kept"] as? Bool == true
+                let candidates = [entry["home"] as? String, entry["url"] as? String]
+                guard let url = candidates.compactMap({ $0.flatMap(URL.init(string:)) }).first(where: {
+                    ["http", "https"].contains($0.scheme?.lowercased() ?? "") && $0.host()?.isEmpty == false && $0.user == nil && $0.password == nil
+                }) else { continue }
+                let title = entry["name"] as? String ?? entry["homeTitle"] as? String ?? entry["title"] as? String ?? url.host() ?? ""
+                guard isTile || kept else { open.append((title, url)); continue }
+                var parent: String?
+                let path = (entry["folderPath"] as? [[String: Any]] ?? []).prefix(64)
+                for step in path {
+                    guard let folderID = step["id"] as? String, !folderID.isEmpty else { continue }
+                    if seenFolders.insert(folderID).inserted { folders.append(.init(sourceID: folderID, name: step["name"] as? String ?? "Folder", parentID: parent, isExpanded: nil)) }
+                    parent = folderID
+                }
+                if let folderID = entry["folder"] as? String, !folderID.isEmpty {
+                    if seenFolders.insert(folderID).inserted { folders.append(.init(sourceID: folderID, name: entry["folderName"] as? String ?? "Folder", parentID: parent, isExpanded: nil)) }
+                    parent = folderID
+                }
+                pins.append(.init(title: title, url: url, folderID: parent))
+            }
+            return ImportedData.Space(sourceID: id, name: item["name"] as? String ?? "Space", pinned: pins, folders: folders, open: open)
+        }
+    }
+
+    /// Ardia's session lists profiles as Spaces and pins by tab/group ID.
+    static func ardiaSpaces(_ data: Data, profile wanted: String) -> [ImportedData.Space] {
+        guard data.count <= 10 * 1024 * 1024,
+              let top = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let profiles = top["profiles"] as? [String: [String: Any]] else { return [] }
+        func indexed(_ key: String) -> [String: [String: Any]] {
+            var result: [String: [String: Any]] = [:]
+            for item in (top[key] as? [[String: Any]] ?? []).prefix(10_000) {
+                if let id = item["id"] as? String, result[id] == nil { result[id] = item }
+            }
+            return result
+        }
+        let tabs = indexed("tabs"), windows = indexed("windows"), groups = indexed("groups")
+        var profileIDs = Set<String>()
+        let order = (top["profileOrder"] as? [String] ?? []).filter { profiles[$0] != nil && profileIDs.insert($0).inserted }
+        let ids = order + profiles.keys.filter { !order.contains($0) }.sorted()
+        var seenWindows = Set<String>()
+        var windowIDs = (top["windowOrder"] as? [String] ?? []).filter { windows[$0] != nil && seenWindows.insert($0).inserted }
+        windowIDs += windows.keys.filter { !windowIDs.contains($0) }.sorted()
+        if let focused = top["focusedWindowId"] as? String, windows[focused] != nil {
+            windowIDs.removeAll { $0 == focused }; windowIDs.insert(focused, at: 0)
+        }
+        return ids.prefix(200).compactMap { id in
+            guard let profile = profiles[id] else { return nil }
+            let dataID = profile["dataId"] as? String ?? id
+            let profileKey = dataID.lowercased() == "default" ? "Default" : "Profile \(dataID)"
+            guard profileKey == wanted else { return nil }
+            var pins: [ImportedData.Space.Pin] = [], folders: [ImportedData.Space.Folder] = []
+            var open: [(title: String, url: URL)] = []
+            var seenPins = Set<String>(), seenFolders = Set<String>(), seenOpen = Set<String>()
+            func take(_ tab: [String: Any], groupMap: [String: [String: Any]], folderID: String?) {
+                guard pins.count < 5000, tab["pin"] != nil || folderID != nil else { return }
+                let key = tab["pinKey"] as? String ?? tab["id"] as? String ?? UUID().uuidString
+                guard seenPins.insert(key).inserted else { return }
+                let candidates = [tab["pinnedUrl"] as? String, tab["url"] as? String]
+                guard let url = candidates.compactMap({ $0.flatMap(URL.init(string:)) }).first(where: {
+                    ["http", "https"].contains($0.scheme?.lowercased() ?? "") && $0.host()?.isEmpty == false && $0.user == nil && $0.password == nil
+                }) else { return }
+                var chain: [(String, [String: Any])] = [], cursor = folderID, seen = Set<String>()
+                while let current = cursor, chain.count < 64, seen.insert(current).inserted, let group = groupMap[current] {
+                    chain.insert((current, group), at: 0); cursor = group["parentId"] as? String
+                }
+                var parent: String?
+                for (folder, item) in chain {
+                    if seenFolders.insert(folder).inserted {
+                        folders.append(.init(sourceID: folder, name: item["name"] as? String ?? "Folder", parentID: parent, isExpanded: nil))
+                    }
+                    parent = folder
+                }
+                pins.append(.init(title: tab["customTitle"] as? String ?? tab["title"] as? String ?? url.host() ?? "", url: url, folderID: parent))
+            }
+            for window in windowIDs {
+                for tabID in (windows[window]?["tabIds"] as? [String] ?? []) {
+                    guard let tab = tabs[tabID], tab["profileId"] as? String == id else { continue }
+                    let matching = groups.filter { $0.value["pinned"] as? Bool != false && ($0.value["tabIds"] as? [String] ?? []).contains(tabID) }
+                    func depth(_ id: String) -> Int {
+                        var current: String? = id, seen = Set<String>()
+                        while let value = current, seen.count < 64, seen.insert(value).inserted {
+                            current = groups[value]?["parentId"] as? String
+                        }
+                        return seen.count
+                    }
+                    let folder = matching.keys.sorted { left, right in
+                        let a = depth(left), b = depth(right)
+                        return a == b ? left < right : a < b
+                    }.last
+                    if tab["pin"] != nil || folder != nil {
+                        take(tab, groupMap: groups, folderID: folder)
+                    } else if open.count < 5000, seenOpen.insert(tabID).inserted,
+                              let raw = tab["url"] as? String, let url = URL(string: raw),
+                              ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+                              url.host()?.isEmpty == false, url.user == nil, url.password == nil {
+                        open.append((tab["customTitle"] as? String ?? tab["title"] as? String ?? url.host() ?? "", url))
+                    }
+                }
+            }
+            if pins.isEmpty, let parked = (top["parkedPins"] as? [String: [String: Any]])?[id] {
+                var parkedGroups: [String: [String: Any]] = [:]
+                for group in parked["groups"] as? [[String: Any]] ?? [] {
+                    if let key = group["id"] as? String { parkedGroups[key] = group }
+                }
+                for tab in parked["tabs"] as? [[String: Any]] ?? [] { take(tab, groupMap: parkedGroups, folderID: tab["groupId"] as? String) }
+            }
+            return ImportedData.Space(sourceID: id, name: profile["name"] as? String ?? "Space", pinned: pins, folders: folders, open: open)
+        }
     }
 
     // MARK: Chromium
@@ -485,7 +668,7 @@ extension Library {
             let name = taken.contains(imported.name) ? "\(imported.name) (\(source.name))" : imported.name
             let space = addSpace()
             space.name = name
-            imported.populate(space)
+            imported.populate(space, windowKey: activeWindow?.windowKey)
             result.spaces += 1
             result.tabs += imported.pinned.count + imported.open.count
         }

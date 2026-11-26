@@ -1,5 +1,23 @@
 # Ark upstream sync log
 
+### Ardia and Yab import intake — November 26, 2026
+
+Reviewed Search `d458f0f2247b2a70050b930b3475c1d0470f3c83`. Ark now detects Ardia and Yab Chromium profile roots and can use its existing bookmark/history importer. The Mac build and isolated made-up bookmark fixtures passed for both. This does not import their separate Spaces or Dia's encrypted sidebar, and history and real-browser import UI were not verified.
+
+Ardia's selected profile can now import session Spaces, pinned URLs and nested folder references through the existing Spaces import UI. A bounded local session fixture with one Space, folder and pin passed; the Mac build passed. Ardia tiles are currently imported as pins, and open tabs, color/icon metadata, complex nested and parked cases, malformed inputs and real-browser UI remain unverified or incomplete. Yab Spaces and Dia remain open.
+
+Follow-up adds ordinary Ardia open tabs and checks nested and parked pins using a fabricated two-Space session. The Mac build and isolated fixture passed. Tiles still become pins, and profile appearance, malformed inputs and real-browser UI remain open.
+
+The importer now deduplicates profile and window order entries and falls back to a safe current URL when the saved pinned URL is unsafe. The Mac build and a bounded malformed-session fixture passed, including rejection of a credentialed URL. Broader malformed files and real-browser import remain unverified.
+
+Initial Yab Spaces import reads bounded session files, matches the selected Chromium profile, and maps pins, folder paths and open tabs into Ark's import model. The Mac build and an isolated single-Space fixture passed for a folder, pin and open tab. Shared tiles, named-profile receipts, malformed input, appearance and real-browser UI remain unverified; Yab tiles currently become pins.
+
+The Mac build and an isolated two-profile fixture passed for shared tiles and a named-profile receipt: importing either profile kept its tiles separate from the other. Real Yab files, malformed input, appearance and the import UI remain unverified.
+
+Yab Space IDs are now deduplicated, and an absent session no longer creates a phantom Space. The Mac build and isolated malformed fixture passed for rejecting a path-like ID and credentialed URL while falling back from an unsafe saved home URL to a safe current URL. Broader malformed data and real-browser import remain unverified.
+
+Spaces-only Ardia and Yab profiles are now discoverable even before either Chromium bookmarks or history exists. Importing an open tab assigns it to the importing Mac window, so selecting its newly created Ark Space shows the tab immediately rather than only after a restart. The existing import fixture now checks that ownership. A fresh Mac build and fixture pass are required before this is marked validated.
+
 ### Boost edge resizing — November 26, 2026
 
 Option-dragging near an element's right or bottom edge now resizes the corresponding axis; the corner and interior retain two-axis resizing. The Mac build and isolated direct-event checks passed for right-edge width and bottom-edge height changes after moving and resizing the element. Physical pointer and accessibility interaction remain unverified.

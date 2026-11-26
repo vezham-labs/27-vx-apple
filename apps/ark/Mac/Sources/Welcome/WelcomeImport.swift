@@ -30,7 +30,7 @@ import Suggest
     func pick(_ source: ImportSource) {
         choice = source
         options.profile = source.profiles.first?.folder
-        options.arcSpaces = source.isArc
+        options.arcSpaces = source.supportsSpaces
         preview = nil
         refreshPreview()
     }
@@ -214,7 +214,7 @@ struct ImportPanel: View {
                      on: o.bookmarks == .searchAndFavourites, picked: model.choice != nil)
             Divider()
             CountRow(symbol: "clock", title: "History", unit: "pages", value: c?.history, on: o.history, picked: model.choice != nil)
-            if model.choice?.isArc == true {
+            if model.choice?.supportsSpaces == true {
                 Divider()
                 CountRow(symbol: "sidebar.squares.left", title: "Spaces", unit: c.map { "· \($0.pinned) pinned, \($0.tabs - $0.pinned) open" }, value: c?.spaces,
                          on: o.arcSpaces, picked: true)
@@ -386,7 +386,7 @@ struct ImportSheet: View {
                     } footer: {
                         Text("History helps ⌘T suggest the sites you visit most.").font(.system(size: 11)).foregroundStyle(.secondary)
                     }
-                    if model.choice?.isArc == true {
+                    if model.choice?.supportsSpaces == true {
                         Section {
                             Toggle(isOn: $model.options.arcSpaces) {
                                 row("Spaces", "sidebar.squares.left", count: c.map { "\($0.spaces) spaces · \($0.tabs) tabs" })

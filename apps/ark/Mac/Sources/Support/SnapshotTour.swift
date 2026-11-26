@@ -222,6 +222,85 @@ struct SnapshotTour {
         }
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
+        if ProcessInfo.processInfo.environment["ARK_IMPORT_SOURCES_CHECK_ONLY"] == "1" {
+            let root = directory.appending(path: "browser-import-fixture", directoryHint: .isDirectory)
+            let bookmarks = """
+                {"roots":{"bookmark_bar":{"children":[{"type":"url","name":"Fixture","url":"https://example.com/fixture"}]}}}
+                """
+            do {
+                for path in ["com.ardia.browser/Chromium/Default", "Yab/Chromium/Default"] {
+                    let profile = root.appending(path: path, directoryHint: .isDirectory)
+                    try FileManager.default.createDirectory(at: profile, withIntermediateDirectories: true)
+                    try Data(bookmarks.utf8).write(to: profile.appending(path: "Bookmarks"))
+                }
+                let session = """
+                    {"profiles":{"default":{"name":"Work","dataId":"default"},"parked":{"name":"Parked","dataId":"default"}},"profileOrder":["default","parked"],"windows":[{"id":"w","tabIds":["t","open"]}],"windowOrder":["w"],"tabs":[{"id":"t","profileId":"default","url":"https://example.com/pin","title":"Pin","pin":{"as":"row"}},{"id":"open","profileId":"default","url":"https://example.com/open","title":"Open"}],"groups":[{"id":"g","name":"Folder","pinned":true,"tabIds":["t"]},{"id":"inner","name":"Inner","parentId":"g","pinned":true,"tabIds":["t"]}],"parkedPins":{"parked":{"tabs":[{"id":"p","title":"Parked Pin","url":"https://example.com/parked","pin":{"as":"row"},"groupId":"pg"}],"groups":[{"id":"pg","name":"Parked Folder"}]}}}
+                    """
+                try Data(session.utf8).write(to: root.appending(path: "com.ardia.browser/session.json"))
+                let sources = BrowserImport.detect(supportRoot: root)
+                var imported = true
+                for id in ["ardia", "yab"] {
+                    guard let source = sources.first(where: { $0.id == id }) else { imported = false; continue }
+                    var options = ImportOptions()
+                    options.history = false
+                    let data = try await BrowserImport.read(source, options: options)
+                    imported = imported && data.bookmarks.contains { $0.url.absoluteString == "https://example.com/fixture" }
+                    if id == "ardia" {
+                        let work = data.spaces.first { $0.name == "Work" }
+                        let parked = data.spaces.first { $0.name == "Parked" }
+                        note("Ardia Spaces import nested and parked pins and open tab: \(data.spaces.count == 2 && work?.pinned.first?.folderID == "inner" && work?.folders.map(\.name) == ["Folder", "Inner"] && work?.open.first?.url.absoluteString == "https://example.com/open" && parked?.pinned.first?.url.absoluteString == "https://example.com/parked")")
+                    }
+                }
+                note("Ardia and Yab Chromium bookmarks detected and read: \(imported)")
+                let malformed = """
+                    {"profiles":{"default":{"name":"Work","dataId":"default"}},"profileOrder":["default","default"],"windows":[{"id":"w","tabIds":["t","bad"]}],"windowOrder":["w","w"],"tabs":[{"id":"t","profileId":"default","pinnedUrl":"javascript:bad","url":"https://example.com/safe","pin":{}},{"id":"bad","profileId":"default","url":"https://user:pass@example.com/","pin":{}}]}
+                    """
+                let safe = BrowserImport.ardiaSpaces(Data(malformed.utf8), profile: "Default")
+                note("Ardia malformed entries are bounded and safe URL fallback works: \(safe.count == 1 && safe.first?.pinned.count == 1 && safe.first?.pinned.first?.url.absoluteString == "https://example.com/safe")")
+                let yab = root.appending(path: "Yab", directoryHint: .isDirectory)
+                let yabSpaces = """
+                    [{"id":"00000000-0000-0000-0000-000000000001","name":"Yab Work"}]
+                    """
+                let yabSession = """
+                    {"tabs":[{"name":"Pinned","home":"https://example.com/yab-pin","kept":true,"folder":"f","folderName":"Folder"},{"title":"Open","url":"https://example.com/yab-open"}]}
+                    """
+                try Data(yabSpaces.utf8).write(to: yab.appending(path: "spaces.json"))
+                try Data(yabSession.utf8).write(to: yab.appending(path: "session.json"))
+                let yabResult = BrowserImport.yabSpaces(in: yab, profile: "Default", sharedOverride: false)
+                note("Yab Space imports folder, pin and open tab: \(yabResult.count == 1 && yabResult.first?.pinned.first?.folderID == "f" && yabResult.first?.folders.first?.name == "Folder" && yabResult.first?.open.first?.url.absoluteString == "https://example.com/yab-open")")
+                let namedID = "11111111-1111-1111-1111-111111111111"
+                let physicalID = "22222222-2222-2222-2222-222222222222"
+                let multi = """
+                    [{"id":"00000000-0000-0000-0000-000000000001","name":"Shared"},{"id":"\(namedID)","name":"Named","ownSignIns":true}]
+                    """
+                let sharedSession = """
+                    {"tabs":[{"pin":"tile","name":"Shared Tile","home":"https://example.com/shared"}]}
+                    """
+                let ownSession = """
+                    {"tabs":[{"pin":"tile","name":"Own Tile","home":"https://example.com/own"}]}
+                    """
+                try Data(multi.utf8).write(to: yab.appending(path: "spaces.json"))
+                try Data(sharedSession.utf8).write(to: yab.appending(path: "session-00000000-0000-0000-0000-000000000A11.json"))
+                try Data(ownSession.utf8).write(to: yab.appending(path: "session-\(namedID).json"))
+                let receipts = yab.appending(path: "ChromiumProfiles", directoryHint: .isDirectory)
+                try FileManager.default.createDirectory(at: receipts, withIntermediateDirectories: true)
+                try Data("{\"physical\":\"\(physicalID)\"}".utf8).write(to: receipts.appending(path: "\(namedID)-named.json"))
+                let shared = BrowserImport.yabSpaces(in: yab, profile: "Default", sharedOverride: true)
+                let named = BrowserImport.yabSpaces(in: yab, profile: "space-\(physicalID)", sharedOverride: true)
+                note("Yab shared tiles and named profiles stay separate: \(shared.count == 1 && shared.first?.pinned.contains(where: { $0.url.absoluteString == "https://example.com/shared" }) == true && named.count == 1 && named.first?.pinned.map(\.url.absoluteString) == ["https://example.com/own"])")
+                let badSpaces = """
+                    [{"id":"../../outside","name":"Bad"},{"id":"00000000-0000-0000-0000-000000000001","name":"Safe"},{"id":"00000000-0000-0000-0000-000000000001","name":"Duplicate"}]
+                    """
+                let badSession = """
+                    {"tabs":[{"kept":true,"home":"javascript:bad","url":"https://example.com/fallback"},{"kept":true,"url":"https://user:pass@example.com/"}]}
+                    """
+                try Data(badSpaces.utf8).write(to: yab.appending(path: "spaces.json"))
+                try Data(badSession.utf8).write(to: yab.appending(path: "session.json"))
+                let safeYab = BrowserImport.yabSpaces(in: yab, profile: "Default", sharedOverride: false)
+                note("Yab rejects malformed IDs and unsafe URLs, and deduplicates Spaces: \(safeYab.count == 1 && safeYab.first?.pinned.map(\.url.absoluteString) == ["https://example.com/fallback"])")
+            } catch { note("Ardia and Yab import fixture failed: \(error)") }
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_PRIVATE_SHAPE_CHECK_ONLY"] == "1" {
             let url = base.appending(path: "boost-shape.html")
             let tab = browser.newTab(url: url, isPrivate: true)
@@ -1503,7 +1582,7 @@ struct SnapshotTour {
             if let formerTab { browser.select(formerTab) }
             browser.library.deleteSpace(space)
         }
-        source.populate(space)
+        source.populate(space, windowKey: browser.windowKey)
         let names = space.pinFolders.map { space.pinFolderName($0) }
         let expected = names == ["Research", "Research / References"]
             && !space.pinFolders[0].isCollapsed && space.pinFolders[1].isCollapsed
@@ -1511,6 +1590,7 @@ struct SnapshotTour {
             && space.rootPins.map(\.displayTitle) == ["Root"]
             && space.pinned.last?.pinFolderID == space.pinFolders.last?.id
             && space.today.map(\.displayTitle) == ["Today"]
+            && space.today.allSatisfy { $0.windowKey == browser.windowKey }
         note("Arc folder import fixture matched folder hierarchy, pin order, and open tabs: \(expected)")
         if expected, let reference = space.pinned.last {
             browser.select(reference)

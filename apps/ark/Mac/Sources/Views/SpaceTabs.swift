@@ -344,6 +344,7 @@ struct TabRow: View {
     @State private var iconHovering = false
     @State private var pinPreview: NSImage?
     @State private var pinPreviewShown = false
+    @State private var pinPreviewSleeping = false
     @State private var pinPreviewTask: Task<Void, Never>?
     /// Renaming in place: double-click the tab, or Rename Tab… in its menu.
     @State private var draft: String?
@@ -484,7 +485,9 @@ struct TabRow: View {
                 }
                 Text(tab.displayTitle).font(.headline).lineLimit(2)
                 if let url = tab.url { Text(URLNormalizer.displayHost(url)).font(.caption).foregroundStyle(.secondary) }
-                if let unread = Self.unreadCount(title: tab.title, host: tab.url?.host()) {
+                if pinPreviewSleeping {
+                    Text("Sleeping").font(.caption).foregroundStyle(.secondary)
+                } else if let unread = Self.unreadCount(title: tab.title, host: tab.url?.host()) {
                     Text("\(unread) unread").font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -518,13 +521,19 @@ struct TabRow: View {
         guard hovered, tab.isPinned, !tab.isPrivate, !isLifted, draft == nil else {
             pinPreviewShown = false
             pinPreview = nil
+            pinPreviewSleeping = false
             return
         }
         pinPreviewTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(650))
-            guard !Task.isCancelled, hovering, let url = tab.url,
-                  let web = browser.library.existingController(for: tab)?.page.view as? WKWebView,
-                  !web.bounds.isEmpty else { return }
+            guard !Task.isCancelled, hovering, tab.isPinned, !tab.isPrivate, let url = tab.url else { return }
+            guard let controller = browser.library.existingController(for: tab) else {
+                pinPreview = nil
+                pinPreviewSleeping = true
+                pinPreviewShown = true
+                return
+            }
+            guard let web = controller.page.view as? WKWebView, !web.bounds.isEmpty else { return }
             let config = WKSnapshotConfiguration()
             config.snapshotWidth = 240
             let image = try? await web.takeSnapshot(configuration: config)
@@ -532,6 +541,7 @@ struct TabRow: View {
                   draft == nil, tab.url == url, browser.library.existingController(for: tab)?.page.view === web,
                   let image else { return }
             pinPreview = image
+            pinPreviewSleeping = false
             pinPreviewShown = true
         }
     }

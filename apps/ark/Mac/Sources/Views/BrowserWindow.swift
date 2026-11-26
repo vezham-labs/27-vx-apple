@@ -78,8 +78,10 @@ struct BrowserWindow: View {
             }
         }
         .onChange(of: browser.selectedSpaceID) { browser.isSidebarPeeking = false }
-        .onChange(of: browser.visibleTabIDs) { previous, current in
-            browser.library.videoPictureInPicture.visibleTabsChanged(in: browser, from: previous, to: current)
+        // Include the Space even when both Spaces have the same visible tabs (or neither
+        // has one), so PiP's per-window Space tracking never lags behind selection.
+        .onChange(of: [browser.selectedSpaceID] + browser.visibleTabIDs) { previous, current in
+            browser.library.videoPictureInPicture.visibleTabsChanged(in: browser, from: Array(previous.dropFirst()), to: Array(current.dropFirst()))
         }
         .onChange(of: automaticVideoPiP) { if !automaticVideoPiP { browser.library.videoPictureInPicture.stop() } }
         // A space set to Light or Dark switches the window as you move to it, or as you change its theme.

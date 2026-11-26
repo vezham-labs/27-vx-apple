@@ -213,13 +213,12 @@ struct SnapshotTour {
             let next = browser.library.addSpace()
             browser.selectSpace(next)
             await pause(0.5)
-            pip.visibleTabsChanged(in: browser, from: [], to: [])
             let advanced = pip.trackedSpace(for: browser) == next.id
             pip.registerWindow(browser)
             let retained = pip.trackedSpace(for: browser) == next.id
             pip.unregisterWindow(browser)
             let cleared = pip.trackedSpace(for: browser) == nil
-            note("PiP Space tracking registered, advanced, retained and cleared: \(registered && advanced && retained && cleared)")
+            note("PiP Space tracking registered, advanced by SwiftUI, retained and cleared: \(registered && advanced && retained && cleared) (registered: \(registered), advanced: \(advanced), retained: \(retained), cleared: \(cleared))")
             return
         }
         if ProcessInfo.processInfo.environment["ARK_PIP_PROBE_CHECK_ONLY"] == "1" {

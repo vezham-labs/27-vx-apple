@@ -225,6 +225,13 @@ extension Space {
     /// An explicit request can create or resume a folder. A scheduled request can only update its original folder.
     @discardableResult
     public func refreshGitHubPullRequests(cookies: [HTTPCookie], existingFolderID: UUID? = nil) async throws -> PinFolder? {
+        try await refreshGitHubPullRequests(existingFolderID: existingFolderID) {
+            try await LiveFolderFeed.loadGitHubPullRequests(cookies: cookies)
+        }
+    }
+
+    @discardableResult
+    func refreshGitHubPullRequests(existingFolderID: UUID? = nil, load: () async throws -> LiveFolderFeed) async throws -> PinFolder? {
         guard !isPrivate else { return nil }
         let original = pinFolders.first { $0.feed?.isGitHubPullRequests == true }
         let refreshID = original?.id ?? id
@@ -236,7 +243,7 @@ extension Space {
         defer { refreshingLiveFolderIDs.remove(refreshID) }
         let profileID = websiteProfileID
         try Task.checkCancellation()
-        let feed = try await LiveFolderFeed.loadGitHubPullRequests(cookies: cookies)
+        let feed = try await load()
         try Task.checkCancellation()
         guard websiteProfileID == profileID else { return nil }
         if let index = pinFolders.firstIndex(where: { $0.feed?.isGitHubPullRequests == true }) {

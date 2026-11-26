@@ -5,6 +5,41 @@ import Testing
 struct LiveFolderFeedTests {
     private let source = URL(string: "https://example.com/feeds/latest.xml")!
 
+    @MainActor @Test func githubRefreshPreservesChangesAndDoesNotRecreateDeletedFolder() async throws {
+        let space = Space(name: "Work")
+        let folder = try #require(space.addPinFolder(named: "Pull Requests"))
+        let feed = LiveFolderFeed(source: try #require(URL(string: "https://github.com/_ark/live-pull-requests")), title: "Pull Requests", articles: [
+            .init(title: "Review", url: try #require(URL(string: "https://github.com/acme/app/pull/1")))
+        ])
+        space.pinFolders[0].feed = feed
+        var firstStarted = false
+        let refresh = Task { @MainActor in
+            try await space.refreshGitHubPullRequests {
+                firstStarted = true
+                try await Task.sleep(for: .milliseconds(100))
+                return feed
+            }
+        }
+        await Task.yield()
+        #expect(firstStarted)
+        space.setGitHubOwner("acme", shown: false, in: folder.id)
+        _ = try await refresh.value
+        #expect(space.pinFolders[0].visibleArticles.isEmpty)
+        var secondStarted = false
+        let deletedRefresh = Task { @MainActor in
+            try await space.refreshGitHubPullRequests {
+                secondStarted = true
+                try await Task.sleep(for: .milliseconds(100))
+                return feed
+            }
+        }
+        await Task.yield()
+        #expect(secondStarted)
+        space.removePinFolder(folder.id)
+        #expect(try await deletedRefresh.value == nil)
+        #expect(space.pinFolders.isEmpty)
+    }
+
     @MainActor @Test func githubOwnerFiltersAreLocalReversibleAndPersisted() throws {
         let work = Space(name: "Work")
         let personal = Space(name: "Personal")

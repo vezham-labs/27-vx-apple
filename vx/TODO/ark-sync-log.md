@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### GitHub refresh in-flight changes — November 26, 2026
+
+An existing-suite asynchronous fixture delays the GitHub feed result while changing an owner filter and then while removing the folder. It verifies that the filter remains applied and the removed folder is not recreated. All 88 BrowserKit tests passed. The fixture injects a feed result; actual signed-in GitHub networking remains unverified.
+
 ### GitHub owner matching — November 26, 2026
 
 The existing BrowserKit suite now verifies that owner filtering recognizes GitHub pull-request URLs without treating lookalike hosts or issue URLs as pull requests. All 87 tests passed. Source review also confirms that a refresh uses the current folder state after the request, preserving filter changes and avoiding recreation of a removed existing folder; an in-flight network fixture remains open.

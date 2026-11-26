@@ -125,6 +125,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         // The snapshot tour starts from a fresh state and leaves the real one alone.
         if ProcessInfo.processInfo.environment["ARK_SNAPSHOT"] != nil || ProcessInfo.processInfo.environment["ARK_COLUMNS_CHECK"] != nil
+            || ProcessInfo.processInfo.environment["ARK_EXT_COMPAT_CHECK"] != nil
             || ProcessInfo.processInfo.environment["ARK_DROP_CHECK"] != nil
             || ProcessInfo.processInfo.environment["ARK_AGENT_GATE_CHECK"] != nil
             || ProcessInfo.processInfo.environment["ARK_RADAR_CHECK"] != nil

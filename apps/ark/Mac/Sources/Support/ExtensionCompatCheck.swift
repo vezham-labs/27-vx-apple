@@ -18,6 +18,10 @@ struct ExtensionCompatCheck {
         var waited = 0.0
         while delegate.browser == nil, waited < 20 { await pause(0.5); waited += 0.5 }
         let library = delegate.library
+        // The diagnostic library is isolated. Disable Ark's own content rules so a
+        // blocking result can be attributed to the extension rather than both.
+        library.settings.blockContent = false
+        await library.blockingApplied()
         let ids = (ProcessInfo.processInfo.environment["ARK_EXT_COMPAT_IDS"] ?? "").split(separator: " ").map(String.init)
 
         // Install through the same path as Settings > Extensions.

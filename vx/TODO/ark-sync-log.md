@@ -1524,6 +1524,10 @@ Adapted Search `b666d1f`: Mac WebKit link menus now add a separate **Copy Clean 
 
 Follow-up: an isolated Mac Debug fixture constructed the menu around a simulated WebKit copy target and used a private pasteboard. It verified the normal item remains, a delayed tracking link is cleaned, and a signed link remains unchanged. The Mac build passed. This does not establish how WebKit's real context-menu target behaves or verify physical menu input. Report: `/private/tmp/ark-clean-menu-20261127/report.txt`.
 
+### Open pinned folder with Command-click — November 27, 2026
+
+The Mac sidebar now opens a regular pin folder's nested pages on Command-click, using the existing Open All behavior; regular clicks still toggle the folder and Live Folders retain their existing click behavior. The Mac build passed. An isolated sidebar tour posted Command-click events and verified two nested pins opened while selection and expansion were preserved; its existing reorder and bulk-move checks also passed. Physical pointer input remains unverified. Report: `/private/tmp/ark-folder-command-20261127/report.txt`.
+
 ### Web App Preview workspace hosts — November 26, 2026
 
 Privacy follow-up, November 27: favorite history previews now also exclude Agent Space, in addition to private Spaces, so the agent context cannot surface regular-profile recent pages through a favorite. The Mac build passed; a live Agent Space hover check remains open.

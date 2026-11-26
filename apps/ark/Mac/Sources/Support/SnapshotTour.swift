@@ -1947,6 +1947,24 @@ struct SnapshotTour {
         let todayBeforeOpenAll = Set(space.today.map(\.id))
         let selectedBeforeOpenAll = browser.currentTab?.id
         let expectedOpenAll = space.pinned.filter { $0.pinFolderID == child.id }.compactMap(\.url)
+        if let dragging = browser.sidebarDragging, let frame = dragging.folderFrames[folder.id] {
+            let point = CGPoint(x: frame.midX + dragging.originInWindow.x,
+                                y: (window.contentView?.bounds.height ?? window.frame.height) - frame.midY - dragging.originInWindow.y)
+            if let down = NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: .command,
+                                            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                                            context: nil, eventNumber: 0, clickCount: 1, pressure: 1),
+               let up = NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: .command,
+                                          timestamp: ProcessInfo.processInfo.systemUptime + 0.01, windowNumber: window.windowNumber,
+                                          context: nil, eventNumber: 0, clickCount: 1, pressure: 0) {
+                let collapsed = space.pinFolders.first { $0.id == folder.id }?.isCollapsed
+                NSApp.postEvent(down, atStart: false)
+                NSApp.postEvent(up, atStart: false)
+                await pause(0.7)
+                let opened = space.today.filter { !todayBeforeOpenAll.contains($0.id) }
+                note("Command-click folder opened nested pins without collapsing: \(opened.count == expectedOpenAll.count && space.pinFolders.first { $0.id == folder.id }?.isCollapsed == collapsed && browser.currentTab?.id == selectedBeforeOpenAll) (opened: \(opened.count), expected: \(expectedOpenAll.count))")
+                for openedTab in opened { browser.close(openedTab) }
+            }
+        } else { note("Command-click folder fixture: heading not available") }
         if let parent = space.pinFolders.first(where: { $0.id == folder.id }) {
             let todayCountBeforeOpenAll = space.today.count
             browser.openAllPinnedTabs(in: parent, space: space)

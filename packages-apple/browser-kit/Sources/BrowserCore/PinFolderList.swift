@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 public enum PinFolderDragItem {
     public static func pin(_ id: UUID) -> String { "pin:\(id.uuidString)" }
@@ -260,6 +263,13 @@ public struct PinFolderList<TabRow: View>: View {
 
     private func folderRow(_ folder: PinFolder) -> some View {
         Button {
+            #if os(macOS)
+            let flags = NSApp.currentEvent?.modifierFlags.intersection([.command, .option, .control, .shift]) ?? []
+            if flags == .command, folder.feed == nil, let openAllFolderTabs {
+                openAllFolderTabs(folder)
+                return
+            }
+            #endif
             space.togglePinFolder(folder.id)
             save()
         } label: {

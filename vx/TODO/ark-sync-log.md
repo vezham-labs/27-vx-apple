@@ -1534,6 +1534,8 @@ Search's Spaces export records each pin's home URL. Ark's importer now also writ
 
 Follow-up: Arc, Ardia and Yab Space imports now initialize each pin's home from its imported URL. Portable Ark files predating `pinnedHomeURL` similarly use the safe imported URL as their fallback. The Mac build and existing BrowserKit suite passed (90 BrowserCore tests); the isolated legacy backup fixture verified the fallback. The Arc importer fixture was extended but has not yet been run with this change. Report: `/private/tmp/ark-legacy-pin-home-20261127/report.txt`.
 
+The subsequent isolated Mac feature tour passed the expanded Arc import fixture, including the imported pin-home values, nested folder hierarchy, pin order and Today tabs. The minimal local server did not include the separate Live Folder fixture, which returned 404; this run does not verify that feed. Report: `/private/tmp/ark-arc-home-20261127/report.txt`.
+
 ### External extension messaging review — November 27, 2026
 
 Rechecked Browsa `a55c720` against Ark's current extension lifecycle. The reference checks allowed destination IDs in `sendMessage`, while its `connect` forwards without that explicit check; whether WebKit rejects an unlisted destination is not yet verified. Ark shares an extension controller across regular and ephemeral pages but keeps per-extension private-access permissions. Before enabling this missing compatibility feature, verify per-destination access for both methods, private-page behavior, changes to private access, unload and already-open pages. No bridge or parity claim was added.

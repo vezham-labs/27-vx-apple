@@ -2,6 +2,26 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Mac batch intake and Easel drawing — November 26, 2026
+
+Created the [Mac batch queue](ark-mac-batch.md) to group the remaining feature, compatibility, and verification work. Easel page cards now reject non-HTTP(S), hostless, and credential-bearing URLs; an isolated fixture confirmed these rejections. The Mac Nx build passed. An isolated image-card audit found existing input-posting access and used a system-posted drag: both a plain SwiftUI control and the annotation gesture responded, a stroke was stored, and the Clear button removed it. The [drawn-stroke preview](../../preview/ark/mac/features/easel-image-annotation-drawn.png) captures that run. This supersedes the earlier inconclusive synthetic-drag attempts; physical pointer and VoiceOver checks remain open. The file-URL fixture cannot verify adding an HTTP page, so its unrelated aggregate check failed. No simulator was started.
+
+### Easel image annotations — November 26, 2026
+
+Mac image cards now have an annotation mode and clear control. Strokes are stored on the existing card model in normalized coordinates, rendered over the image in the board and PNG export, and represented as SVG in the HTML ZIP export. The Mac Nx build passed. An isolated Mac fixture set image strokes through the model: the resulting PNG visibly contained the annotation and the exported HTML included its SVG path. A separate store fixture reopened saved strokes, cleared them, and verified the clear after another reload. Pointer drawing and the clear button, full-app relaunch, and visual ZIP rendering still require runtime verification; Easels remains Partial and no simulator was started.
+
+An isolated image-card window entered annotation mode via a synthetic button click, but posted drag events produced no stored stroke, including after using an explicit transparent hit surface. Process-targeted drag events also failed to trigger a plain SwiftUI drag control in the same window, so this audit cannot distinguish the feature's behavior. The synthetic clear result is inconclusive because no stroke was drawn; pointer drawing must not be considered verified. The file-URL fixture also could not exercise adding an HTTP page, so its unrelated Easel lifecycle aggregate failed.
+
+Review found that normalizing annotations to the entire card content area could misalign them with a fitted image when export dimensions differ. The image overlay now follows the fitted image, and ZIP export puts the image and paths in a shared image-sized SVG coordinate system. The Mac Nx build passed, and an isolated export contains the expected scaled path and image dimensions. Pointer drawing and visual alignment across board, PNG, and ZIP remain unverified.
+
+An isolated image-card fixture rendered a model-provided stroke at the expected relative positions over the fitted image; see the [Mac annotation preview](../../preview/ark/mac/features/easel-image-annotation.png). This verifies the card's rendered placement for that fixture, not the physical drawing gesture or visual alignment across export formats.
+
+The isolated fixture also reopened its ZIP's HTML in WebKit. Its image and stroke bounds matched the expected relative coordinates, and the [export preview](../../preview/ark/mac/features/easel-annotation-export.png) shows the annotation over the image. This covers one model-provided stroke and image; physical drawing, the clear button, and broad cross-format alignment remain unverified.
+
+Single-point image strokes previously had no visible segment. They now render with a round cap in the card and ZIP SVG; the isolated model fixture captured both a line and a dot in the card and ZIP previews. Mac build passed. The fixture does not prove a physical click can create the dot, and pointer interaction remains unverified.
+
+The image-card toolbar now separates Undo Last Annotation from Clear Annotations and gives both explicit accessibility labels. An isolated Mac fixture posted clicks on a card with two model-provided strokes: Undo left one and Clear removed the other. The Mac build passed and the card preview was refreshed. Actual drawing gestures and physical/VoiceOver interaction remain unverified.
+
 ### Boost related-element hide and restore — November 26, 2026
 
 The isolated Mac Debug fixture posted Option-hover and Option-click events over a local page with three matching elements. It verified that the preview counted three, all three became hidden, and restoring the rule made all three visible again. The Mac Nx build passed. Physical pointer and VoiceOver interaction, dynamic real sites, and mobile remain unverified; Boosts stays Partial. No simulator was started.

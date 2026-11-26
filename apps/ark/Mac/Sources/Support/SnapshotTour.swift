@@ -630,6 +630,12 @@ struct SnapshotTour {
     private func easelPreview(_ browser: Browser, window: NSWindow, page: URL) async {
         let easelID = browser.library.easels.firstBoard?.id ?? browser.library.easels.addBoard().id
         let addedPage = browser.library.easels.addPage(page, title: "Atlas · Field Guide", to: easelID)
+        let badEaselURLs = ["httpx://example.com/", "https://user:secret@example.com/", "https:///missing-host"]
+        let rejectedUnsafeURLs = badEaselURLs.allSatisfy { value in
+            guard let url = URL(string: value) else { return true }
+            return !browser.library.easels.addPage(url, title: "Unsafe", to: easelID)
+        }
+        note("Easel rejects invalid or credentialed page links: \(rejectedUnsafeURLs)")
         var editedNote = false
         var editDetail = "note was not created"
         if let noteID = browser.library.easels.addNote(to: easelID) {
@@ -658,8 +664,149 @@ struct SnapshotTour {
             if let png = image.representation(using: .png, properties: [:]) {
                 pasteboard.setData(png, forType: .png)
                 _ = browser.library.easels.addClipboardImage(to: easelID, pasteboard: pasteboard)
+                let auditURL = directory.appending(path: "annotation-persistence.json")
+                let auditStore = EaselStore(fileURL: auditURL)
+                if let boardID = auditStore.firstBoard?.id, auditStore.addImage(png, title: "Fixture", to: boardID),
+                   let cardID = auditStore.boards.first?.cards.last?.id {
+                    let stroke = [[EaselPoint(x: 0.2, y: 0.3), EaselPoint(x: 0.8, y: 0.7)],
+                                  [EaselPoint(x: 0.7, y: 0.2)]]
+                    auditStore.updateStrokes(stroke, for: cardID, in: boardID)
+                    let reopened = EaselStore(fileURL: auditURL)
+                    let persisted = reopened.boards.first?.cards.first(where: { $0.id == cardID })?.strokes == stroke
+                    let archive = directory.appending(path: "annotation-preview.zip")
+                    let unpacked = directory.appending(path: "annotation-preview", directoryHint: .isDirectory)
+                    if await reopened.exportAllAsZip(to: archive) {
+                        try? FileManager.default.createDirectory(at: unpacked, withIntermediateDirectories: true)
+                        let unzip = Process()
+                        unzip.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+                        unzip.arguments = ["-oq", archive.path(), "-d", unpacked.path()]
+                        if (try? unzip.run()) != nil {
+                            unzip.waitUntilExit()
+                            if unzip.terminationStatus == 0 {
+                                let archiveWindow = NSWindow(contentRect: NSRect(x: 200, y: 200, width: 650, height: 400),
+                                                             styleMask: [.titled, .closable], backing: .buffered, defer: false)
+                                archiveWindow.isReleasedWhenClosed = false
+                                let archiveView = WKWebView(frame: NSRect(x: 0, y: 0, width: 650, height: 400))
+                                archiveWindow.contentView = archiveView
+                                archiveWindow.makeKeyAndOrderFront(nil)
+                                archiveView.loadFileURL(unpacked.appending(path: "Ark Easels/easel-1.html"), allowingReadAccessTo: unpacked)
+                                await pause(1)
+                                let aligned = (try? await archiveView.evaluateJavaScript("""
+                                    (() => { const svg = document.querySelector('.image-wrap svg');
+                                      const image = svg?.querySelector('image'); const path = svg?.querySelector('path');
+                                      if (!image || !path) return false;
+                                      const imageBox = image.getBBox(), pathBox = path.getBBox();
+                                      return imageBox.width > 0 && imageBox.height > 0 &&
+                                        Math.abs(pathBox.x / imageBox.width - 0.2) < 0.001 &&
+                                        Math.abs(pathBox.y / imageBox.height - 0.3) < 0.001 &&
+                                        Math.abs(pathBox.width / imageBox.width - 0.6) < 0.001 &&
+                                        Math.abs(pathBox.height / imageBox.height - 0.4) < 0.001; })()
+                                    """) as? Bool) == true
+                                note("Easel ZIP renders annotation at expected image-relative bounds: \(aligned)")
+                                saveVisible("easel-annotation-zip", in: archiveWindow)
+                                archiveWindow.orderOut(nil)
+                                window.makeKeyAndOrderFront(nil)
+                            }
+                        }
+                    }
+                    if let annotated = reopened.boards.first?.cards.first(where: { $0.id == cardID }) {
+                        let preview = NSWindow(contentRect: NSRect(x: 200, y: 200, width: 320, height: 230),
+                                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
+                        preview.isReleasedWhenClosed = false
+                        preview.contentView = easelAuditCardView(card: annotated, boardID: boardID, store: reopened)
+                        preview.makeKeyAndOrderFront(nil)
+                        await pause(0.5)
+                        saveVisible("easel-annotated-card", in: preview)
+                        func clickHeader(_ x: CGFloat, _ eventNumber: Int) {
+                            for (offset, type) in [NSEvent.EventType.leftMouseDown, .leftMouseUp].enumerated() {
+                                if let event = NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: 213),
+                                                                  modifierFlags: [], timestamp: 0, windowNumber: preview.windowNumber,
+                                                                  context: nil, eventNumber: eventNumber + offset, clickCount: 1,
+                                                                  pressure: type == .leftMouseDown ? 1 : 0) {
+                                    NSApp.postEvent(event, atStart: false)
+                                }
+                            }
+                        }
+                        clickHeader(258, 10)
+                        await pause(0.3)
+                        let undone = reopened.boards.first?.cards.first(where: { $0.id == cardID })?.strokes?.count == 1
+                        clickHeader(282, 12)
+                        await pause(0.3)
+                        let clearedByButton = reopened.boards.first?.cards.first(where: { $0.id == cardID })?.strokes?.isEmpty == true
+                        note("Easel annotation undo and clear controls update the card: \(undone && clearedByButton) (undo: \(undone), clear: \(clearedByButton))")
+                        preview.orderOut(nil)
+                        window.makeKeyAndOrderFront(nil)
+                    }
+                    reopened.updateStrokes([], for: cardID, in: boardID)
+                    let cleared = EaselStore(fileURL: auditURL).boards.first?.cards.first(where: { $0.id == cardID })?.strokes?.isEmpty == true
+                    note("Easel image annotation persists and clears across store reload: \(persisted && cleared)")
+                    if let card = reopened.boards.first?.cards.first(where: { $0.id == cardID }) {
+                        let cardWindow = NSWindow(contentRect: NSRect(x: 200, y: 200, width: 320, height: 230),
+                                                  styleMask: [.titled, .closable], backing: .buffered, defer: false)
+                        cardWindow.isReleasedWhenClosed = false
+                        cardWindow.contentView = easelAuditCardView(card: card, boardID: boardID, store: reopened)
+                        cardWindow.makeKeyAndOrderFront(nil)
+                        await pause(0.5)
+                        func post(_ type: NSEvent.EventType, _ point: NSPoint, _ number: Int) {
+                            if let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0,
+                                                              windowNumber: cardWindow.windowNumber, context: nil,
+                                                              eventNumber: number, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1) {
+                                NSApp.postEvent(event, atStart: false)
+                            }
+                        }
+                        post(.leftMouseDown, NSPoint(x: 282, y: 213), 1)
+                        post(.leftMouseUp, NSPoint(x: 282, y: 213), 2)
+                        await pause(0.2)
+                        let canPostInput = CGPreflightPostEventAccess()
+                        note("Easel audit has input-posting access: \(canPostInput)")
+                        func postDrag(_ type: CGEventType, _ point: NSPoint) {
+                            let screen = cardWindow.convertPoint(toScreen: point)
+                            guard let top = NSScreen.screens.first?.frame.maxY,
+                                  let event = CGEvent(mouseEventSource: nil, mouseType: type,
+                                                      mouseCursorPosition: CGPoint(x: screen.x, y: top - screen.y),
+                                                      mouseButton: .left) else { return }
+                            if canPostInput { event.post(tap: .cghidEventTap) }
+                            else { event.postToPid(getpid()) }
+                        }
+                        postDrag(.leftMouseDown, NSPoint(x: 100, y: 120))
+                        await pause(0.1)
+                        postDrag(.leftMouseDragged, NSPoint(x: 180, y: 100))
+                        await pause(0.1)
+                        postDrag(.leftMouseUp, NSPoint(x: 200, y: 90))
+                        await pause(0.5)
+                        let drawn = reopened.boards.first?.cards.first(where: { $0.id == cardID })?.strokes?.isEmpty == false
+                        saveVisible("easel-image-annotation", in: cardWindow)
+                        post(.leftMouseDown, NSPoint(x: 282, y: 213), 6)
+                        post(.leftMouseUp, NSPoint(x: 282, y: 213), 7)
+                        await pause(0.4)
+                        let clearedByButton = reopened.boards.first?.cards.first(where: { $0.id == cardID })?.strokes?.isEmpty == true
+                        note("Easel image card accepts drawing and clear-button events: \(drawn && clearedByButton) (drawn: \(drawn), cleared: \(clearedByButton))")
+                        var controlDrag = false
+                        cardWindow.contentView = NSHostingView(rootView: Rectangle().fill(Color.blue)
+                            .contentShape(Rectangle()).gesture(DragGesture(minimumDistance: 0).onEnded { _ in controlDrag = true }))
+                        await pause(0.3)
+                        postDrag(.leftMouseDown, NSPoint(x: 100, y: 120))
+                        await pause(0.1)
+                        postDrag(.leftMouseDragged, NSPoint(x: 180, y: 100))
+                        await pause(0.1)
+                        postDrag(.leftMouseUp, NSPoint(x: 200, y: 90))
+                        await pause(0.3)
+                        note("Easel audit synthetic drag reaches plain SwiftUI control: \(controlDrag)")
+                        cardWindow.orderOut(nil)
+                        window.makeKeyAndOrderFront(nil)
+                    }
+                } else {
+                    note("Easel annotation persistence fixture could not create an image")
+                }
             }
             pasteboard.releaseGlobally()
+        }
+        if let image = browser.library.easels.boards.first(where: { $0.id == easelID })?.cards.last(where: { $0.kind == .image }) {
+            browser.library.easels.updateStrokes([[.init(x: 0.15, y: 0.25), .init(x: 0.5, y: 0.7), .init(x: 0.85, y: 0.25)]],
+                                                 for: image.id, in: easelID)
+            note("Easel image fixture stored normalized annotation: \(browser.library.easels.boards.first(where: { $0.id == easelID })?.cards.first(where: { $0.id == image.id })?.strokes?.first?.count == 3)")
+        } else {
+            note("Easel image fixture could not create an image")
         }
         browser.openLibrary("easels")
         await pause(1)

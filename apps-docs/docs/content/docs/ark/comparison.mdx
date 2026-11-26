@@ -25,6 +25,8 @@ An isolated Mac Glance fixture verified that closing a preview, invoking its nav
 
 The Mac Boost picker shows an Option-hover related-element count. An isolated fixture posted hover and click events over three matching elements, verified the count, hide, and restore, and captured a [Mac preview](../../../../../preview/ark/mac/features/boost-related-count.png). Physical pointer and VoiceOver interaction remain unverified.
 
+Mac Easel image cards have an annotation mode. An isolated fixture set strokes through the model and captured an [annotated card preview](../../../../../preview/ark/mac/features/easel-image-annotation.png); another fixture verified their appearance in an exported PNG, and a store fixture verified persistence and clearing across reloads. WebKit rendered the ZIP HTML with expected image-relative stroke bounds in an [export preview](../../../../../preview/ark/mac/features/easel-annotation-export.png). An isolated Mac audit posted a system drag that created a stroke and verified the Clear button; it also verified Undo separately. See the [drawn-stroke preview](../../../../../preview/ark/mac/features/easel-image-annotation-drawn.png). Physical pointer and VoiceOver interaction, broader cross-format alignment, and full-app relaunch remain unverified.
+
 The newest fetched feature branches do not advance those pinned `main` heads. Search's many-tab
 branch is retained as a future measurement reference, while its declarative-content branch records
 a concrete Chrome-extension gap: Ark has no persisted declarative rule/injection bridge yet.

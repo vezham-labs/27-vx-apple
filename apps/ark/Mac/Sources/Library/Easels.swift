@@ -76,7 +76,9 @@ final class EaselStore {
     }
 
     @discardableResult func addPage(_ url: URL, title: String, to boardID: UUID) -> Bool {
-        guard url.scheme?.hasPrefix("http") == true, let i = boards.firstIndex(where: { $0.id == boardID }) else { return false }
+        guard let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
+              url.host() != nil, url.user == nil, url.password == nil,
+              let i = boards.firstIndex(where: { $0.id == boardID }) else { return false }
         let (x, y) = placement(after: boards[i].cards.count)
         boards[i].cards.append(EaselCard(kind: .page, x: x, y: y,
                                          title: title.isEmpty ? (url.host() ?? url.absoluteString) : title, url: url))
@@ -194,7 +196,20 @@ final class EaselStore {
             case .note:
                 inner = "<p class=\"note\">\(escapeHTML(card.text).replacingOccurrences(of: "\\n", with: "<br>"))</p>"
             case .image:
-                inner = imageURL(card.imageName).map { _ in "<img src=\"assets/\(card.id.uuidString).png\" alt=\"\(escapeHTML(card.title))\">" } ?? "<p>Image unavailable</p>"
+                let imageSize = imageURL(card.imageName).flatMap { NSImage(contentsOf: $0)?.size }
+                let imageWidth = imageSize.map { Double($0.width) }.flatMap { $0.isFinite && $0 > 0 ? $0 : nil } ?? 1
+                let imageHeight = imageSize.map { Double($0.height) }.flatMap { $0.isFinite && $0 > 0 ? $0 : nil } ?? 1
+                let paths = (card.strokes ?? []).compactMap { stroke -> String? in
+                    guard !stroke.isEmpty else { return nil }
+                    let points = stroke.enumerated().map { index, point in
+                        "\(index == 0 ? "M" : "L")\(String(format: "%.4f", point.x * imageWidth)) \(String(format: "%.4f", point.y * imageHeight))"
+                    }.joined(separator: " ")
+                    let dot = stroke.count == 1 ? " L\(String(format: "%.4f", stroke[0].x * imageWidth)) \(String(format: "%.4f", stroke[0].y * imageHeight))" : ""
+                    return "<path d=\"\(points)\(dot)\"/>"
+                }.joined()
+                inner = imageURL(card.imageName).map { _ in
+                    "<div class=\"image-wrap\"><svg viewBox=\"0 0 \(imageWidth) \(imageHeight)\" aria-label=\"\(escapeHTML(card.title))\"><image href=\"assets/\(card.id.uuidString).png\" width=\"\(imageWidth)\" height=\"\(imageHeight)\"/>\(paths)</svg></div>"
+                } ?? "<p>Image unavailable</p>"
             case .drawing:
                 let paths = (card.strokes ?? []).compactMap { stroke -> String? in
                     guard let first = stroke.first else { return nil }
@@ -209,7 +224,7 @@ final class EaselStore {
         }.joined(separator: "\n")
         return """
         <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>\(escapeHTML(board.name))</title><style>
-        *{box-sizing:border-box}body{margin:0;width:2400px;height:1800px;position:relative;background:#f4f4f4;color:#222;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background-image:radial-gradient(#bbb 1px,transparent 1px);background-size:28px 28px}article{position:absolute;padding:12px;border:1px solid #ddd;border-radius:12px;background:white;box-shadow:0 4px 18px #0002;overflow:hidden}h2{font-size:12px;margin:0 0 8px}p{line-height:1.5;overflow-wrap:anywhere}a{color:#1565c0}img{width:100%;height:calc(100% - 28px);object-fit:contain}svg{width:100%;height:calc(100% - 28px);fill:none;stroke:#222;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.note{white-space:pre-wrap}
+        *{box-sizing:border-box}body{margin:0;width:2400px;height:1800px;position:relative;background:#f4f4f4;color:#222;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background-image:radial-gradient(#bbb 1px,transparent 1px);background-size:28px 28px}article{position:absolute;padding:12px;border:1px solid #ddd;border-radius:12px;background:white;box-shadow:0 4px 18px #0002;overflow:hidden}h2{font-size:12px;margin:0 0 8px}p{line-height:1.5;overflow-wrap:anywhere}a{color:#1565c0}svg{width:100%;height:calc(100% - 28px);fill:none;stroke:#222;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.image-wrap{width:100%;height:calc(100% - 24px)}.image-wrap svg{width:100%;height:100%;stroke:#e12e42}.image-wrap path{vector-effect:non-scaling-stroke}.note{white-space:pre-wrap}
         </style></head><body>\(contents)</body></html>
         """
     }
@@ -429,7 +444,9 @@ private struct EaselExportCard: View {
                 Text(card.text).font(.system(size: 13)).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             case .image:
                 if let imageURL, let image = NSImage(contentsOf: imageURL) {
-                    Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Image(nsImage: image).resizable().scaledToFit()
+                        .overlay { EaselImageStrokes(strokes: card.strokes ?? []).allowsHitTesting(false) }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             case .drawing:
                 Canvas { context, _ in
@@ -466,6 +483,23 @@ private struct EaselGrid: View {
     }
 }
 
+/// Image annotation coordinates are normalized so they follow the card in exports.
+private struct EaselImageStrokes: View {
+    let strokes: [[EaselPoint]]
+    var body: some View {
+        Canvas { context, size in
+            for stroke in strokes {
+                guard let first = stroke.first else { continue }
+                var path = Path()
+                path.move(to: CGPoint(x: first.x * size.width, y: first.y * size.height))
+                if stroke.count == 1 { path.addLine(to: CGPoint(x: first.x * size.width, y: first.y * size.height)) }
+                for point in stroke.dropFirst() { path.addLine(to: CGPoint(x: point.x * size.width, y: point.y * size.height)) }
+                context.stroke(path, with: .color(.red), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+            }
+        }
+    }
+}
+
 private struct EaselCardView: View {
     let card: EaselCard
     let boardID: UUID
@@ -474,6 +508,7 @@ private struct EaselCardView: View {
     @State private var noteText: String
     @State private var strokes: [[EaselPoint]]
     @State private var draftStroke: [EaselPoint] = []
+    @State private var annotating = false
 
     init(card: EaselCard, boardID: UUID, store: EaselStore, open: @escaping (URL) -> Void) {
         self.card = card; self.boardID = boardID; self.store = store; self.open = open
@@ -487,6 +522,24 @@ private struct EaselCardView: View {
                 Image(systemName: symbol).foregroundStyle(.secondary)
                 Text(card.title).font(.system(size: 12, weight: .semibold)).lineLimit(1)
                 Spacer(minLength: 0)
+                if card.kind == .image {
+                    Button { annotating.toggle() } label: {
+                        Image(systemName: annotating ? "pencil.tip.crop.circle.fill" : "pencil.tip.crop.circle")
+                    }.buttonStyle(.plain)
+                        .accessibilityLabel(annotating ? "Finish annotating" : "Annotate image")
+                        .help(annotating ? "Finish annotating" : "Annotate image")
+                    if !strokes.isEmpty {
+                        Button {
+                            strokes.removeLast()
+                            store.updateStrokes(strokes, for: card.id, in: boardID)
+                        } label: {
+                            Image(systemName: "arrow.uturn.backward")
+                        }.buttonStyle(.plain).accessibilityLabel("Undo last annotation").help("Undo last annotation")
+                        Button { strokes = []; store.updateStrokes([], for: card.id, in: boardID) } label: {
+                            Image(systemName: "trash")
+                        }.buttonStyle(.plain).accessibilityLabel("Clear annotations").help("Clear annotations")
+                    }
+                }
                 Button { store.remove(card.id, from: boardID) } label: {
                     Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
                 }.buttonStyle(.plain).help("Remove from Easel")
@@ -516,7 +569,34 @@ private struct EaselCardView: View {
                 .onChange(of: noteText) { _, value in store.updateText(value, for: card.id, in: boardID) }
         case .image:
             if let url = store.imageURL(named: card.imageName), let image = NSImage(contentsOf: url) {
-                Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: .infinity)
+                Image(nsImage: image).resizable().scaledToFit()
+                    .overlay {
+                        GeometryReader { geometry in
+                            Rectangle().fill(Color.clear)
+                                .overlay { EaselImageStrokes(strokes: strokes + (draftStroke.isEmpty ? [] : [draftStroke])).allowsHitTesting(false) }
+                                .contentShape(Rectangle())
+                                .allowsHitTesting(annotating)
+                                .gesture(DragGesture(minimumDistance: 0)
+                                    .onChanged { value in
+                                        guard geometry.size.width > 0, geometry.size.height > 0, draftStroke.count < 4096 else { return }
+                                        let point = EaselPoint(x: min(1, max(0, value.location.x / geometry.size.width)),
+                                                               y: min(1, max(0, value.location.y / geometry.size.height)))
+                                        if let last = draftStroke.last {
+                                            let dx = (point.x - last.x) * geometry.size.width
+                                            let dy = (point.y - last.y) * geometry.size.height
+                                            guard dx * dx + dy * dy >= 4 else { return }
+                                        }
+                                        draftStroke.append(point)
+                                    }
+                                    .onEnded { _ in
+                                        guard !draftStroke.isEmpty else { return }
+                                        strokes.append(draftStroke)
+                                        draftStroke = []
+                                        store.updateStrokes(strokes, for: card.id, in: boardID)
+                                    })
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ContentUnavailableView("Image Missing", systemImage: "photo", description: Text("This capture is no longer on this Mac."))
             }
@@ -555,3 +635,10 @@ private struct EaselCardView: View {
         switch card.kind { case .page: "link"; case .note: "note.text"; case .image: "photo"; case .drawing: "scribble" }
     }
 }
+
+#if DEBUG
+@MainActor
+func easelAuditCardView(card: EaselCard, boardID: UUID, store: EaselStore) -> NSView {
+    NSHostingView(rootView: EaselCardView(card: card, boardID: boardID, store: store, open: { _ in }))
+}
+#endif

@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### GitHub owner matching — November 26, 2026
+
+The existing BrowserKit suite now verifies that owner filtering recognizes GitHub pull-request URLs without treating lookalike hosts or issue URLs as pull requests. All 87 tests passed. Source review also confirms that a refresh uses the current folder state after the request, preserving filter changes and avoiding recreation of a removed existing folder; an in-flight network fixture remains open.
+
 ### GitHub owner migration — November 26, 2026
 
 Older GitHub folders can contain cached entries without a remembered-owner list. Changing an owner filter now records the currently known owners before saving, so an owner remains available if it disappears on the next refresh. The existing BrowserKit test now covers that migration, persistence, disappearance, and restoration; all 86 tests passed. Signed-in refresh and menu interaction remain open.

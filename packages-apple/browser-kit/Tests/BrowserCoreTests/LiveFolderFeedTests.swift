@@ -35,6 +35,21 @@ struct LiveFolderFeedTests {
         #expect(restored.pinFolders[0].visibleArticles.count == 2)
     }
 
+    @MainActor @Test func githubOwnerFilteringDoesNotTreatOtherHostsAsOrganizations() throws {
+        let space = Space(name: "Work")
+        let folder = try #require(space.addPinFolder(named: "Pull Requests"))
+        let source = try #require(URL(string: "https://github.com/_ark/live-pull-requests"))
+        let articles = [
+            LiveFolderFeed.Article(title: "GitHub", url: try #require(URL(string: "https://github.com/acme/app/pull/1"))),
+            LiveFolderFeed.Article(title: "Other host", url: try #require(URL(string: "https://evilgithub.com/acme/app/pull/2"))),
+            LiveFolderFeed.Article(title: "Not a pull", url: try #require(URL(string: "https://github.com/acme/app/issues/3"))),
+        ]
+        space.pinFolders[0].feed = LiveFolderFeed(source: source, title: folder.name, articles: articles)
+        space.setGitHubOwner("acme", shown: false, in: folder.id)
+        #expect(space.pinFolders[0].githubOwners == ["acme"])
+        #expect(space.pinFolders[0].visibleArticles.map(\.title) == ["Other host", "Not a pull"])
+    }
+
     @Test func githubCredentialsStayOnTheExpectedOrigin() throws {
         for value in ["https://github.com/pulls", "https://GITHUB.COM:443/login"] {
             #expect(GitHubRedirectGuard.isAllowed(try #require(URL(string: value))))

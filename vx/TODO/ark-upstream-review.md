@@ -424,3 +424,16 @@ These eight commits advance the reviewed Browsa head from `46fe04be` to `a39e03e
 | `64ae49e` | Release notes | Documentation only. |
 | `a39e03e` | Feature list and website release metadata | Documentation/website metadata only. |
 
+### Search performance and sidebar batch — November 26, 2026
+
+The following 30 Search commits (`e62decaa` through `d5948c45`) received full product-diff review. They do not justify copying Search's test files, benchmark harness, or its custom virtualized `Column`: Ark uses SwiftUI's native scroll/layout system, preserves row geometry for drag/drop, and already creates WebKit controllers lazily. Replacing it with Search's drawing architecture would be a UI rewrite, not a safe performance port.
+
+| Range | Disposition |
+| --- | --- |
+| `e62decaa`, `8c05ff2d`, `f4737133`, `43e5940b`, `54d1b206` | Search test/probe-only maintenance; no Ark product source or new test file. |
+| `3586f082` | No port: Ark's window-controls coordinator already makes a second main-loop placement after AppKit layout. Window-manager-specific runtime remains open. |
+| `a7c83274` | Adapted: Ark's floating hidden-sidebar activation strip is now 28 pt (from 10 pt), matching the practical hit target without changing the visible Arc-style card. |
+| `8f405c9f`, `72daee5a`, `a421a749`, `04971c7`, `f3048445`, `dcc48c24`, `097efc3e`, `c27da19e`, `4b0dc4d`, `b1ebaccd`, `f11bfe26`, `74502ec`, `58bb466` | Search-only benchmark scripts, profiler instructions, and measurements. Ark must be measured with its own production process before claiming equivalent figures; no test-harness files added. |
+| `8733c02e`, `0f48afbf`, `4b5073fc`, `21b172a1`, `fabe5e31`, `db37eef6` | Search's custom virtualized top-column/group cache. Ark's sidebar data/drag geometry and SwiftUI layout do not share that renderer; deferred until a measured Ark many-tab bottleneck exists. |
+| `201d9a53`, `8f09d8b0`, `8edee85a`, `d5948c45` | Presentation or Search-specific developer-tools layout. Defer to the explicit Arc-led UI/UX pass; no functional Ark parity gap is concealed by omitting these. |
+

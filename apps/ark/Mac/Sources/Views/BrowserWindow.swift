@@ -169,8 +169,12 @@ private struct SidebarPeekOverlay: View {
     /// With the sidebar hidden, pointing at the window's left edge slides it over the page, like Arc.
     private var peekingSidebar: some View {
         ZStack(alignment: .leading) {
+            // Keep a usable target at the window edge. A very narrow strip is
+            // difficult to catch with a fast pointer, especially after a
+            // full-window gesture. It remains transparent and does not cover
+            // page controls until the pointer reaches the actual edge.
             Color.clear
-                .frame(width: 10)
+                .frame(width: 28)
                 .contentShape(.rect)
                 .onHover { inside in
                     guard inside else { return }

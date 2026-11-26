@@ -1479,3 +1479,7 @@ Adapted Browsa `332fd52c30080743222b2dd1bae2f86f20a200e5`: Mac Ctrl-Tab and Ctrl
 ### Automatic PiP per Space — November 26, 2026
 
 Adapted Browsa `afc2c39fc2e1a083050056fe9477b20d593d1a61`: Ark's automatic PiP now distinguishes a tab change from a Space switch per browser window. **Also float them when switching Spaces** defaults on to preserve existing automatic PiP; switching it off leaves a playing video inline in its original Space while tab and app-switch PiP behavior continues. `ark:build-mac --skip-nx-cache` passed. This is a Mac Auto PiP refinement already rated Yes, not a rating change; real video, preference, and Space-switch interaction still need runtime verification. No simulator or new test file was used.
+
+### Batched Search sidebar/performance review — November 26, 2026
+
+Reviewed 30 incoming Search commits in one architecture-sized pass. Search's benchmarks, test probes, and custom virtualized Column are not portable to Ark's SwiftUI sidebar without replacing its drag/drop and Arc-led presentation architecture, so no test files or renderer were copied. The directly compatible behavioral change was adopted: the hidden floating-sidebar edge target is now 28 pt rather than 10 pt. The consolidated `ark:build-mac --skip-nx-cache` passed in 12.9 seconds; live pointer interaction and measured many-tab performance remain explicitly open. Source review advances from **278/332 (83.7%)** to **308/332 (92.8%)**, leaving 24 commits for product-diff review.

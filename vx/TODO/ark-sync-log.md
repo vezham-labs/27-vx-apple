@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### GitHub organization filters — November 26, 2026
+
+Adapted Browsa `910f5a4d6ee5a43b8a239e38e2c2ddef20bd8221`: GitHub Live Folder menus can hide owners per Space without discarding cached items or making a request. Previously seen owners remain available after refresh, and account-specific filter data is stripped from shared Space archives. GitHub folder refresh/resume now uses the Space profile's cookie flow instead of the RSS loader. Existing BrowserKit tests cover Space isolation, restoration, persistence and archive privacy; Mac and generic iOS builds passed. An isolated Mac fixture programmatically filtered and restored two sample entries and captured [the filtered folder](../../preview/ark/mac/features/github-filter-hidden.png). Menu interaction, signed-in GitHub refresh and mobile device checks remain open; no simulator was started.
+
 ### GitHub Live Folder request safety — November 26, 2026
 
 Reviewing Browsa `910f5a4d6ee5a43b8a239e38e2c2ddef20bd8221` corrected a stale inventory entry: Ark already has a GitHub Pull Requests folder, but not the per-Space organization filters. The review found that its manual Cookie header used an unrestricted redirecting session and buffered an unbounded response. The request now sends only unexpired GitHub root-path cookies, rejects redirects outside HTTPS `github.com` on its standard port, and reads at most 2 MB. Existing BrowserKit tests verify cookie selection and redirect-delegate decisions; the Mac and generic iOS builds passed without starting a simulator. Signed-in GitHub compatibility, real redirect behavior, and filters remain open.

@@ -5,6 +5,34 @@ import Testing
 struct LiveFolderFeedTests {
     private let source = URL(string: "https://example.com/feeds/latest.xml")!
 
+    @MainActor @Test func githubOwnerFiltersAreLocalReversibleAndPersisted() throws {
+        let work = Space(name: "Work")
+        let personal = Space(name: "Personal")
+        let workFolder = try #require(work.addPinFolder(named: "Pull Requests"))
+        _ = try #require(personal.addPinFolder(named: "Pull Requests"))
+        let feed = LiveFolderFeed(source: try #require(URL(string: "https://github.com/_ark/live-pull-requests")), title: "Pull Requests", articles: [
+            .init(title: "Work", url: try #require(URL(string: "https://github.com/Acme/app/pull/1"))),
+            .init(title: "Personal", url: try #require(URL(string: "https://github.com/me/app/pull/2"))),
+        ])
+        work.pinFolders[0].feed = feed
+        personal.pinFolders[0].feed = feed
+        #expect(work.pinFolders[0].githubOwners == ["acme", "me"])
+        work.setGitHubOwner("ACME", shown: false, in: workFolder.id)
+        work.pinFolders[0].knownGitHubOwners = ["acme", "me"]
+        #expect(work.pinFolders[0].visibleArticles.map(\.title) == ["Personal"])
+        #expect(work.pinFolders[0].feed?.articles.count == 2)
+        #expect(personal.pinFolders[0].visibleArticles.count == 2)
+        let archive = try #require(SpaceLinkArchive(space: work))
+        let shared = String(decoding: try archive.encoded(), as: UTF8.self)
+        #expect(!shared.contains("acme"))
+        #expect(!shared.contains("knownGitHubOwners"))
+        #expect(!shared.contains("hiddenGitHubOwners"))
+        let restored = Space(try JSONDecoder().decode(SpaceRecord.self, from: JSONEncoder().encode(work.record)))
+        #expect(restored.pinFolders[0].visibleArticles.map(\.title) == ["Personal"])
+        restored.setGitHubOwner("acme", shown: true, in: workFolder.id)
+        #expect(restored.pinFolders[0].visibleArticles.count == 2)
+    }
+
     @Test func githubCredentialsStayOnTheExpectedOrigin() throws {
         for value in ["https://github.com/pulls", "https://GITHUB.COM:443/login"] {
             #expect(GitHubRedirectGuard.isAllowed(try #require(URL(string: value))))

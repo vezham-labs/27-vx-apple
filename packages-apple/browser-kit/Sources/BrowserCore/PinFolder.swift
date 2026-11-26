@@ -8,6 +8,30 @@ public struct PinFolder: Codable, Equatable, Identifiable, Sendable {
     public internal(set) var isCollapsed: Bool
     public internal(set) var feed: LiveFolderFeed?
     var feedNeedsActivation: Bool?
+    var knownGitHubOwners: [String]?
+    var hiddenGitHubOwners: [String]?
+
+    /// Remember owners even when hidden or absent from the latest refresh, so they can be restored.
+    public var githubOwners: [String] {
+        guard let feed, feed.isGitHubPullRequests else { return [] }
+        return Array(Set((knownGitHubOwners ?? []) + feed.articles.compactMap { Self.githubOwner($0.url) })).sorted()
+    }
+
+    public var visibleArticles: [LiveFolderFeed.Article] {
+        guard let feed else { return [] }
+        guard feed.isGitHubPullRequests, let hiddenGitHubOwners, !hiddenGitHubOwners.isEmpty else { return feed.articles }
+        let hidden = Set(hiddenGitHubOwners)
+        return feed.articles.filter { Self.githubOwner($0.url).map { !hidden.contains($0) } ?? true }
+    }
+
+    public func showsGitHubOwner(_ owner: String) -> Bool { !(hiddenGitHubOwners ?? []).contains(owner.lowercased()) }
+
+    fileprivate static func githubOwner(_ url: URL) -> String? {
+        guard url.scheme?.lowercased() == "https", url.host()?.lowercased() == "github.com" else { return nil }
+        let parts = url.path().split(separator: "/")
+        guard parts.count >= 4, parts[2].lowercased() == "pull" else { return nil }
+        return parts[0].lowercased()
+    }
 
     init(id: UUID = UUID(), name: String, parentID: UUID? = nil, isCollapsed: Bool = false) {
         self.id = id
@@ -18,6 +42,15 @@ public struct PinFolder: Codable, Equatable, Identifiable, Sendable {
 }
 
 extension Space {
+    public func setGitHubOwner(_ owner: String, shown: Bool, in folderID: UUID) {
+        guard let index = pinFolders.firstIndex(where: { $0.id == folderID && $0.feed?.isGitHubPullRequests == true }) else { return }
+        let normalized = owner.lowercased()
+        guard pinFolders[index].githubOwners.contains(normalized) else { return }
+        var hidden = Set(pinFolders[index].hiddenGitHubOwners ?? [])
+        if shown { hidden.remove(normalized) } else { hidden.insert(normalized) }
+        pinFolders[index].hiddenGitHubOwners = hidden.isEmpty ? nil : hidden.sorted()
+    }
+
     public var rootPins: [BrowserTab] { pinned.filter { $0.pinFolderID == nil } }
 
     public func pinFolderName(_ folder: PinFolder) -> String {
@@ -211,14 +244,17 @@ extension Space {
                       folder.feedNeedsActivation != true else { return nil }
             }
             liveFolderRefreshTimes[folder.id] = .now
-            if existingFolderID != nil, folder.feed == feed { return nil }
+            let owners = Array(Set(folder.githubOwners + feed.articles.compactMap { PinFolder.githubOwner($0.url) })).sorted()
+            if existingFolderID != nil, folder.feed == feed, owners == (folder.knownGitHubOwners ?? []) { return nil }
             pinFolders[index].feed = feed
+            pinFolders[index].knownGitHubOwners = owners.isEmpty ? nil : owners
             pinFolders[index].feedNeedsActivation = nil
             return pinFolders[index]
         }
         guard existingFolderID == nil, original == nil else { return nil }
         guard let folder = addPinFolder(named: feed.title), let index = pinFolders.firstIndex(where: { $0.id == folder.id }) else { return nil }
         pinFolders[index].feed = feed
+        pinFolders[index].knownGitHubOwners = pinFolders[index].githubOwners
         liveFolderRefreshTimes[folder.id] = .now
         return pinFolders[index]
     }

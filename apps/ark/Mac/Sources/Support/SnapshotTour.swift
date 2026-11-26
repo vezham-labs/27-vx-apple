@@ -222,6 +222,29 @@ struct SnapshotTour {
         }
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
+        if ProcessInfo.processInfo.environment["ARK_GITHUB_FILTER_CHECK_ONLY"] == "1" {
+            let space = browser.currentSpace
+            let folderID = UUID()
+            let json = """
+                [{"id":"\(folderID.uuidString)","name":"Pull Requests","isCollapsed":false,
+                  "feed":{"source":"https://github.com/_ark/live-pull-requests","title":"Pull Requests","articles":[
+                    {"title":"Work review","url":"https://github.com/acme/project/pull/1"},
+                    {"title":"Personal review","url":"https://github.com/personal/project/pull/2"}]}}]
+                """
+            do {
+                space.restorePinFolders(try JSONDecoder().decode([PinFolder].self, from: Data(json.utf8)))
+                await pause(1)
+                saveVisible("github-filter-all", in: window)
+                space.setGitHubOwner("acme", shown: false, in: folderID)
+                await pause(1)
+                saveVisible("github-filter-hidden", in: window)
+                let folder = space.pinFolders.first { $0.id == folderID }
+                note("GitHub filter keeps cached items and hides selected owner: \(folder?.feed?.articles.count == 2 && folder?.visibleArticles.map(\.title) == ["Personal review"]) (owners: \(folder?.githubOwners.joined(separator: ",") ?? "nil"))")
+                space.setGitHubOwner("acme", shown: true, in: folderID)
+                note("GitHub owner restores without refresh: \(space.pinFolders.first { $0.id == folderID }?.visibleArticles.count == 2)")
+            } catch { note("GitHub filter fixture failed: \(error)") }
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_EXTENSION_PIN_CHECK_ONLY"] == "1" {
             let original = browser.currentTab
             guard let page = browser.library.openExtensionTab(url: first, windowID: browser.id, active: false, pinned: true) else {

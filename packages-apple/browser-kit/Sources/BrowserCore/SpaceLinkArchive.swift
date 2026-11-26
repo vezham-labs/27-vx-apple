@@ -147,6 +147,9 @@ public struct SpaceLinkArchive: Codable, Sendable, Transferable {
         if let feed = record.feed {
             folder.feed = LiveFolderFeed(source: feed.source, title: feed.title, articles: [])
         }
+        // Account-specific organization choices stay local to the source Space.
+        folder.knownGitHubOwners = nil
+        folder.hiddenGitHubOwners = nil
         folder.feedNeedsActivation = nil
         return folder
     }

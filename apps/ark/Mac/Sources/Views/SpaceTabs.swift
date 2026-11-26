@@ -74,6 +74,13 @@ struct SpaceTabs: View {
                         folderLayout: { dragging.folderFrames[$0] = $1 },
                         openArticle: { _ = browser.newTab(url: $0, in: space, source: .link) },
                         openAllFolderTabs: { browser.openAllPinnedTabs(in: $0, space: space) },
+                        refreshGitHub: { folderID in
+                            let profileID = space.websiteProfileID
+                            let cookies = await browser.engine.cookies(for: browser.library.browsingProfile(in: space), url: URL(string: "https://github.com/pulls")!)
+                            guard space.websiteProfileID == profileID,
+                                  space.pinFolders.contains(where: { $0.id == folderID && $0.feed?.isGitHubPullRequests == true }) else { return }
+                            if try await space.refreshGitHubPullRequests(cookies: cookies) != nil { browser.library.scheduleSave() }
+                        },
                         allowsCollectionSharing: space.id != Preferences.agentSpaceID
                     ) { tab, paneCount in
                         DraggableTabRow(tab: tab, space: space, collapsed: dragging.isLifted(tab.id), paneCount: paneCount)

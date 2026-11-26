@@ -23,6 +23,7 @@ public struct PinFolderList<TabRow: View>: View {
     private let coordinateSpace: String?
     private let openArticle: ((URL) -> Void)?
     private let openAllFolderTabs: ((PinFolder) -> Void)?
+    private let refreshGitHub: ((UUID) async throws -> Void)?
     private let moveTodayTab: ((UUID, UUID?, UUID?, Bool) -> Bool)?
     private let allowsCollectionSharing: Bool
     private let tabRow: (BrowserTab, Int) -> TabRow
@@ -45,6 +46,7 @@ public struct PinFolderList<TabRow: View>: View {
         folderLayout: ((UUID, CGRect?) -> Void)? = nil,
         openArticle: ((URL) -> Void)? = nil,
         openAllFolderTabs: ((PinFolder) -> Void)? = nil,
+        refreshGitHub: ((UUID) async throws -> Void)? = nil,
         moveTodayTab: ((UUID, UUID?, UUID?, Bool) -> Bool)? = nil,
         allowsCollectionSharing: Bool = true,
         @ViewBuilder tabRow: @escaping (BrowserTab, Int) -> TabRow
@@ -56,6 +58,7 @@ public struct PinFolderList<TabRow: View>: View {
         self.folderLayout = folderLayout
         self.openArticle = openArticle
         self.openAllFolderTabs = openAllFolderTabs
+        self.refreshGitHub = refreshGitHub
         self.moveTodayTab = moveTodayTab
         self.allowsCollectionSharing = allowsCollectionSharing
         self.tabRow = tabRow
@@ -91,8 +94,8 @@ public struct PinFolderList<TabRow: View>: View {
                         let paneCount = splitMembers?.contains(where: { $0.id == tab.id }) == true ? (splitMembers?.count ?? 1) : 1
                         result.append(.tab(tab, depth: depth + 1, paneCount: paneCount))
                     }
-                    if openArticle != nil, let feed = folder.feed {
-                        for article in feed.articles { result.append(.article(folder.id, article, depth: depth + 1)) }
+                    if openArticle != nil, folder.feed != nil {
+                        for article in folder.visibleArticles { result.append(.article(folder.id, article, depth: depth + 1)) }
                     }
                 }
             }
@@ -199,7 +202,7 @@ public struct PinFolderList<TabRow: View>: View {
                 guard openArticle != nil else { return }
                 let refreshInterval: TimeInterval = 900
                 while !Task.isCancelled {
-                    for folder in space.pinFolders where folder.feed != nil {
+                    for folder in space.pinFolders where folder.feed != nil && folder.feed?.isGitHubPullRequests != true {
                         guard !Task.isCancelled else { return }
                         if (try? await space.refreshLiveFolder(folder.id, minimumAge: refreshInterval, allowActivation: false)) == true { save() }
                     }
@@ -327,15 +330,29 @@ public struct PinFolderList<TabRow: View>: View {
                 }
             }
             if folder.feed != nil {
+                if !folder.githubOwners.isEmpty {
+                    Menu("Organizations") {
+                        ForEach(folder.githubOwners, id: \.self) { owner in
+                            Toggle(owner, isOn: Binding(
+                                get: { space.pinFolders.first(where: { $0.id == folder.id })?.showsGitHubOwner(owner) ?? true },
+                                set: { space.setGitHubOwner(owner, shown: $0, in: folder.id); save() }
+                            ))
+                        }
+                    }
+                }
                 Button(folder.feedNeedsActivation == true ? "Resume Feed" : "Refresh Feed", systemImage: "arrow.clockwise") {
                     Task {
                         do {
-                            if try await space.refreshLiveFolder(folder.id) { save() }
+                            if folder.feed?.isGitHubPullRequests == true {
+                                guard let refreshGitHub else { return }
+                                try await refreshGitHub(folder.id)
+                            } else if try await space.refreshLiveFolder(folder.id) { save() }
                         } catch {
                             feedError = error.localizedDescription
                         }
                     }
                 }
+                .disabled(folder.feed?.isGitHubPullRequests == true && refreshGitHub == nil)
             }
             Button("Remove Folder", systemImage: "folder.badge.minus") {
                 space.removePinFolder(folder.id)

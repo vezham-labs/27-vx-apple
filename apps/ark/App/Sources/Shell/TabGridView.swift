@@ -221,6 +221,12 @@ struct TabGridOverlay: View {
                     PinFolderList(space: space, save: browser.scheduleSave, openArticle: { url in
                         browser.newTab(url: url, in: space, source: .link)
                         browser.isTabSwitcherPresented = false
+                    }, refreshGitHub: { folderID in
+                        let profileID = space.websiteProfileID
+                        let cookies = await browser.cookies(for: space)
+                        guard space.websiteProfileID == profileID,
+                              space.pinFolders.contains(where: { $0.id == folderID && $0.feed?.isGitHubPullRequests == true }) else { return }
+                        if try await space.refreshGitHubPullRequests(cookies: cookies) != nil { browser.scheduleSave() }
                     }, moveTodayTab: { browser.moveTodayTabToPinned($0, in: space, into: $1, relativeTo: $2, after: $3) }) { tab, paneCount in
                         pinnedChip(tab, paneCount: paneCount)
                     }

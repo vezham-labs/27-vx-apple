@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Named-profile bookmark export — November 26, 2026
+
+An isolated Mac fixture exported distinct favorites for two named profiles and verified each appeared only in its own named folder, including escaped profile names. The existing Default, folder, private-link and credential-filter checks also passed, as did the Mac Nx build. The save dialog and importing into external browsers remain unverified; Export Spaces stays Partial. No simulator was started.
+
 ### Profile favorites in bookmark export — November 26, 2026
 
 The all-Spaces HTML export now includes a separate Favorites folder for Default and each named profile, retaining order and filtering to credential-free HTTP(S) URLs. This fills a gap found while comparing Browsa `b337f69` and Search `7bc04c0`. The Mac Nx build and isolated fixture passed for Default favorites, escaping, and credential exclusion alongside the existing Space checks. Named-profile separation, the save dialog, and imports into other browsers remain runtime-unverified; Export Spaces stays Partial. No simulator was started.

@@ -1582,12 +1582,26 @@ struct SnapshotTour {
         let privateTab = BrowserTab(url: URL(string: "https://example.com/private-fixture")!, isPrivate: true)
         exportSpace.today.append(contentsOf: [exportToday, unsafeTab, privateTab])
         let originalFavorites = browser.library.favoritesByProfile
+        let originalProfiles = browser.library.settings.websiteProfiles
+        let firstProfile = WebsiteProfile(name: "Work & Projects")!
+        let secondProfile = WebsiteProfile(name: "Personal")!
+        browser.library.settings.websiteProfiles = [firstProfile, secondProfile]
+        browser.library.favoritesByProfile[firstProfile.id.uuidString] = [
+            Favorite(url: URL(string: "https://work.example/project")!, title: "Work only", order: 0)
+        ]
+        browser.library.favoritesByProfile[secondProfile.id.uuidString] = [
+            Favorite(url: URL(string: "https://personal.example/home")!, title: "Personal only", order: 0)
+        ]
         browser.library.favoritesByProfile[FavoriteProfileKey.default] = [
             Favorite(url: URL(string: "https://example.com/favorite")!, title: "Favorite & test", order: 0),
             Favorite(url: URL(string: "https://user:secret@example.com/favorite")!, title: "Unsafe", order: 1)
         ]
         let bookmarks = browser.allSpacesBookmarksHTML()
         browser.library.favoritesByProfile = originalFavorites
+        browser.library.settings.websiteProfiles = originalProfiles
+        let workSection = bookmarks.components(separatedBy: "<DT><H3>Favorites (Work &amp; Projects)</H3>").dropFirst().first?.components(separatedBy: "</DL><p>").first ?? ""
+        let personalSection = bookmarks.components(separatedBy: "<DT><H3>Favorites (Personal)</H3>").dropFirst().first?.components(separatedBy: "</DL><p>").first ?? ""
+        note("All-Spaces export keeps named-profile favorites separate: \(workSection.contains("work.example/project") && !workSection.contains("personal.example") && personalSection.contains("personal.example/home") && !personalSection.contains("work.example"))")
         let checks = [bookmarks.contains("Audit &amp; Space"), bookmarks.contains("Nested &lt;Pins&gt;"),
                       bookmarks.contains("pin?a=1&amp;b=2"), bookmarks.contains("https://example.com/open"),
                       !bookmarks.contains("user:secret"), !bookmarks.contains("private-fixture"),

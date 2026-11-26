@@ -45,10 +45,12 @@ import Testing
                                                        today: [localToday], selectedTabID: todayID,
                                                        isSidebarOpen: false)],
                                 selectedSpaceID: spaceID, favorites: [], archive: [], settings: BrowserSettings(), saved: nil)
+    var remoteSettings = BrowserSettings()
+    remoteSettings.automaticPiPDisabledHosts = ["video.example.com"]
     let remote = BrowserSnapshot(spaces: [spaceRecord(id: spaceID, name: "Renamed", symbol: "briefcase.fill",
                                                         pinned: [tab(id: pinID, url: url, title: "Updated title", isPinned: true)],
                                                         today: [])],
-                                 selectedSpaceID: nil, favorites: [], archive: [], settings: BrowserSettings(), saved: nil)
+                                 selectedSpaceID: nil, favorites: [], archive: [], settings: remoteSettings, saved: nil)
 
     let projected = BrowserSyncItems.values(from: remote)
     let restored = BrowserSyncItems.applying(projected, to: local)
@@ -58,6 +60,7 @@ import Testing
     let preservedCredentialedPin = try #require(result.pinned.first { $0.id == credentialedPinID })
 
     #expect(result.name == "Renamed")
+    #expect(restored.settings?.automaticPiPDisabledHosts == ["video.example.com"])
     #expect(result.symbol == "briefcase.fill")
     #expect(result.isSidebarOpen == false)
     #expect(result.selectedTabID == todayID)

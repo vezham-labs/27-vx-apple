@@ -1484,6 +1484,8 @@ November 27 follow-up: adapted Search `fb504002`'s short-loop filter for automat
 
 Per-site follow-up: the Mac site menu now offers **Float Videos Automatically** for regular HTTP(S) tabs. Turning it off stores the exact host in settings, and automatic PiP checks the preference before and after its asynchronous probe. Manual PiP remains available; private tabs do not expose or save the choice. BrowserKit's existing suite verifies the new field round-trips and old settings default to an empty set; the Mac build passed. Menu interaction and real-player behavior remain unverified.
 
+The host opt-out is now included in Ark's settings sync projection. The existing BrowserKit sync test confirms a projected remote choice applies to a local snapshot; the suite passed. Physical-device convergence remains unverified.
+
 Adapted Browsa `afc2c39fc2e1a083050056fe9477b20d593d1a61`: Ark's automatic PiP now distinguishes a tab change from a Space switch per browser window. **Also float them when switching Spaces** defaults on to preserve existing automatic PiP; switching it off leaves a playing video inline in its original Space while tab and app-switch PiP behavior continues. `ark:build-mac --skip-nx-cache` passed. This is a Mac Auto PiP refinement already rated Yes, not a rating change; real video, preference, and Space-switch interaction still need runtime verification. No simulator or new test file was used.
 
 ### Batched Search sidebar/performance review — November 26, 2026

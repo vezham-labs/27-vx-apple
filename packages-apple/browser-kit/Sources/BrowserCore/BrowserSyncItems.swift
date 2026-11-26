@@ -130,6 +130,7 @@ public enum BrowserSyncItems {
             encode(settings.siteDesktopOverrides, key: "setting:siteDesktopOverrides", into: &values)
             encode(settings.filterGroups.map(\.rawValue).sorted(), key: "setting:filterGroups", into: &values)
             encode(settings.blockingDisabledHosts.sorted(), key: "setting:blockingDisabledHosts", into: &values)
+            encode(settings.automaticPiPDisabledHosts.sorted(), key: "setting:automaticPiPDisabledHosts", into: &values)
 
             let profiles = settings.websiteProfiles.filter { !localOnlyProfileIDs.contains($0.id) }
             values["websiteProfiles:order"] = BrowserSyncMerge.text(profiles.map { $0.id.uuidString })
@@ -353,6 +354,7 @@ public enum BrowserSyncItems {
         case "setting:siteDesktopOverrides": return BrowserSyncMerge.value([String: Bool].self, from: value) != nil
         case "setting:filterGroups": return BrowserSyncMerge.value([String].self, from: value) != nil
         case "setting:blockingDisabledHosts": return BrowserSyncMerge.value([String].self, from: value) != nil
+        case "setting:automaticPiPDisabledHosts": return BrowserSyncMerge.value([String].self, from: value) != nil
         default: return false
         }
     }
@@ -377,6 +379,7 @@ public enum BrowserSyncItems {
             settings.filterGroups = Set(raw.compactMap(FilterGroup.init(rawValue:)))
         }
         apply([String].self, key: "setting:blockingDisabledHosts", values: values) { settings.blockingDisabledHosts = Set($0) }
+        apply([String].self, key: "setting:automaticPiPDisabledHosts", values: values) { settings.automaticPiPDisabledHosts = Set($0) }
 
         let profilesByID = decodeItems(SyncedProfile.self, values: values, prefix: "websiteProfile:")
         if values["websiteProfiles:order"] != nil {

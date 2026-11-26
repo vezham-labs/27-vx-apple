@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Script-opened Link Preview close — November 26, 2026
+
+The isolated Mac Debug fixture opened an `about:blank` child from a Link Preview using `window.open`, then called `window.close()` in the child. The child closed and the opener stayed open; the fixture enabled automatic popup permission locally to make the scripted opening possible. The Mac Nx build passed. This does not establish compatibility with a real sign-in site's navigation or popup policy, and Little Arc remains Partial. No simulator was started.
+
 ### Link Preview close callback — November 26, 2026
 
 Reviewed Search `70eeea92ecde7e871eb6182ffa66237e64375850`: its small-window fix routes WebKit's close callback to the window. Ark already has that route. An isolated Mac Debug fixture invoked the actual WebKit UI delegate callback and confirmed the Link Preview was removed without adding a tab; Mac build passed. The fixture did not exercise a site calling `window.close()` in a script-opened sign-in flow, so that runtime case and Little Arc parity remain open. No simulator was started.

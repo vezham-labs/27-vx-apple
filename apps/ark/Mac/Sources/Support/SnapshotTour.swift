@@ -1434,6 +1434,25 @@ struct SnapshotTour {
             note("WebKit close callback fixture missing Link Preview delegate")
             closePreview.close()
         }
+        let parent = browser.library.showLinkPreview(nil)
+        if let webView = parent.controller.page.view as? WKWebView {
+            webView.configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
+            webView.loadHTMLString("<!doctype html><title>Popup opener</title>", baseURL: nil)
+            await pause(0.5)
+            let existing = Set(browser.library.linkWindows.keys)
+            _ = try? await webView.evaluateJavaScript("window.open('about:blank', '_blank');")
+            await pause(0.5)
+            if let child = browser.library.linkWindows.first(where: { !existing.contains($0.key) })?.value,
+               let childView = child.controller.page.view as? WKWebView {
+                _ = try? await childView.evaluateJavaScript("window.close();")
+                await pause(0.5)
+                note("script-opened Link Preview closed itself without closing its opener: \(browser.library.linkWindows[child.tab.id] == nil && browser.library.linkWindows[parent.tab.id] != nil)")
+                browser.library.linkWindows[child.tab.id]?.close()
+            } else {
+                note("script-opened Link Preview fixture did not create a popup")
+            }
+        }
+        parent.close()
         browser.settings.blockContent = true
         SpaceRouter.shared.isEnabled = true
         let pageURL = URL(string: "https://reference.ark.local/design")!

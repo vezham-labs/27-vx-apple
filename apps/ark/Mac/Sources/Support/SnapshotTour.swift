@@ -237,6 +237,30 @@ struct SnapshotTour {
                 return JSON.stringify({ before, after: video.currentTime, prevented: event.defaultPrevented });
                 """, inWorld: "ark.video-key-check") as? String
             note("Video keys disabled on existing page: flag \(offState ?? "unavailable"), times \(disabled ?? "unavailable")")
+            if let webPage = page as? WebKitPage, var iframeURL = URLComponents(url: base, resolvingAgainstBaseURL: false) {
+                iframeURL.host = "localhost"
+                if let address = iframeURL.url?.absoluteString,
+                   let encoded = try? JSONEncoder().encode(address), let literal = String(data: encoded, encoding: .utf8) {
+                    engine.videoKeyControls = true
+                    _ = try? await page.evaluate("const frame = document.createElement('iframe'); frame.src = \(literal); document.body.append(frame);", inWorld: "page")
+                    var frameID: String?
+                    for _ in 0..<50 {
+                        for id in webPage.registeredFrameIDs {
+                            let host = try? await webPage.evaluate("return location.hostname;", inFrame: id, inWorld: "ark.video-keys") as? String
+                            if host == "localhost" { frameID = id; break }
+                        }
+                        if frameID != nil { break }
+                        await pause(0.1)
+                    }
+                    if let frameID {
+                        let before = try? await webPage.evaluate("return String(window.__arkVideoKeysOff);", inFrame: frameID, inWorld: "ark.video-keys") as? String
+                        engine.videoKeyControls = false
+                        await pause(0.7)
+                        let after = try? await webPage.evaluate("return String(window.__arkVideoKeysOff);", inFrame: frameID, inWorld: "ark.video-keys") as? String
+                        note("Cross-origin iframe video keys disabled live: \(before == "false" && after == "true") (before: \(before ?? "unavailable"), after: \(after ?? "unavailable"))")
+                    } else { note("Cross-origin iframe video keys: frame unavailable") }
+                }
+            }
             browser.close(tab)
             return
         }

@@ -1540,6 +1540,8 @@ Follow-up: the same fixture observed the isolated listener installed with its of
 
 Fix: retaining the named `WKContentWorld` across user-script replacement keeps the existing listener reachable when the preference changes. The same local-video fixture now reports the off flag true after disabling, no seek (15 seconds before and after), and an unconsumed event. With the setting enabled it seeks to 15 seconds and consumes the event. The Mac build passed. This covers synthetic events in the main frame; physical keys, frame behavior and page-handled inputs remain open. Report: `/private/tmp/ark-video-keys-world-20261127/report.txt`.
 
+Frame follow-up: the live preference change previously evaluated only in the main frame even though the user script is installed in all frames. It now updates registered live frames as well, including cross-origin frames. The Mac build passed; an isolated localhost/127.0.0.1 fixture verified the iframe listener's flag changes from enabled to disabled without a reload, and repeated the main-frame video check. This checks the iframe flag, not iframe playback or physical keys. Report: `/private/tmp/ark-video-keys-frames-20261127/report.txt`.
+
 ### Web App Preview workspace hosts — November 26, 2026
 
 Privacy follow-up, November 27: favorite history previews now also exclude Agent Space, in addition to private Spaces, so the agent context cannot surface regular-profile recent pages through a favorite. The Mac build passed; a live Agent Space hover check remains open.

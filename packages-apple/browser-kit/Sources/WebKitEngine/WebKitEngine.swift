@@ -45,9 +45,17 @@ public final class WebKitEngine: BrowserEngine, CallAudioConfigurable {
         didSet {
             guard videoKeyControls != oldValue else { return }
             for controller in allContentControllers { install(on: controller, rules: false) }
-            let script = videoKeyControls ? VideoKeyControls.source : VideoKeyControls.off
+            let enabled = videoKeyControls
             for page in livePages.values.compactMap(\.page) {
-                Task { _ = try? await page.evaluate(script, inWorld: VideoKeyControls.worldName) }
+                Task { [weak self, weak page] in
+                    guard let self, let page, self.videoKeyControls == enabled else { return }
+                    let script = enabled ? VideoKeyControls.source : VideoKeyControls.off
+                    _ = try? await page.evaluate(script, inFrame: nil, inWorld: VideoKeyControls.worldName)
+                    for frame in page.registeredFrameIDs {
+                        guard self.videoKeyControls == enabled else { return }
+                        _ = try? await page.evaluate(script, inFrame: frame, inWorld: VideoKeyControls.worldName)
+                    }
+                }
             }
         }
     }

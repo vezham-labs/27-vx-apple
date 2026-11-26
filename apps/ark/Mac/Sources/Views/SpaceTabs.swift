@@ -469,7 +469,7 @@ struct TabRow: View {
             withAnimation(Motion.snappy) { hovering = h }
             updatePinPreview(hovered: h)
         }
-        .onDisappear { pinPreviewTask?.cancel(); pinPreviewShown = false; pinPreview = nil }
+        .onDisappear { pinPreviewTask?.cancel(); pinPreviewShown = false; pinPreview = nil; pinPreviewSleeping = false }
         .onChange(of: tab.isPinned) { _, pinned in
             if !pinned { updatePinPreview(hovered: false) }
         }
@@ -526,7 +526,8 @@ struct TabRow: View {
         }
         pinPreviewTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(650))
-            guard !Task.isCancelled, hovering, tab.isPinned, !tab.isPrivate, let url = tab.url else { return }
+            guard !Task.isCancelled, hovering, tab.isPinned, !tab.isPrivate, !isLifted,
+                  draft == nil, let url = tab.url else { return }
             guard let controller = browser.library.existingController(for: tab) else {
                 pinPreview = nil
                 pinPreviewSleeping = true

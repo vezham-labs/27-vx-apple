@@ -709,7 +709,7 @@ struct FavoriteTile: View {
     /// root host, so a redirect or `www` favourite also includes workspace
     /// subdomains.
     private var appPreview: (name: String, host: String)? {
-        guard !browser.currentSpace.isPrivate,
+        guard !browser.currentSpace.isPrivate, browser.currentSpace.id != Preferences.agentSpaceID,
               let host = favorite.url.host()?.lowercased(),
               favorite.url.scheme == "http" || favorite.url.scheme == "https" else { return nil }
         if host == "notion.so" || host.hasSuffix(".notion.so") { return ("Notion", "notion.so") }

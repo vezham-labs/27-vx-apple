@@ -1486,6 +1486,8 @@ Reviewed 30 incoming Search commits in one architecture-sized pass. Search's ben
 
 ### Web App Preview workspace hosts — November 26, 2026
 
+Privacy follow-up, November 27: favorite history previews now also exclude Agent Space, in addition to private Spaces, so the agent context cannot surface regular-profile recent pages through a favorite. The Mac build passed; a live Agent Space hover check remains open.
+
 Search `8efb16da` pinned-tab hover preview is partially adapted for Mac: after a short hover, an existing loaded, non-private pin can show a snapshot, title, host and a best-effort unread count derived from its title. The path uses `existingController` and skips unloaded tabs rather than waking them. Pending snapshots are cancelled or rejected when a pin is removed, navigated, dragged, renamed, or its controller is replaced; the sidebar now passes its lifted state to the row. The Mac build and isolated unread-title parsing check passed; physical pointer behavior, unloaded/private behavior, and actual mailbox titles remain open.
 
 Follow-up: an unloaded pin now shows its saved title and host with a Sleeping label rather than no card. No controller is created and no screenshot is stored. The Mac build passed; actual hover and no-wake behavior still need runtime confirmation.

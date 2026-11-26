@@ -42,6 +42,18 @@ public struct PinFolder: Codable, Equatable, Identifiable, Sendable {
 }
 
 extension Space {
+    /// GitHub feed content and owner choices belong to the profile that fetched them.
+    public func clearGitHubFoldersForProfileChange() {
+        for index in pinFolders.indices {
+            guard let feed = pinFolders[index].feed, feed.isGitHubPullRequests else { continue }
+            pinFolders[index].feed = LiveFolderFeed(source: feed.source, title: feed.title, articles: [])
+            pinFolders[index].knownGitHubOwners = nil
+            pinFolders[index].hiddenGitHubOwners = nil
+            pinFolders[index].feedNeedsActivation = true
+            liveFolderRefreshTimes[pinFolders[index].id] = nil
+        }
+    }
+
     public func setGitHubOwner(_ owner: String, shown: Bool, in folderID: UUID) {
         guard let index = pinFolders.firstIndex(where: { $0.id == folderID && $0.feed?.isGitHubPullRequests == true }) else { return }
         let normalized = owner.lowercased()

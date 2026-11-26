@@ -522,6 +522,7 @@ final class Library {
             window.reader = nil
             window.commandBar = nil
         }
+        space.clearGitHubFoldersForProfileChange()
         space.websiteProfileID = id
         pageSwaps += 1
         scheduleSave()

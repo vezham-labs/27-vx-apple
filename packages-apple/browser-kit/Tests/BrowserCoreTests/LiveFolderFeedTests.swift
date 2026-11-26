@@ -135,6 +135,22 @@ struct LiveFolderFeedTests {
         #expect(space.pinFolders[0].visibleArticles.map(\.title) == ["Other host", "Not a pull"])
     }
 
+    @MainActor @Test func changingProfileClearsAccountSpecificGitHubCache() throws {
+        let space = Space(name: "Work")
+        let folder = try #require(space.addPinFolder(named: "Pull Requests"))
+        let source = try #require(URL(string: "https://github.com/_ark/live-pull-requests"))
+        space.pinFolders[0].feed = LiveFolderFeed(source: source, title: "Pull Requests", articles: [
+            .init(title: "Private review", url: try #require(URL(string: "https://github.com/acme/app/pull/1")))
+        ])
+        space.setGitHubOwner("acme", shown: false, in: folder.id)
+        space.clearGitHubFoldersForProfileChange()
+        #expect(space.pinFolders[0].feed?.articles.isEmpty == true)
+        #expect(space.pinFolders[0].githubOwners.isEmpty)
+        #expect(space.pinFolders[0].hiddenGitHubOwners == nil)
+        #expect(space.pinFolders[0].feedNeedsActivation == true)
+        #expect(space.automaticGitHubFolderID == nil)
+    }
+
     @Test func githubCredentialsStayOnTheExpectedOrigin() throws {
         for value in ["https://github.com/pulls", "https://GITHUB.COM:443/login"] {
             #expect(GitHubRedirectGuard.isAllowed(try #require(URL(string: value))))

@@ -63,6 +63,7 @@ extension BrowserState {
             isRecentTabPreviewsPresented = false
             isNewTabSheetPresented = false
         }
+        space.clearGitHubFoldersForProfileChange()
         space.websiteProfileID = id
         scheduleSave()
     }

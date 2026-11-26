@@ -97,6 +97,41 @@ import Testing
     #expect(result.spaces[0].id == original.spaces[0].id)
 }
 
+@Test func syncGitHubFolderKeepsAccountDataOnlyForSameProfile() throws {
+    let spaceID = UUID()
+    let profileID = UUID()
+    var folder = PinFolder(name: "Pull Requests")
+    folder.feed = LiveFolderFeed(source: try #require(URL(string: "https://github.com/_ark/live-pull-requests")),
+                                 title: folder.name, articles: [
+        .init(title: "Private review", url: try #require(URL(string: "https://github.com/acme/app/pull/1")))
+    ])
+    folder.knownGitHubOwners = ["acme"]
+    folder.hiddenGitHubOwners = ["acme"]
+    var space = spaceRecord(id: spaceID)
+    space.websiteProfileID = profileID
+    space.pinFolders = [folder]
+    let local = BrowserSnapshot(spaces: [space], selectedSpaceID: spaceID, favorites: [], archive: [],
+                                settings: nil, saved: nil)
+    let values = BrowserSyncItems.values(from: local)
+    #expect(!values.values.contains { $0.contains("Private review") || $0.contains("acme") })
+
+    let same = BrowserSyncItems.applying(values, to: local)
+    let retained = try #require(same.spaces.first?.pinFolders?.first)
+    #expect(retained.feed?.articles.count == 1)
+    #expect(retained.hiddenGitHubOwners == ["acme"])
+    #expect(retained.feedNeedsActivation != true)
+
+    space.websiteProfileID = UUID()
+    let remote = BrowserSnapshot(spaces: [space], selectedSpaceID: spaceID, favorites: [], archive: [],
+                                 settings: nil, saved: nil)
+    let changed = BrowserSyncItems.applying(BrowserSyncItems.values(from: remote), to: local)
+    let cleared = try #require(changed.spaces.first?.pinFolders?.first)
+    #expect(cleared.feed?.articles.isEmpty == true)
+    #expect(cleared.knownGitHubOwners == nil)
+    #expect(cleared.hiddenGitHubOwners == nil)
+    #expect(cleared.feedNeedsActivation == true)
+}
+
 @Test func syncApplicationRejectsCredentialedFavoriteFromSharedFolder() throws {
     let spaceID = UUID()
     let favorite = Favorite(url: URL(string: "https://user:secret@example.com/private")!, title: "Private URL", order: 0)

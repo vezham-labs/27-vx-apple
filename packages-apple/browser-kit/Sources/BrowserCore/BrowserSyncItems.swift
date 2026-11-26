@@ -224,8 +224,17 @@ public enum BrowserSyncItems {
                                              isCollapsed: previous?.isCollapsed ?? false)
                     if let source = folder.feedSource.flatMap(safeWebURL) {
                         let title = folder.feedTitle ?? folder.name
-                        restored.feed = LiveFolderFeed(source: source, title: title, articles: [])
-                        restored.feedNeedsActivation = previous?.feed == nil || previous?.feedNeedsActivation == true
+                        let sameSource = previous?.feed?.source == source
+                        let isGitHub = previous?.feed?.isGitHubPullRequests == true
+                        let sameProfile = local?.websiteProfileID == metadata.websiteProfileID
+                        let keepLocal = sameSource && (!isGitHub || sameProfile)
+                        restored.feed = LiveFolderFeed(source: source, title: title,
+                                                       articles: keepLocal ? (previous?.feed?.articles ?? []) : [])
+                        restored.feedNeedsActivation = !keepLocal || previous?.feedNeedsActivation == true
+                        if keepLocal && isGitHub {
+                            restored.knownGitHubOwners = previous?.knownGitHubOwners
+                            restored.hiddenGitHubOwners = previous?.hiddenGitHubOwners
+                        }
                     }
                     return restored
                 }

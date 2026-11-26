@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### GitHub cache on profile reassignment — November 26, 2026
+
+Explicitly assigning a different website profile now clears cached GitHub pull requests and account-specific owner filters, and pauses the folder until a user refreshes it with the new profile. This applies to Mac and iOS assignment paths. Sync merge likewise retains local feed data only for the same source and GitHub profile; a changed profile clears it and pauses the folder. Existing fixtures verify both paths and that sync projection excludes account data; all 90 BrowserCore tests and Mac and generic iOS builds passed. Live sync-driven interaction and signed-in refresh still need runtime verification; no simulator was started.
+
 ### GitHub refresh rapid profile changes — November 26, 2026
 
 A profile ID comparison alone allowed an old in-flight response if a Space switched profiles and then switched back before the response arrived. Space now tracks an in-memory profile-change revision, and both the app's cookie retrieval and the GitHub refresh require that revision to remain unchanged. The existing asynchronous fixture verifies the feed-response away-and-back case; all 88 BrowserKit tests and Mac and generic iOS builds passed. Cookie-fetch timing and signed-in network behavior remain unverified; no simulator was started.

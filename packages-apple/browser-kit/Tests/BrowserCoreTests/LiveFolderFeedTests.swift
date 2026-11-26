@@ -38,6 +38,22 @@ struct LiveFolderFeedTests {
         space.removePinFolder(folder.id)
         #expect(try await deletedRefresh.value == nil)
         #expect(space.pinFolders.isEmpty)
+        let newFolder = try #require(space.addPinFolder(named: "Pull Requests"))
+        space.pinFolders[0].feed = feed
+        let changedFeed = LiveFolderFeed(source: feed.source, title: feed.title, articles: [])
+        var thirdStarted = false
+        let profileRefresh = Task { @MainActor in
+            try await space.refreshGitHubPullRequests {
+                thirdStarted = true
+                try await Task.sleep(for: .milliseconds(100))
+                return changedFeed
+            }
+        }
+        await Task.yield()
+        #expect(thirdStarted)
+        space.websiteProfileID = UUID()
+        #expect(try await profileRefresh.value == nil)
+        #expect(space.pinFolders.first { $0.id == newFolder.id }?.feed == feed)
     }
 
     @MainActor @Test func githubOwnerFiltersAreLocalReversibleAndPersisted() throws {

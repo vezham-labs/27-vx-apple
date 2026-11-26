@@ -94,6 +94,8 @@ Closing the whole Private Space bypasses individual tab closure, so it now clear
 
 ### Paste and Go investigation — November 26, 2026
 
+November 27 follow-up: after the later Paste and Go implementation, an isolated Debug check opened the real command bar, confirmed its editor had focus, entered an address and sent Return. A new tab reached the expected URL. This checks the focus/Return regression from the earlier prototype; physical typing, right-click and redirect-history behavior remain separate checks.
+
 Search `c6e7a984` adds a contextual Paste and Go action. A local Ark field-editor experiment built, but the isolated command-field audit reported no active field editor and could not exercise its menu or navigation. The experiment was removed to preserve the existing address field. Paste and Go remains unimplemented; diagnosing field focus and verifying the real context menu remain open.
 
 ### Search Spaces import — November 26, 2026
@@ -1491,6 +1493,8 @@ Privacy follow-up, November 27: favorite history previews now also exclude Agent
 Search `8efb16da` pinned-tab hover preview is partially adapted for Mac: after a short hover, an existing loaded, non-private pin can show a snapshot, title, host and a best-effort unread count derived from its title. The path uses `existingController` and skips unloaded tabs rather than waking them. Pending snapshots are cancelled or rejected when a pin is removed, navigated, dragged, renamed, or its controller is replaced; the sidebar now passes its lifted state to the row. The Mac build and isolated unread-title parsing check passed; physical pointer behavior, unloaded/private behavior, and actual mailbox titles remain open.
 
 Follow-up: an unloaded pin now shows its saved title and host with a Sleeping label rather than no card. No controller is created and no screenshot is stored. The Mac build passed; actual hover and no-wake behavior still need runtime confirmation.
+
+Privacy lifecycle follow-up: a visible or pending pinned preview is now cleared if its tab becomes private. The Mac build passed; live privacy-transition behavior remains unverified.
 
 Search `c6e7a984` Paste and Go is adapted in the Mac address command field. Its contextual menu offers the action for a single navigable HTTP(S) clipboard address and opens that address directly without applying a stale suggestion. The Mac Nx build passed. The existing Debug tour used a private pasteboard and verified native field-editor menu creation, action dispatch, new-tab navigation to the expected URL after settling, and exclusion of `javascript:` input. Physical right-click and successful remote page loading remain unverified.
 

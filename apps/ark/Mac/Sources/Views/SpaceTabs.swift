@@ -473,6 +473,9 @@ struct TabRow: View {
         .onChange(of: tab.isPinned) { _, pinned in
             if !pinned { updatePinPreview(hovered: false) }
         }
+        .onChange(of: tab.isPrivate) { _, isPrivate in
+            if isPrivate { updatePinPreview(hovered: false) }
+        }
         .onChange(of: tab.url) { _, _ in updatePinPreview(hovered: false) }
         .onChange(of: isLifted) { _, lifted in
             if lifted { updatePinPreview(hovered: false) }

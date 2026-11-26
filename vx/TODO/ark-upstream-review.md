@@ -18,9 +18,11 @@ For each incoming change: inspect the diff, compare Ark behavior, adapt applicab
 
 This inventory records the pulled heads on November 25, 2026. Pending means the diff has not yet been fully assessed for Ark; it does not mean the feature is absent. The recorded last-synced baselines are not advanced by this inventory.
 
-**Review progress:** 270 of 332 unique commits reviewed (81.3%). All nine commits in the November 26 Search pull have a disposition; the remaining 62 belong to the earlier batch. Source review is tracked separately from implementation and runtime verification.
+**Review progress:** Earlier summaries report 308 of 332 inventory entries assessed, but the 24 remaining entries are not individually identified in this ledger. Treat that count as provisional until the original inventory is reconciled. Grouped architecture and file-scope assessments do not mean every line of each upstream diff was independently audited. Source review is separate from implementation and runtime verification.
 
-Later locally known refs add 8 Browsa and 60 Search commits, listed separately in the [new intake](ark-upstream-intake-2026-11-26.md). They are not included in the 270/332 figure and have not been fully reviewed or synced. Both references add all-Space export; Ark currently exports one Space as JSON. The incoming Browsa HTML bookmarks format and Search HTML/JSON formats require a focused compatibility and privacy review before adoption. No upstream baseline has advanced.
+On November 27, a local `git log` SHA cross-check found every Search commit from `6f2b186` through `66c4358` and every Browsa commit from `19eef79` through `a39e03e` represented in this ledger or the November 26 intake. This establishes listing coverage, not full-diff review, adoption, or runtime parity; the historical 308/332 denominator remains unreconciled.
+
+Later locally known refs add eight Browsa and 60 Search commits, listed separately in the [new intake](ark-upstream-intake-2026-11-26.md). Ark now supports all-Space HTML and JSON exports, and has direct-data checks for Search-format JSON imports. File-panel round trips and interoperability with real exported files remain unverified. No upstream baseline has advanced.
 
 ### November 26 pull
 
@@ -41,7 +43,7 @@ Browsa HEAD and `origin/main` remain at `46fe04bedb0f13521328c69d0f1f6814a18e618
 ### November 26 fetched feature branches (outside the pinned-main inventory)
 
 These refs are not successors of the pinned `origin/main` heads and therefore do not change the
-`270 / 332` main-inventory count. They were fetched with the new upstream material and reviewed
+main-inventory count. They were fetched with the new upstream material and reviewed
 separately so a branch-only experiment is not mistaken for a released upstream change.
 
 | Ref / commit | Change | Disposition |

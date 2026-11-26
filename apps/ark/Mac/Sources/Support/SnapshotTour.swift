@@ -206,6 +206,21 @@ struct SnapshotTour {
         guard let window = browser.nsWindow else { note("missing window"); return }
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        if ProcessInfo.processInfo.environment["ARK_COMMAND_FIELD_CHECK_ONLY"] == "1" {
+            browser.showCommandBar(.newTab)
+            await pause(1)
+            let editor = window.firstResponder as? NSTextView
+            editor?.insertText("https://example.com/", replacementRange: NSRange(location: 0, length: (editor?.string as NSString?)?.length ?? 0))
+            await pause(0.5)
+            if let enter = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                                            windowNumber: window.windowNumber, context: nil, characters: "\r",
+                                            charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36) {
+                NSApp.sendEvent(enter)
+            }
+            await pause(2)
+            note("command field takes focus and Return opens address: \(editor != nil && browser.commandBar == nil && browser.currentTab?.url?.host() == "example.com") (editor: \(editor != nil), address: \(browser.currentTab?.url?.absoluteString ?? "nil"))")
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_PIN_UNREAD_CHECK_ONLY"] == "1" {
             let cases = TabRow.unreadCount(title: "(3) Messages", host: "example.com") == "3"
                 && TabRow.unreadCount(title: "Inbox (1,234) – Mail", host: "mail.google.com") == "99+"

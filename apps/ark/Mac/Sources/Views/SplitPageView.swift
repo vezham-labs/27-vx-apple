@@ -44,8 +44,15 @@ struct SplitPageView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(focused ? .isSelected : [])
-                if focused {
-                    Menu {
+                Menu {
+                        let index = split.tabs.firstIndex(of: tab.id) ?? 0
+                        Button(split.axis == .sideBySide ? "Move Left" : "Move Up") { browser.moveSplitPane(tab, by: -1) }
+                            .disabled(index == 0)
+                        Button(split.axis == .sideBySide ? "Move Right" : "Move Down") { browser.moveSplitPane(tab, by: 1) }
+                            .disabled(index == split.tabs.count - 1)
+                        Button("Remove from Split View") { browser.removeSplitPane(tab) }
+                        Button("Close Tab") { browser.close(tab) }
+                        Divider()
                         Button("Side by Side") { browser.setSplitAxis(.sideBySide) }
                         Button("Stacked") { browser.setSplitAxis(.stacked) }
                         Button("Equal Panes") { browser.equaliseSplit() }
@@ -64,7 +71,6 @@ struct SplitPageView: View {
                     .menuStyle(.borderlessButton)
                     .accessibilityLabel("Split View Options")
                     .fixedSize()
-                }
             }
             .padding(.horizontal, 8)
             .background(focused ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.04))

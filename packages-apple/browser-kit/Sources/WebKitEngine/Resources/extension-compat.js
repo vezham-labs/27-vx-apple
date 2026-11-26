@@ -270,6 +270,39 @@
         }
       }
     }
+    // WebKit can return just the reason phrase; Chrome extensions expect a complete status line.
+    // Wrap all three listener operations together so removal and membership use the same callback.
+    if (root.webRequest) for (const name of events.webRequest) {
+      const target = root.webRequest[name];
+      if (!target || typeof target.addListener !== 'function' || typeof target.removeListener !== 'function'
+          || typeof target.hasListener !== 'function') continue;
+      const add = target.addListener.bind(target), remove = target.removeListener.bind(target), has = target.hasListener.bind(target);
+      const listeners = new WeakMap();
+      const methods = {
+        addListener(listener, ...args) {
+          if (typeof listener !== 'function') return add(listener, ...args);
+          if (!listeners.has(listener)) listeners.set(listener, function (details, ...rest) {
+            if (details && typeof details.statusLine === 'string' && details.statusCode
+                && !/^HTTP\//i.test(details.statusLine)) {
+              details = { ...details, statusLine: `HTTP/1.1 ${details.statusCode} ${details.statusLine}`.trim() };
+            }
+            return listener.call(this, details, ...rest);
+          });
+          return add(listeners.get(listener), ...args);
+        },
+        removeListener(listener) { return remove(typeof listener === 'function' ? (listeners.get(listener) || listener) : listener); },
+        hasListener(listener) { return has(typeof listener === 'function' ? (listeners.get(listener) || listener) : listener); },
+      };
+      const originals = Object.fromEntries(Object.keys(methods).map(key => [key, Object.getOwnPropertyDescriptor(target, key)]));
+      try {
+        for (const [key, value] of Object.entries(methods)) Object.defineProperty(target, key, { value, configurable: true, writable: true });
+        keep(target);
+      } catch (e) {
+        for (const key of Object.keys(methods)) {
+          try { if (originals[key]) Object.defineProperty(target, key, originals[key]); else delete target[key]; } catch (_) {}
+        }
+      }
+    }
     for (const [ns, values] of Object.entries(extras)) {
       const target = root[ns];
       if (!target) continue;

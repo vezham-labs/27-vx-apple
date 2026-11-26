@@ -460,6 +460,8 @@ public enum CaptureState: Sendable {
 public protocol EnginePageDelegate: AnyObject {
     /// Every navigation asks first. Main-frame and sub-frame alike.
     func page(_ page: any EnginePage, decide request: NavigationRequest) async -> NavigationDecision
+    /// A new main-frame provisional navigation has started; server redirects retain that navigation.
+    func pageDidStartNavigation(_ page: any EnginePage)
     func page(_ page: any EnginePage, didCommit url: URL?)
     func page(_ page: any EnginePage, didFinish url: URL, title: String)
     /// The page never arrived. Cancellations are filtered out already.
@@ -506,6 +508,7 @@ public extension EnginePage {
 
 public extension EnginePageDelegate {
     func page(_ page: any EnginePage, decide request: NavigationRequest) async -> NavigationDecision { .allow }
+    func pageDidStartNavigation(_ page: any EnginePage) {}
     func page(_ page: any EnginePage, didCommit url: URL?) {}
     func page(_ page: any EnginePage, didFinish url: URL, title: String) {}
     func page(_ page: any EnginePage, didFailWith error: NSError) {}

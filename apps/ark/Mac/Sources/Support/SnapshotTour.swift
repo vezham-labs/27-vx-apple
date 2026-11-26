@@ -222,6 +222,40 @@ struct SnapshotTour {
         }
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
+        if ProcessInfo.processInfo.environment["ARK_WEBREQUEST_CHECK_ONLY"] == "1" {
+            guard let engine = browser.library.engine as? WebKitEngine else { note("webRequest fixture: no WebKit engine"); return }
+            let fixture = directory.appending(path: "request-extension", directoryHint: .isDirectory)
+            do {
+                try FileManager.default.createDirectory(at: fixture, withIntermediateDirectories: true)
+                let manifest = """
+                    {"manifest_version":3,"name":"Ark Request Audit","description":"Local request audit","version":"1.0","permissions":["webRequest"],"host_permissions":["http://127.0.0.1/*"],"action":{"default_popup":"popup.html"}}
+                    """
+                try Data(manifest.utf8).write(to: fixture.appending(path: "manifest.json"))
+                try Data("<html><body>Request audit</body></html>".utf8).write(to: fixture.appending(path: "popup.html"))
+                let errors = await engine.loadInstalledExtensions(folders: [ExtensionFolder(id: "ark-request-audit", url: fixture)], includeApps: false)
+                guard errors.isEmpty, let popup = engine.debugExtensionPopups().first(where: { $0.name == "Ark Request Audit" })?.popup,
+                      let extensionPage = browser.library.openExtensionTab(url: popup, windowID: browser.id, active: false) else {
+                    note("webRequest fixture failed to load: \(errors)"); return
+                }
+                await pause(1)
+                let setup = """
+                    globalThis.arkRequestLines = [];
+                    globalThis.arkRequestListener = d => arkRequestLines.push(d.statusLine || '');
+                    chrome.webRequest.onCompleted.addListener(arkRequestListener, {urls:['http://127.0.0.1/*']});
+                    return chrome.webRequest.onCompleted.hasListener(arkRequestListener);
+                    """
+                let registered = (try await extensionPage.evaluate(setup, inWorld: "page") as? Bool) == true
+                let tab = browser.newTab(url: first)
+                await pause(2)
+                let lines = try await extensionPage.evaluate("return JSON.stringify(globalThis.arkRequestLines)", inWorld: "page") as? String
+                let removed = (try await extensionPage.evaluate("chrome.webRequest.onCompleted.removeListener(arkRequestListener); return !chrome.webRequest.onCompleted.hasListener(arkRequestListener);", inWorld: "page") as? Bool) == true
+                note("webRequest real extension listener: registered \(registered), removed \(removed), status lines \(lines ?? "nil")")
+                browser.close(tab)
+                browser.library.closeExtensionTab(extensionPage)
+                engine.unloadExtensions()
+            } catch { note("webRequest fixture error: \(error)") }
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_GITHUB_FILTER_CHECK_ONLY"] == "1" {
             let space = browser.currentSpace
             let folderID = UUID()
@@ -1572,6 +1606,232 @@ struct SnapshotTour {
         let defaults = UserDefaults.standard
         let previousPane = defaults.object(forKey: "settingsTab")
         defer { defaults.set(previousPane, forKey: "settingsTab") }
+        if ProcessInfo.processInfo.environment["ARK_SPACES_BACKUP_CHECK"] == "1" {
+            let library = browser.library
+            let initialSpaceCount = library.regularSpaces.count
+            browser.exportAllSpacesBackup()
+            await pause(0.4)
+            let savePanel = window.attachedSheet as? NSSavePanel
+            let saveOpened = savePanel != nil && !(savePanel is NSOpenPanel)
+            savePanel?.cancel(nil)
+            await pause(0.4)
+            browser.importAllSpacesBackup()
+            await pause(0.4)
+            let openPanel = window.attachedSheet as? NSOpenPanel
+            let openOpened = openPanel != nil
+            openPanel?.cancel(nil)
+            await pause(0.4)
+            note("all-Spaces backup panels open and cancel without changes: \(saveOpened && openOpened && library.regularSpaces.count == initialSpaceCount)")
+            if let profile = WebsiteProfile(name: "Backup Audit") {
+                library.settings.websiteProfiles.append(profile)
+                let one = library.addSpace(); one.name = "Backup One"
+                let middle = library.addSpace(); middle.name = "Backup Middle"
+                let two = library.addSpace(); two.name = "Backup Two"
+                one.symbol = "star.fill"; one.colorIndex = 3; one.themeHue = 120; one.themeShade = 0.4; one.appearance = "dark"
+                library.assignWebsiteProfile(profile.id, to: one)
+                library.assignWebsiteProfile(profile.id, to: two)
+                let url = URL(string: "https://example.com/backup-favorite")!
+                library.addFavorite(url: url, title: "Backup Favorite", profileID: profile.id)
+                do {
+                    let data = try browser.allSpacesBackupData()
+                    let beforeIDs = Set(library.regularSpaces.map(\.id))
+                    let beforeProfiles = Set(library.settings.websiteProfiles.map(\.id))
+                    try browser.restoreAllSpacesBackup(data)
+                    let imported = library.regularSpaces.filter { !beforeIDs.contains($0.id) && ["Backup One", "Backup Two"].contains($0.name) }
+                    let profileIDs = Set(imported.compactMap(\.websiteProfileID))
+                    let shared = imported.count == 2 && profileIDs.count == 1 && profileIDs.first.map { !beforeProfiles.contains($0) } == true
+                    let favorite = profileIDs.first.map { id in library.favorites(for: id).contains { $0.url == url } } ?? false
+                    let themed = imported.first(where: { $0.name == "Backup One" }).map {
+                        $0.symbol == "star.fill" && $0.colorIndex == 3 && $0.themeHue == 120 && $0.themeShade == 0.4 && $0.appearance == "dark"
+                    } ?? false
+                    let importedOrder = library.regularSpaces.filter { !beforeIDs.contains($0.id) && ["Backup One", "Backup Middle", "Backup Two"].contains($0.name) }.map(\.name)
+                    note("all-Spaces backup retains order across profiles: \(importedOrder == [one.name, middle.name, two.name])")
+                    let profileCount = library.settings.websiteProfiles.count
+                    try browser.restoreAllSpacesBackup(data)
+                    let secondImportNames = library.settings.websiteProfiles.dropFirst(profileCount).map(\.name)
+                    let allNames = library.settings.websiteProfiles.map { $0.name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current) }
+                    note("repeated backup import creates distinct profile names: \(!secondImportNames.isEmpty && Set(allNames).count == allNames.count)")
+                    let countBeforeInvalid = library.regularSpaces.count
+                    let rejected: Bool
+                    do { try browser.restoreAllSpacesBackup(Data("{}".utf8)); rejected = false } catch { rejected = true }
+                    note("all-Spaces backup restores shared profile, favorite and appearance, rejects invalid input: \(shared && favorite && themed && rejected && library.regularSpaces.count == countBeforeInvalid)")
+                    let legacy = """
+                        {"format":"ark-spaces","version":1,"profiles":[{"name":null,"favorites":[],"spaces":[{"version":1,"name":"Legacy Backup","pinned":[],"today":[]}]}]}
+                        """
+                    try browser.restoreAllSpacesBackup(Data(legacy.utf8))
+                    let legacyRestored = library.regularSpaces.contains { $0.name == "Legacy Backup" }
+                    let invalidInputs = [
+                        """
+                        {"format":"ark-spaces","version":1,"profiles":[{"name":null,"favorites":[{"title":"Bad","url":"javascript:alert(1)"}],"spaces":[]}]}
+                        """,
+                        """
+                        {"format":"ark-spaces","version":1,"profiles":[{"name":null,"favorites":[],"spaces":[{"links":{"version":1,"name":"Bad","pinned":[],"today":[]},"themeHue":999}]}]}
+                        """,
+                    ].map { Data($0.utf8) } + [Data(repeating: 0, count: 10 * 1024 * 1024 + 1)]
+                    let counts = (library.regularSpaces.count, library.settings.websiteProfiles.count, library.favorites(for: nil).count)
+                    let refused = invalidInputs.allSatisfy { data in
+                        do { try browser.restoreAllSpacesBackup(data); return false } catch { return true }
+                    }
+                    let unchanged = counts.0 == library.regularSpaces.count && counts.1 == library.settings.websiteProfiles.count
+                        && counts.2 == library.favorites(for: nil).count
+                    note("legacy backup imports and unsafe or oversized inputs leave data unchanged: \(legacyRestored && refused && unchanged)")
+                    let orphan = library.addSpace()
+                    orphan.websiteProfileID = UUID()
+                    let orphanRejected: Bool
+                    do { _ = try browser.allSpacesBackupData(); orphanRejected = false } catch { orphanRejected = true }
+                    orphan.websiteProfileID = nil
+                    library.deleteSpace(orphan)
+                    note("backup refuses to silently omit a Space with an unknown profile: \(orphanRejected)")
+                } catch { note("all-Spaces backup audit error: \(error)") }
+            }
+        }
+        if ProcessInfo.processInfo.environment["ARK_HANDOFF_CHECK"] == "1" {
+            let existing = browser.newTab(url: nil)
+            let activity = NSUserActivity(activityType: NSUserActivityTypeBrowsingWeb)
+            activity.webpageURL = URL(string: "https://example.com/ark-handoff-audit")!
+            let handled = delegate.application(NSApp, continue: activity) { _ in }
+            await pause(0.5)
+            let kept = browser.currentSpace.allTabs.contains { $0 === existing }
+            let opened = browser.currentSpace.allTabs.contains { $0.url == activity.webpageURL }
+            let invalid = NSUserActivity(activityType: "ark.invalid")
+            let rejected = !delegate.application(NSApp, continue: invalid) { _ in }
+            note("webpage handoff keeps existing tabs and rejects unrelated activity: \(handled && kept && opened && rejected)")
+        }
+        if ProcessInfo.processInfo.environment["ARK_AGENT_STAGE_CHECK"] == "1" {
+            let stage = AgentStage()
+            let view = NSView(frame: NSRect(x: 0, y: 0, width: 100, height: 100))
+            stage.host(view)
+            let stageWindow = view.window
+            stageWindow?.setFrameOrigin(NSPoint(x: 100, y: 100))
+            await pause(0.2)
+            note("agent stage returns offscreen after moving: \(stageWindow?.frame.origin == NSPoint(x: -40_000, y: -40_000))")
+            view.removeFromSuperview()
+            await pause(0.2)
+            note("empty agent stage is hidden: \(stageWindow?.isVisible == false)")
+        }
+        if ProcessInfo.processInfo.environment["ARK_REDIRECT_CHECK"] == "1" {
+            let fieldSource = URL(string: "http://localhost:48191/redirect-command-field")!
+            browser.showCommandBar(.newTab)
+            await pause(0.8)
+            let editor = window.firstResponder as? NSTextView
+            editor?.insertText(fieldSource.absoluteString, replacementRange: NSRange(location: 0, length: (editor?.string as NSString?)?.length ?? 0))
+            await pause(0.8)
+            if let enter = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                                            windowNumber: window.windowNumber, context: nil, characters: "\r",
+                                            charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36) {
+                NSApp.sendEvent(enter)
+            }
+            for _ in 0..<50 where browser.currentTab?.url?.host() != "127.0.0.1" || browser.currentTab?.isLoading == true { await pause(0.1) }
+            await pause(0.5)
+            let fieldVisits = await browser.library.profileHistory.store(for: nil).recentVisits(forHost: "localhost", limit: 20)
+            note("command field Return records typed redirect: \(editor != nil && browser.commandBar == nil && browser.currentTab?.url?.host() == "127.0.0.1" && fieldVisits.contains { $0.url == fieldSource })")
+            if let fieldTab = browser.currentTab { browser.close(fieldTab) }
+            let source = URL(string: "http://localhost:48191/redirect-typed")!
+            browser.perform(.open(source), mode: .newTab, rememberTypedAddress: true)
+            let tab = browser.currentTab
+            for _ in 0..<50 where tab?.url?.host() != "127.0.0.1" || tab?.isLoading == true { await pause(0.1) }
+            await pause(0.5)
+            let profileID = tab.flatMap { browser.library.space(containing: $0)?.websiteProfileID }
+            let history = browser.library.profileHistory.store(for: profileID)
+            let visits = await history.recentVisits(forHost: "localhost", limit: 20)
+            note("typed cross-host redirect retains original address: \(tab?.url?.host() == "127.0.0.1" && visits.contains { $0.url == source })")
+            if let tab { browser.close(tab) }
+            let suggestions = await browser.suggest.localResults(for: "redirect-typed", lastEditWasInsertion: true, includeRemote: false)
+            note("typed redirect appears in local address suggestions: \(suggestions.local.contains { $0.action == .open(source) })")
+            let previousCleanLinks = browser.settings.cleanLinks
+            browser.settings.cleanLinks = true
+            let trackedSource = URL(string: "http://localhost:48191/redirect-tracked?utm_source=audit")!
+            let cleanedSource = URL(string: "http://localhost:48191/redirect-tracked")!
+            browser.perform(.open(trackedSource), mode: .newTab, rememberTypedAddress: true)
+            let cleanTab = browser.currentTab
+            for _ in 0..<50 where cleanTab?.url?.host() != "127.0.0.1" || cleanTab?.isLoading == true { await pause(0.1) }
+            await pause(0.5)
+            let cleanVisits = await browser.library.profileHistory.store(for: nil).recentVisits(forHost: "localhost", limit: 20)
+            note("typed redirect history respects link cleaning: \(cleanTab?.url?.host() == "127.0.0.1" && cleanVisits.contains { $0.url == cleanedSource } && !cleanVisits.contains { $0.url == trackedSource })")
+            if let cleanTab { browser.close(cleanTab) }
+            browser.settings.cleanLinks = previousCleanLinks
+            if let profile = WebsiteProfile(name: "Redirect audit") {
+                browser.library.settings.websiteProfiles.append(profile)
+                let profileSpace = browser.library.addSpace()
+                browser.library.assignWebsiteProfile(profile.id, to: profileSpace)
+                let namedSource = URL(string: "http://localhost:48191/redirect-named")!
+                let namedTab = browser.newTab(url: namedSource, in: profileSpace)
+                browser.library.controller(for: namedTab).rememberTypedAddress(namedSource)
+                for _ in 0..<50 where namedTab.url?.host() != "127.0.0.1" || namedTab.isLoading { await pause(0.1) }
+                await pause(0.5)
+                let namedVisits = await browser.library.profileHistory.store(for: profile.id).recentVisits(forHost: "localhost", limit: 20)
+                let defaultVisits = await browser.library.profileHistory.store(for: nil).recentVisits(forHost: "localhost", limit: 20)
+                note("typed redirect stays in its named profile: \(namedVisits.contains { $0.url == namedSource } && !defaultVisits.contains { $0.url == namedSource })")
+                browser.library.close(namedTab)
+                browser.library.deleteSpace(profileSpace)
+                browser.library.settings.websiteProfiles.removeAll { $0.id == profile.id }
+                try? await WKWebsiteDataStore.remove(forIdentifier: profile.id)
+            }
+            let privateSource = URL(string: "http://localhost:48191/redirect-private")!
+            let privateTab = browser.newTab(url: privateSource, isPrivate: true)
+            browser.library.controller(for: privateTab).rememberTypedAddress(privateSource)
+            for _ in 0..<50 where privateTab.url?.host() != "127.0.0.1" || privateTab.isLoading { await pause(0.1) }
+            await pause(0.5)
+            let afterPrivate = await browser.library.profileHistory.store(for: nil).recentVisits(forHost: "localhost", limit: 20)
+            note("private typed redirect is not recorded in default history: \(!afterPrivate.contains { $0.url == privateSource })")
+            browser.library.close(privateTab)
+            let agentSource = URL(string: "http://localhost:48191/redirect-agent")!
+            let agentTab = browser.newTab(url: agentSource, in: browser.library.agents.agentSpace, select: false)
+            browser.library.controller(for: agentTab).rememberTypedAddress(agentSource)
+            for _ in 0..<50 where agentTab.url?.host() != "127.0.0.1" || agentTab.isLoading { await pause(0.1) }
+            await pause(0.5)
+            let afterAgent = await browser.library.profileHistory.store(for: nil).recentVisits(forHost: "localhost", limit: 20)
+            note("agent typed redirect source is not recorded: \(agentTab.url?.host() == "127.0.0.1" && !afterAgent.contains { $0.url == agentSource })")
+            browser.library.close(agentTab)
+            // Simulate the navigation decision separately from the page load so this check
+            // covers the guard even when the loopback server responds immediately.
+            let superseded = URL(string: "http://localhost:48191/superseded-typed")!
+            let destination = URL(string: "http://127.0.0.1:48191/destination")!
+            let nextTab = browser.newTab(url: nil)
+            let nextController = browser.library.controller(for: nextTab)
+            nextController.rememberTypedAddress(superseded)
+            _ = await nextController.page(nextController.page, decide: NavigationRequest(
+                url: destination, kind: .link, isMainFrame: true, method: "GET"))
+            nextController.page.load(destination)
+            for _ in 0..<50 where nextTab.url?.host() != "127.0.0.1" || nextTab.isLoading { await pause(0.1) }
+            await pause(0.5)
+            let afterLink = await browser.library.profileHistory.store(for: nil).recentVisits(forHost: "localhost", limit: 20)
+            note("superseding link clears typed redirect source: \(nextTab.url?.host() == "127.0.0.1" && !afterLink.contains { $0.url == superseded })")
+            let stopped = URL(string: "http://localhost:48191/stopped-typed")!
+            nextController.rememberTypedAddress(stopped)
+            browser.stopLoading()
+            let afterStopURL = URL(string: "http://127.0.0.1:48191/destination?after-stop")!
+            nextController.page.load(afterStopURL)
+            for _ in 0..<50 where nextTab.url != afterStopURL || nextTab.isLoading { await pause(0.1) }
+            await pause(0.5)
+            let afterStop = await browser.library.profileHistory.store(for: nil).recentVisits(forHost: "localhost", limit: 20)
+            note("stop clears typed redirect source: \(nextTab.url == afterStopURL && !afterStop.contains { $0.url == stopped })")
+            browser.library.close(nextTab)
+            let slowSource = URL(string: "http://localhost:48191/slow-redirect")!
+            browser.perform(.open(slowSource), mode: .newTab, rememberTypedAddress: true)
+            let slowTab = browser.currentTab
+            for _ in 0..<30 where slowTab?.isLoading != true { await pause(0.1) }
+            let wasLoading = slowTab?.isLoading == true
+            browser.stopLoading()
+            let afterCancelURL = URL(string: "http://127.0.0.1:48191/destination?after-cancel")!
+            if let slowTab { browser.library.controller(for: slowTab).page.load(afterCancelURL) }
+            for _ in 0..<50 where slowTab?.url != afterCancelURL || slowTab?.isLoading == true { await pause(0.1) }
+            await pause(2.5)
+            let afterCancel = await browser.library.profileHistory.store(for: nil).recentVisits(forHost: "localhost", limit: 20)
+            note("stopped in-flight redirect stays out of history: \(wasLoading && slowTab?.url == afterCancelURL && !afterCancel.contains { $0.url == slowSource })")
+            let scriptSource = URL(string: "http://localhost:48191/slow-redirect-script")!
+            let scriptDestination = URL(string: "http://127.0.0.1:48191/destination?script-navigation")!
+            browser.perform(.open(scriptSource), mode: .editCurrent, rememberTypedAddress: true)
+            for _ in 0..<30 where slowTab?.isLoading != true { await pause(0.1) }
+            let scriptWasLoading = slowTab?.isLoading == true
+            let scriptRan = (try? await slowTab.flatMap { browser.library.existingController(for: $0) }?.page.evaluate(
+                "location.href = 'http://127.0.0.1:48191/destination?script-navigation'; return true;", inWorld: "page") as? Bool) == true
+            for _ in 0..<50 where slowTab?.url != scriptDestination || slowTab?.isLoading == true { await pause(0.1) }
+            await pause(2.5)
+            let afterScript = await browser.library.profileHistory.store(for: nil).recentVisits(forHost: "localhost", limit: 20)
+            note("script navigation supersedes in-flight typed redirect: \(scriptWasLoading && scriptRan && slowTab?.url == scriptDestination && !afterScript.contains { $0.url == scriptSource }) (loading: \(scriptWasLoading), script: \(scriptRan), destination: \(slowTab?.url == scriptDestination), recorded: \(afterScript.contains { $0.url == scriptSource }))")
+            if let slowTab { browser.close(slowTab) }
+        }
         let exportSpace = browser.library.addSpace()
         exportSpace.name = "Audit & Space"
         let exportPin = BrowserTab(url: URL(string: "https://example.com/pin?a=1&b=2")!, isPinned: true)
@@ -1870,6 +2130,17 @@ struct SnapshotTour {
            (try? JSONDecoder().decode([UUID: TabSplit].self, from: data)) == browser.splitBySpace {
             note("split width, axis, membership, and focus round-tripped")
         }
+        let initialShares = browser.activeSplit?.shares ?? []
+        browser.moveSplitPane(second, by: -1)
+        let moved = browser.activeSplit?.tabs == [second.id, first.id]
+            && browser.activeSplit?.shares == initialShares.reversed()
+        browser.moveSplitPane(second, by: 1)
+        note("split pane reorder preserves its share: \(moved && browser.activeSplit?.tabs == [first.id, second.id])")
+        let removable = browser.newTab(url: partnerURL, in: browser.currentSpace, select: false)
+        browser.addToSplit(removable)
+        browser.removeSplitPane(removable)
+        note("removing a split pane keeps its tab and other panes: \(browser.activeSplit?.tabs == [first.id, second.id] && browser.currentSpace.allTabs.contains { $0 === removable })")
+        browser.close(removable)
         let oldActivity = first.lastActive
         first.lastActive = .distantPast
         browser.library.archiveStaleTabs()

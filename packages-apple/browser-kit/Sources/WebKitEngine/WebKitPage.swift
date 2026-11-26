@@ -16,6 +16,8 @@ public final class WebKitPage: NSObject, EnginePage {
     let profile: BrowsingProfile
     private(set) weak var engine: WebKitEngine?
     private var observations: [NSKeyValueObservation] = []
+    /// The page's ordinary window before WebKit moves it into its own fullscreen window.
+    private weak var preFullscreenWindow: NSWindow?
     /// Set while a restored session hasn't shown a page yet. WebKit can sit on a restored history
     /// entry forever (reload just retries it), where a fresh load of the same address works.
     private var awaitingRestore = false
@@ -47,8 +49,22 @@ public final class WebKitPage: NSObject, EnginePage {
             webView.observe(\.url, options: [.initial, .new]) { wv, _ in
                 MainActor.assumeIsolated { if let u = wv.url { state.url = u } }
             },
-            webView.observe(\.title, options: [.new]) { wv, _ in
-                MainActor.assumeIsolated { state.title = wv.title ?? "" }
+            webView.observe(\.title, options: [.new]) { [weak self] wv, _ in
+                MainActor.assumeIsolated {
+                    state.title = wv.title ?? ""
+                    self?.nameFullscreenWindow()
+                }
+            },
+            webView.observe(\.fullscreenState, options: [.new]) { [weak self] wv, _ in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    switch wv.fullscreenState {
+                    case .enteringFullscreen: self.preFullscreenWindow = wv.window
+                    case .inFullscreen: self.nameFullscreenWindow()
+                    case .notInFullscreen: self.preFullscreenWindow = nil
+                    default: break
+                    }
+                }
             },
             webView.observe(\.estimatedProgress, options: [.new]) { wv, _ in
                 MainActor.assumeIsolated { state.progress = wv.estimatedProgress }
@@ -87,6 +103,16 @@ public final class WebKitPage: NSObject, EnginePage {
                 }
             },
         ]
+    }
+
+    /// Screen-sharing pickers use window titles. Leave the ordinary browser window untouched.
+    private func nameFullscreenWindow() {
+        guard webView.fullscreenState == .inFullscreen, let original = preFullscreenWindow,
+              let window = webView.window, window !== original else { return }
+        let title = (webView.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let label = title.isEmpty ? (webView.url?.host() ?? "Ark") : title
+        window.isExcludedFromWindowsMenu = true
+        if window.title != label { window.title = label }
     }
 
     /// What each frame last said about sound and typing, by the frame's own token.
@@ -314,6 +340,7 @@ extension WebKitPage: WKNavigationDelegate {
         // User scripts register each new document at document start, before didCommit arrives.
         frameInfos.removeAll(keepingCapacity: true)
         frameActivity = [:]
+        delegate?.pageDidStartNavigation(self)
     }
 
     public func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
@@ -464,6 +491,12 @@ extension WebKitPage: WKNavigationDelegate {
     }
 
     public func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        engine?.downloads.adopt(download, from: self)
+    }
+
+    /// WebKit creates downloads from its page context menu through this delegate callback.
+    @objc(_webView:contextMenuDidCreateDownload:)
+    public func webView(_ webView: WKWebView, contextMenuDidCreateDownload download: WKDownload) {
         engine?.downloads.adopt(download, from: self)
     }
 }

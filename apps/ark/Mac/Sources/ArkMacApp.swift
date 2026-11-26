@@ -355,6 +355,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if library.needsFirstWindow { Self.askForFirstWindow() }
     }
 
+    /// Continue a webpage handed off by another device in the existing browser window.
+    func application(_ application: NSApplication, continue userActivity: NSUserActivity,
+                     restorationHandler: @escaping ([any NSUserActivityRestoring]) -> Void) -> Bool {
+        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+              let url = userActivity.webpageURL, let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme), url.host() != nil else { return false }
+        library.openExternal(url, sourceApp: nil)
+        if library.needsFirstWindow { Self.askForFirstWindow() }
+        return true
+    }
+
     static func askForFirstWindow() {
         let me = NSAppleEventDescriptor(processIdentifier: ProcessInfo.processInfo.processIdentifier)
         let reopen = NSAppleEventDescriptor(eventClass: AEEventClass(kCoreEventClass), eventID: AEEventID(kAEReopenApplication),

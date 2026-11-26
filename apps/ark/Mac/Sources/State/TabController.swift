@@ -19,6 +19,8 @@ final class TabController: EnginePageDelegate {
     private var window: Browser? { library?.window(showing: tab) }
     /// How the next finished load should count in history.
     private var pendingSource: Frecency.VisitSource?
+    private var typedRedirectSource: (url: URL, at: Date, started: Bool)?
+    private(set) var navigationGeneration: UInt = 0
     /// The largest inner scrolling surface captured when the WebView was unloaded.
     private var pendingInnerScrollRestore: String?
     private var canCaptureInnerScroll = true
@@ -66,9 +68,11 @@ final class TabController: EnginePageDelegate {
         if tab.call != call { tab.call = call }
     }
 
-    func load(_ url: URL, source: Frecency.VisitSource) {
+    func load(_ url: URL, source: Frecency.VisitSource, rememberTypedAddress: Bool = false) {
+        navigationGeneration &+= 1
+        typedRedirectSource = nil
         if linkPreview == nil, let library, library.needsEngineSwap(self, to: url) {
-            library.swapEngine(of: tab, to: url, source: source)
+            library.swapEngine(of: tab, to: url, source: source, rememberTypedAddress: rememberTypedAddress)
             return
         }
         pendingInnerScrollRestore = nil
@@ -76,6 +80,19 @@ final class TabController: EnginePageDelegate {
         pendingSource = source
         tab.loadError = nil
         page.load(url)
+        if rememberTypedAddress { self.rememberTypedAddress(url) }
+    }
+
+    func rememberTypedAddress(_ url: URL) {
+        guard !tab.isPrivate, let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
+              url.host() != nil, url.user == nil, url.password == nil else { return }
+        typedRedirectSource = (library?.cleanedNavigationURL(url) ?? url, .now, false)
+    }
+
+    func stopLoading() {
+        navigationGeneration &+= 1
+        typedRedirectSource = nil
+        page.stopLoading()
     }
 
     func registerPromotedPage(url: URL, source: Frecency.VisitSource) {
@@ -215,6 +232,12 @@ final class TabController: EnginePageDelegate {
 
     // MARK: EnginePageDelegate
 
+    func pageDidStartNavigation(_ page: any EnginePage) {
+        navigationGeneration &+= 1
+        guard let typed = typedRedirectSource else { return }
+        typedRedirectSource = typed.started ? nil : (typed.url, typed.at, true)
+    }
+
     func page(_ page: any EnginePage, decide request: NavigationRequest) async -> NavigationDecision {
         guard let library else { return .allow }
         if request.wantsGlance {
@@ -229,6 +252,16 @@ final class TabController: EnginePageDelegate {
             }
             library.openInNewTab(request.url, from: tab, foreground: request.wantsForeground)
             return .cancel
+        }
+        // A new user-initiated navigation supersedes a pending typed address. Redirects arrive
+        // as `.other`, so retain the source for that navigation chain.
+        if request.isMainFrame {
+            switch request.kind {
+            case .link, .formSubmit, .backForward, .reload:
+                navigationGeneration &+= 1
+                typedRedirectSource = nil
+            case .other: break
+            }
         }
         let scheme = request.url.scheme?.lowercased() ?? ""
         guard ["http", "https", "about", "blob", "data", "file", "javascript", "webkit-extension"].contains(scheme) else {
@@ -407,15 +440,25 @@ final class TabController: EnginePageDelegate {
 
     func page(_ page: any EnginePage, didFinish url: URL, title: String) {
         library?.scheduleSave()
+        let typed = typedRedirectSource
+        typedRedirectSource = nil
         guard !tab.isPrivate, let library else { pendingSource = nil; return }
         let profileID = (page.view as? WKWebView)?.configuration.websiteDataStore.identifier
         let history = library.profileHistory.store(for: profileID)
         let source = pendingSource ?? .link
+        let mayRecordTyped = !library.agents.isInAgentSpace(tab)
         pendingSource = nil
-        Task { await history.recordVisit(url: url, title: title, source: source) }
+        Task {
+            await history.recordVisit(url: url, title: title, source: source)
+            if mayRecordTyped, let typed, Date().timeIntervalSince(typed.at) < 30,
+               typed.url.host()?.lowercased() != url.host()?.lowercased() {
+                await history.recordVisit(url: typed.url, title: title, source: .typed)
+            }
+        }
     }
 
     func page(_ page: any EnginePage, didFailWith error: NSError) {
+        typedRedirectSource = nil
         let failed = (error.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? page.state.url
         tab.loadError = LoadError(url: failed, error: error)
     }

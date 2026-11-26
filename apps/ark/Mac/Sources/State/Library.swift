@@ -621,18 +621,22 @@ final class Library {
     }
 
     /// Moves a tab's page to the engine `url` belongs on, and loads `url` there. The old page goes.
-    func swapEngine(of tab: BrowserTab, to url: URL, source: Frecency.VisitSource = .link) {
+    func swapEngine(of tab: BrowserTab, to url: URL, source: Frecency.VisitSource = .link, rememberTypedAddress: Bool = false) {
+        guard let original = controllers[tab.id] else { return }
+        let generation = original.navigationGeneration
         let target = engine(for: tab, url: url)
         videoPictureInPicture.beforeTabUnload(tab.id) { [weak self] in
             guard let self else { return }
             self.videoMiniPlayer.beforeTabUnload(tab.id) {
-                self.finishEngineSwap(of: tab, to: url, using: target, source: source)
+                guard self.space(containing: tab) != nil, self.controllers[tab.id] === original,
+                      original.navigationGeneration == generation else { return }
+                self.finishEngineSwap(of: tab, to: url, using: target, source: source, rememberTypedAddress: rememberTypedAddress)
             }
         }
     }
 
     private func finishEngineSwap(of tab: BrowserTab, to url: URL, using target: any BrowserEngine,
-                                  source: Frecency.VisitSource) {
+                                  source: Frecency.VisitSource, rememberTypedAddress: Bool) {
         if let old = controllers[tab.id] {
             old.page.close()
             controllers[tab.id] = nil
@@ -644,7 +648,7 @@ final class Library {
         }
         controllers[tab.id] = c
         touch(tab.id)
-        c.load(url, source: source)
+        c.load(url, source: source, rememberTypedAddress: rememberTypedAddress)
         pageSwaps += 1
     }
 

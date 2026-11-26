@@ -55,6 +55,10 @@ struct BrowserCommands: Commands {
                 .disabled(browser?.canExportSpaceLinks != true)
             Button("Export All Spaces as Bookmarks…") { browser?.exportAllSpacesBookmarks() }
                 .disabled(browser == nil)
+            Button("Export All Spaces Backup…") { browser?.exportAllSpacesBackup() }
+                .disabled(browser == nil)
+            Button("Import Spaces Backup…") { browser?.importAllSpacesBackup() }
+                .disabled(browser == nil)
             Button("Import Space Links…") { browser?.importSpaceLinks() }
                 .disabled(browser == nil)
         }

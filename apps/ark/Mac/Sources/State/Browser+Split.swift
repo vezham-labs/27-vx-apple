@@ -154,6 +154,26 @@ extension Browser {
         splitBySpace[currentSpace.id] = split
     }
 
+    func moveSplitPane(_ tab: BrowserTab, by step: Int) {
+        guard var split = activeSplit, let index = split.tabs.firstIndex(of: tab.id),
+              abs(step) == 1, split.tabs.indices.contains(index + step) else { return }
+        var tabs = split.tabs
+        var shares = split.shares
+        tabs.swapAt(index, index + step)
+        shares.swapAt(index, index + step)
+        split.setTabs(tabs)
+        split.setShares(shares)
+        splitBySpace[currentSpace.id] = split
+        library.scheduleSave()
+    }
+
+    func removeSplitPane(_ tab: BrowserTab) {
+        guard activeSplit?.contains(tab.id) == true else { return }
+        let partner = detachSplit(containing: tab, in: currentSpace)
+        if currentTab?.id == tab.id, let partner { select(partner) }
+        library.scheduleSave()
+    }
+
     func separateSplit() {
         splitBySpace[currentSpace.id] = nil
     }

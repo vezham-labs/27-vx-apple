@@ -7,7 +7,7 @@ This is the execution queue for the Mac pass. The [comparison](../../apps-docs/d
 - **Live folders:** verify signed-in GitHub refresh and owner menus; keep profile data isolated. RSS lifecycle has local fixture evidence.
 - **Peek:** verify real navigation and screen-sharing permission; local prompt cancellation and promotion have fixture evidence.
 - **Boosts:** complete real-site and picker interaction checks, including dynamic elements, visual accent behavior and accessibility.
-- **Easels:** finish staged image annotation, verify pointer drawing, clear/undo, persistence and export placement; image editing and sync remain gaps.
+- **Easels:** isolated fixtures exercised image annotation drawing, clear/undo, persistence and export placement; verify physical pointer and VoiceOver interactions. Broader image editing and sync remain gaps.
 - **Web-app previews:** verify hover, navigation, profile isolation and pointer handoff; service-specific actions remain missing.
 
 ## Batch 2: compatibility and migration

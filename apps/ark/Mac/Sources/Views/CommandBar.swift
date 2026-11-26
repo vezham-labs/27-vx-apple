@@ -361,7 +361,11 @@ struct CommandBar: View {
             return
         }
         if let action = model?.submitAction(fieldText: text) {
-            perform(action)
+            let typedAddress: Bool
+            if case .open = action {
+                typedAddress = mode != .commands && model?.highlighted == nil && model?.toolHighlighted == nil
+            } else { typedAddress = false }
+            browser.perform(action, mode: mode, rememberTypedAddress: typedAddress)
         } else if text.isEmpty, mode == .newTab {
             // Return on an empty field opens a blank tab, like Arc.
             browser.commandBar = nil

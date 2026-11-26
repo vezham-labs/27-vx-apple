@@ -432,17 +432,29 @@ extension Preferences {
 /// look at it (PageHost adopts its view).
 @MainActor
 final class AgentStage: NSObject {
+    private static let parked = NSPoint(x: -40_000, y: -40_000)
+    private var restoringPosition = false
+
     private lazy var window: NSWindow = {
-        let w = NSWindow(contentRect: NSRect(x: -40_000, y: -40_000, width: 1200, height: 820),
+        let w = NSWindow(contentRect: NSRect(origin: Self.parked, size: NSSize(width: 1200, height: 820)),
                          styleMask: [.borderless], backing: .buffered, defer: false)
         w.isReleasedWhenClosed = false
         w.ignoresMouseEvents = true
         w.hasShadow = false
+        w.isOpaque = false
+        w.backgroundColor = .clear
         w.isExcludedFromWindowsMenu = true
         w.collectionBehavior = [.transient, .ignoresCycle, .stationary, .fullScreenNone]
         w.title = "Agent Stage"
+        let content = AgentStageContent(frame: NSRect(origin: .zero, size: w.frame.size))
+        content.onEmpty = { [weak w] in w?.orderOut(nil) }
+        w.contentView = content
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
                                               name: NSApplication.didChangeScreenParametersNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(windowMoved),
+                                              name: NSWindow.didMoveNotification, object: w)
+        NotificationCenter.default.addObserver(self, selector: #selector(windowMoved),
+                                              name: NSWindow.didChangeScreenNotification, object: w)
         return w
     }()
 
@@ -454,9 +466,17 @@ final class AgentStage: NSObject {
         }
     }
 
-    private func restoreOffscreenPosition() {
-        let origin = NSPoint(x: -40_000, y: -40_000)
-        if window.frame.origin != origin { window.setFrameOrigin(origin) }
+    @objc private func windowMoved() { restoreOffscreenPosition() }
+
+    @discardableResult
+    private func restoreOffscreenPosition() -> Bool {
+        guard !restoringPosition else { return false }
+        restoringPosition = true
+        defer { restoringPosition = false }
+        if window.frame.origin != Self.parked { window.setFrameOrigin(Self.parked) }
+        let parked = window.frame.origin == Self.parked
+        if !parked { window.orderOut(nil) }
+        return parked
     }
 
     func host(_ view: NSView) {
@@ -465,6 +485,18 @@ final class AgentStage: NSObject {
         view.frame = content.bounds
         view.autoresizingMask = [.width, .height]
         content.addSubview(view)
-        if !window.isVisible { window.orderFrontRegardless() }
+        if restoreOffscreenPosition(), !window.isVisible { window.orderFrontRegardless() }
+    }
+}
+
+private final class AgentStageContent: NSView {
+    var onEmpty: (() -> Void)?
+
+    override func willRemoveSubview(_ subview: NSView) {
+        super.willRemoveSubview(subview)
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.subviews.isEmpty else { return }
+            self.onEmpty?()
+        }
     }
 }

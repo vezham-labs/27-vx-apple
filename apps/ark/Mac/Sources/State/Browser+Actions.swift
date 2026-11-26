@@ -13,14 +13,15 @@ extension Browser {
     }
 
     /// A picked suggestion, favourite or Return in the command bar.
-    func perform(_ action: SuggestionAction, mode: CommandBarMode, source: Frecency.VisitSource = .typed) {
+    func perform(_ action: SuggestionAction, mode: CommandBarMode, source: Frecency.VisitSource = .typed,
+                 rememberTypedAddress: Bool = false) {
         commandBar = nil
         switch action {
         case .switchToTab(let id, _):
             if let tab = spaces.flatMap(\.allTabs).first(where: { $0.id == id }) { select(tab) }
             else if let tab = archive.first(where: { $0.id == id }) { restoreFromArchive(tab) }
         case .open(let url):
-            navigate(to: url, replacing: mode == .editCurrent, source: source)
+            navigate(to: url, replacing: mode == .editCurrent, source: source, rememberTypedAddress: rememberTypedAddress)
         case .search(let q):
             // "!yt cats" goes straight to YouTube, even when it arrives as a plain search.
             let url = Bangs.resolve(q)?.url ?? settings.searchEngine.searchURL(for: q)
@@ -50,13 +51,17 @@ extension Browser {
         return true
     }
 
-    func navigate(to url: URL, replacing: Bool, source: Frecency.VisitSource) {
-        if LibraryPage.isLibrary(url) { openLibrary(LibraryPage.target(url)); return }
+    @discardableResult
+    func navigate(to url: URL, replacing: Bool, source: Frecency.VisitSource, rememberTypedAddress: Bool = false) -> BrowserTab? {
+        if LibraryPage.isLibrary(url) { openLibrary(LibraryPage.target(url)); return nil }
         if replacing, let tab = currentTab {
             if isReaderShowing { closeReader() }
-            controller(for: tab).load(url, source: source)
+            controller(for: tab).load(url, source: source, rememberTypedAddress: rememberTypedAddress)
+            return tab
         } else {
-            newTab(url: url, source: source)
+            let tab = newTab(url: url, source: source)
+            if rememberTypedAddress { controller(for: tab).rememberTypedAddress(url) }
+            return tab
         }
     }
 
@@ -307,7 +312,7 @@ extension Browser {
     func visitAnyway() { currentController?.visitAnyway() }
 
     func reloadFromOrigin() { currentController?.page.reloadFromOrigin() }
-    func stopLoading() { currentController?.page.stopLoading() }
+    func stopLoading() { currentController?.stopLoading() }
 
     /// Cmd-+ / Cmd-- / Cmd-0. Remembered per site.
     func zoom(_ direction: Int) {

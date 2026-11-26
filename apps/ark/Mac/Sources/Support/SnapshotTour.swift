@@ -208,12 +208,18 @@ struct SnapshotTour {
         window.makeKeyAndOrderFront(nil)
         if ProcessInfo.processInfo.environment["ARK_PIP_VIDEO_CHECK_ONLY"] == "1" {
             let previous = UserDefaults.standard.object(forKey: Preferences.automaticVideoPiPKey)
+            let previousSpaceSetting = UserDefaults.standard.object(forKey: Preferences.automaticVideoPiPOnSpaceSwitchKey)
+            let previousDisabledHosts = browser.settings.automaticPiPDisabledHosts
             defer {
                 if let previous { UserDefaults.standard.set(previous, forKey: Preferences.automaticVideoPiPKey) }
                 else { UserDefaults.standard.removeObject(forKey: Preferences.automaticVideoPiPKey) }
+                if let previousSpaceSetting { UserDefaults.standard.set(previousSpaceSetting, forKey: Preferences.automaticVideoPiPOnSpaceSwitchKey) }
+                else { UserDefaults.standard.removeObject(forKey: Preferences.automaticVideoPiPOnSpaceSwitchKey) }
+                browser.settings.automaticPiPDisabledHosts = previousDisabledHosts
                 browser.library.videoPictureInPicture.stop()
             }
             UserDefaults.standard.set(true, forKey: Preferences.automaticVideoPiPKey)
+            if let host = base.host()?.lowercased() { browser.settings.automaticPiPDisabledHosts.remove(host) }
             let videoTab = browser.newTab(url: base)
             guard let page = browser.library.existingController(for: videoTab)?.page else { note("PiP video fixture: page missing"); return }
             for _ in 0..<50 where page.state.isLoading || page.state.url?.host() != base.host() { await pause(0.1) }
@@ -230,6 +236,34 @@ struct SnapshotTour {
             let other = browser.newTab(url: URL(string: "about:blank"))
             await pause(2)
             note("PiP real video playback started: \(started), state: \(state ?? "unavailable"), floated after tab switch: \(browser.library.videoPictureInPicture.isFloating(videoTab.id))")
+            browser.select(videoTab)
+            await pause(1)
+            if let host = base.host()?.lowercased() { browser.settings.automaticPiPDisabledHosts.insert(host) }
+            browser.select(other)
+            await pause(2)
+            let disabledHostStayedInline = !browser.library.videoPictureInPicture.isFloating(videoTab.id)
+            let disabledHostState = try? await page.evaluate("return document.querySelector('video').webkitPresentationMode", inWorld: "ark.pip-video-check") as? String
+            note("PiP disabled host stayed inline: \(disabledHostStayedInline && disabledHostState == "inline") (mode: \(disabledHostState ?? "unavailable"))")
+            browser.select(videoTab)
+            await pause(1)
+            if let host = base.host()?.lowercased() { browser.settings.automaticPiPDisabledHosts.remove(host) }
+            let originalSpace = browser.currentSpace
+            let nextSpace = browser.library.addSpace()
+            UserDefaults.standard.set(false, forKey: Preferences.automaticVideoPiPOnSpaceSwitchKey)
+            browser.selectSpace(nextSpace)
+            await pause(2)
+            let spaceDisabledState = try? await page.evaluate("return document.querySelector('video').webkitPresentationMode", inWorld: "ark.pip-video-check") as? String
+            note("PiP disabled Space switch stayed inline: \(!browser.library.videoPictureInPicture.isFloating(videoTab.id) && spaceDisabledState == "inline") (mode: \(spaceDisabledState ?? "unavailable"))")
+            browser.selectSpace(originalSpace)
+            browser.select(videoTab)
+            await pause(1)
+            UserDefaults.standard.set(true, forKey: Preferences.automaticVideoPiPOnSpaceSwitchKey)
+            browser.selectSpace(nextSpace)
+            await pause(2)
+            note("PiP enabled Space switch floated: \(browser.library.videoPictureInPicture.isFloating(videoTab.id))")
+            browser.selectSpace(originalSpace)
+            browser.select(videoTab)
+            await pause(1)
             browser.close(other)
             browser.close(videoTab)
             return

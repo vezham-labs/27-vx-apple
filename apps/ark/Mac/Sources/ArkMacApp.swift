@@ -108,6 +108,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The window in use, for the debug tour.
     var browser: Browser? { library.activeWindow }
     private var isClearingForQuit = false
+    private weak var fullscreenWindowBeforeDeactivation: NSWindow?
+
+    private func holdsFullscreenPage(_ window: NSWindow) -> Bool {
+        guard !library.windows.contains(where: { $0.nsWindow === window }) else { return false }
+        return library.allTabs.contains { tab in
+            guard let view = library.existingController(for: tab)?.page.view as? WKWebView else { return false }
+            return view.window === window && view.fullscreenState == .inFullscreen
+        }
+    }
 
     private static func makeLibrary() -> Library {
         #if SPIKE
@@ -412,7 +421,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         library.saveNow()
     }
 
+    func applicationWillResignActive(_ notification: Notification) {
+        fullscreenWindowBeforeDeactivation = NSApp.keyWindow.flatMap { holdsFullscreenPage($0) ? $0 : nil }
+    }
+
     func applicationDidBecomeActive(_ notification: Notification) {
         Task { await library.syncNow() }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            defer { self.fullscreenWindowBeforeDeactivation = nil }
+            guard NSEvent.pressedMouseButtons == 0, let window = self.fullscreenWindowBeforeDeactivation,
+                  window.isVisible, window !== NSApp.keyWindow, self.holdsFullscreenPage(window) else { return }
+            window.makeKeyAndOrderFront(nil)
+        }
     }
 }

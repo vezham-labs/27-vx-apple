@@ -858,6 +858,8 @@ enum Preferences {
         return d.bool(forKey: pinnedLinksOpenInNewTabKey) ? .today : .stayInPin
     }
     static let closeTabGoesBackKey = "closeTabGoesBack"
+    static let newTabAfterLastKey = "newTabAfterLast"
+    static var newTabAfterLast: Bool { d.object(forKey: newTabAfterLastKey) as? Bool ?? true }
     static var closeTabGoesBack: Bool {
         get { d.bool(forKey: closeTabGoesBackKey) }
         set { d.set(newValue, forKey: closeTabGoesBackKey) }

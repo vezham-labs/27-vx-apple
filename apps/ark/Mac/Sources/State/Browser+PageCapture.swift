@@ -1,5 +1,6 @@
 import AppKit
 import BrowserCore
+import BrowserEngine
 import UniformTypeIdentifiers
 import WebKit
 
@@ -135,14 +136,24 @@ extension Browser {
         panel.allowedContentTypes = [.png]
         panel.nameFieldStringValue = "Page Capture.png"
         panel.beginSheetModal(for: window) { [weak self] response in
-            guard response == .OK, let url = panel.url else { return }
+            guard response == .OK, let url = panel.url, let self else { return }
             do {
-                try png.write(to: url, options: .atomic)
-                self?.showToast("Page image saved")
+                try self.writePageCapture(png, to: url, isPrivate: isPrivate)
+                self.showToast("Page image saved")
             } catch {
-                self?.showToast("Couldn’t save the page image")
+                self.showToast("Couldn’t save the page image")
             }
         }
+    }
+
+    func writePageCapture(_ png: Data, to url: URL, isPrivate: Bool) throws {
+        try png.write(to: url, options: .atomic)
+        guard !isPrivate else { return }
+        let item = EngineDownload(filename: url.lastPathComponent, sourceURL: nil)
+        item.fileURL = url
+        item.progress = 1
+        item.status = .finished
+        library.downloads.append(item)
     }
 
     private func copyCapture(_ png: Data, isPrivate: Bool, to clipboard: NSPasteboard, confirmation: String) {

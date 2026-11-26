@@ -222,6 +222,80 @@ struct SnapshotTour {
         }
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
+        if ProcessInfo.processInfo.environment["ARK_LAST_TAB_CHECK_ONLY"] == "1" {
+            let defaults = UserDefaults.standard
+            let oldNew = defaults.object(forKey: Preferences.newTabAfterLastKey)
+            let oldBack = defaults.object(forKey: Preferences.closeTabGoesBackKey)
+            defer {
+                defaults.set(oldNew, forKey: Preferences.newTabAfterLastKey)
+                defaults.set(oldBack, forKey: Preferences.closeTabGoesBackKey)
+            }
+            defaults.set(false, forKey: Preferences.closeTabGoesBackKey)
+            defaults.set(false, forKey: Preferences.newTabAfterLastKey)
+            let original = browser.newTab(url: first)
+            browser.library.togglePinned(original)
+            let ordinary = browser.newTab(url: second)
+            await pause(1)
+            browser.close(ordinary)
+            await pause(0.5)
+            note("closing last ordinary tab selects the existing pin: \(browser.currentTab === original)")
+            defaults.set(true, forKey: Preferences.newTabAfterLastKey)
+            let another = browser.newTab(url: second)
+            browser.close(another)
+            let blank = browser.currentTab
+            note("closing last ordinary tab opens a blank tab when enabled: \(blank != nil && blank !== original && blank?.url == nil && blank?.isPinned == false)")
+            defaults.set(false, forKey: Preferences.newTabAfterLastKey)
+            if let blank { browser.close(blank) }
+            defaults.set(true, forKey: Preferences.newTabAfterLastKey)
+            browser.select(original)
+            let splitTab = browser.newTab(url: second)
+            await pause(2)
+            browser.splitWith(original)
+            let splitStarted = browser.activeSplit?.contains(original.id) == true
+            browser.close(splitTab)
+            note("closing final ordinary split pane keeps its pin partner: \(splitStarted && browser.currentTab === original) (split started: \(splitStarted), selected pin: \(browser.currentTab === original))")
+            browser.library.openWindow()
+            await pause(2)
+            if let other = browser.library.windows.first(where: { $0 !== browser }) {
+                let otherTab = other.newTab(url: second)
+                browser.select(original)
+                let ownTab = browser.newTab(url: first)
+                browser.close(ownTab)
+                note("last-tab replacement keeps another window's tab: \(browser.currentTab?.url == nil && other.currentTab === otherTab && browser.library.space(containing: otherTab) != nil)")
+                other.nsWindow?.performClose(nil)
+            } else { note("last-tab second window unavailable") }
+            defaults.set(false, forKey: Preferences.newTabAfterLastKey)
+            if let tab = browser.currentTab, !tab.isPinned { browser.close(tab) }
+            browser.select(original)
+            defaults.set(true, forKey: Preferences.newTabAfterLastKey)
+            defaults.set(true, forKey: Preferences.closeTabGoesBackKey)
+            let backTab = browser.newTab(url: second)
+            browser.close(backTab)
+            note("go-back preference takes precedence over blank tab: \(browser.currentTab === original)")
+            defaults.set(false, forKey: Preferences.closeTabGoesBackKey)
+            let privateTab = browser.newTab(url: first, isPrivate: true)
+            browser.close(privateTab)
+            note("closing last private tab does not create a replacement: \(browser.library.privateSpace == nil)")
+            return
+        }
+        if ProcessInfo.processInfo.environment["ARK_CAPTURE_FILE_CHECK_ONLY"] == "1" {
+            let data = Data([0x89, 0x50, 0x4e, 0x47])
+            let regular = directory.appending(path: "regular-capture.png")
+            let privateFile = directory.appending(path: "private-capture.png")
+            let before = browser.library.downloads.count
+            do {
+                try browser.writePageCapture(data, to: regular, isPrivate: false)
+                let entry = browser.library.downloads.last
+                let listed = browser.library.downloads.count == before + 1 && entry?.fileURL == regular && entry?.status == .finished
+                try browser.writePageCapture(data, to: privateFile, isPrivate: true)
+                let privateUnlisted = browser.library.downloads.count == before + 1
+                let regularData = try Data(contentsOf: regular)
+                let privateData = try Data(contentsOf: privateFile)
+                let written = regularData == data && privateData == data
+                note("saved capture file is listed and private file excluded: \(listed && privateUnlisted && written)")
+            } catch { note("capture file audit failed: \(error)") }
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_RELOAD_CACHE_CHECK_ONLY"] == "1" {
             browser.newTab(url: first)
             await pause(2)

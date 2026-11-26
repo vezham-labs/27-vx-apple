@@ -811,9 +811,15 @@ final class Library {
             privateReloadWithoutCacheSites = privateReloadWithoutCacheSites.filter { !$0.hasPrefix(prefix) }
         }
         let index = space.today.firstIndex { $0.id == tab.id }
+        let blankWindows = windows.filter { window in
+            Preferences.newTabAfterLast && !Preferences.closeTabGoesBack && !tab.isPrivate && !tab.isPinned
+                && window.currentTab === tab && window.today(in: space).count == 1 && !space.pinned.isEmpty
+                && window.activeSplit?.contains(tab.id) != true
+        }
         // Windows showing it move on first, while it's still in the list to measure from.
         for w in windows { w.moveOff(tab, in: space, closing: true) }
         space.today.removeAll { $0.id == tab.id }
+        for window in blankWindows { window.newTab(url: nil, in: space) }
         sleepingScrollStates[tab.id] = nil
         if space.selectedTabID == tab.id { space.selectedTabID = nil }
         if index == nil, tab.isPinned {

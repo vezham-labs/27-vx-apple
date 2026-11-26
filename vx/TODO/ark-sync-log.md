@@ -1,5 +1,27 @@
 # Ark upstream sync log
 
+### Closing the last tab — November 26, 2026
+
+Reviewed Search `fb2d1b3a9e002f307663f60954226d0ae04327d9`: it changes the default for Search's existing option to open a blank tab after closing the last ordinary tab beside pins. Ark's Mac build passed and an isolated check confirmed that Ark selects the existing pin instead. Search's configurable blank-tab behavior remains a gap; no default was changed in this audit.
+
+Follow-up: Ark now offers this option, enabled by default, while preserving pin selection when disabled. The existing go-back-on-close preference takes precedence, and private tabs retain their existing behavior. The Mac build and isolated enabled/disabled checks passed. Multiple-window, split-view, settings UI and private-tab interactions still need runtime checks.
+
+The Mac build and an isolated two-window check passed: closing one window's last ordinary tab created a blank without closing the other window's tab. Added a split guard to retain the remaining pane; a direct split fixture reported failure and needs further diagnosis before claiming split verification. Settings UI and private interactions remain unverified.
+
+The split check was retried with a local server and a wait for the new page to load. The split was created and closing its ordinary pane retained the pinned partner; the enabled, disabled and two-window checks also passed. The earlier fixture did not wait for a splittable page. Settings UI and private-tab interactions remain unverified.
+
+The next isolated Mac audit confirmed that the go-back preference takes precedence and closing the last private tab does not create a replacement. All preceding last-tab checks passed again; the settings toggle has not been clicked through in the UI.
+
+### Saved captures and Downloads — November 26, 2026
+
+Reviewed Search `b2ce7eb3c729de864005e3bf544c1c6bda6e5934`: its opt-in watcher adds newly created macOS screenshots to Downloads. Ark does not yet watch system screenshots. Explicitly saved non-private Ark page captures now enter its existing finished-download list; private captures do not. The Nx Mac build passed, but the save-panel round trip, private exclusion and dragging remain unverified.
+
+The save operation now shares a direct file-writing path with the existing audit. The Mac build and isolated temporary-file check passed: a regular capture produced a finished download entry and a private capture did not. This directly exercises the write/list operation with fixture bytes, not the native save sheet, actual PNG encoding, overwrite interaction or dragging.
+
+### Element-fullscreen return — November 26, 2026
+
+Adapted Search `84a4bede6ac5e3d3e5d6ebc124920483fc2fc2f4` to remember the key WebKit element-fullscreen window while Ark deactivates and restore it on keyboard-driven activation if it is still visible and holds a fullscreen page. Mouse-driven activation is left to AppKit. The Nx Mac build passed. A real fullscreen page, Cmd-Tab return, window closure and mouse activation still require runtime verification; this is build evidence only.
+
 ### Session cache bypass — November 26, 2026
 
 Adapted the reload portion of Search `d0c292d2f7c2f553de5a3893a2da952880fc69da`: Mac View and command-bar actions can toggle ordinary reloads to use WebKit's existing reload-from-origin for the current host until Ark quits. Private choices are scoped to a tab and host and removed on close. The Nx Mac build passed; an isolated local-page audit toggled the preference and reloaded, and the local server saw a subsequent 200 response. This does not prove cache bypass across every resource or service worker, private-tab behavior, menu interaction, or Search's per-site Developer Mode bar and persistence.

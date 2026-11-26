@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Link Preview close callback — November 26, 2026
+
+Reviewed Search `70eeea92ecde7e871eb6182ffa66237e64375850`: its small-window fix routes WebKit's close callback to the window. Ark already has that route. An isolated Mac Debug fixture invoked the actual WebKit UI delegate callback and confirmed the Link Preview was removed without adding a tab; Mac build passed. The fixture did not exercise a site calling `window.close()` in a script-opened sign-in flow, so that runtime case and Little Arc parity remain open. No simulator was started.
+
 ### Synced profile session reset — November 26, 2026
 
 Applying a remote Space profile change previously reused existing WebViews when tab IDs and URLs stayed the same. Mac and iOS sync application now retire sessions and clear session state when a retained tab's old and destination Space profiles differ, including moves between Spaces. Profile-bound overlays close on an affected selected Space. Mac and generic iOS Nx builds passed. An isolated Mac Debug fixture used two coordinators and a local sync folder to change a Space profile, then verified the old WebView was replaced by one using the new named store and its old interaction state cleared. Cross-Space sync moves, asynchronous timing beyond that fixture, and iOS runtime remain unverified; no simulator was started and the comparison rating is unchanged.

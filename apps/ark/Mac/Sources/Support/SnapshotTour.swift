@@ -1425,6 +1425,15 @@ struct SnapshotTour {
         let defaults = UserDefaults.standard
         let previousPane = defaults.object(forKey: "settingsTab")
         defer { defaults.set(previousPane, forKey: "settingsTab") }
+        let closePreview = browser.library.showLinkPreview(nil)
+        if let webView = closePreview.controller.page.view as? WKWebView, let uiDelegate = webView.uiDelegate {
+            uiDelegate.webViewDidClose?(webView)
+            await pause(0.2)
+            note("WebKit close callback removed Link Preview without creating a tab: \(browser.library.linkWindows[closePreview.tab.id] == nil && browser.library.space(containing: closePreview.tab) == nil)")
+        } else {
+            note("WebKit close callback fixture missing Link Preview delegate")
+            closePreview.close()
+        }
         browser.settings.blockContent = true
         SpaceRouter.shared.isEnabled = true
         let pageURL = URL(string: "https://reference.ark.local/design")!

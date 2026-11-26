@@ -65,7 +65,10 @@ enum ExtensionCompat {
             """.write(to: target.appending(path: keepAlivePage), atomically: true, encoding: .utf8)
             try """
             // Called by Ark every 20 s: an incoming event keeps the background from being unloaded as idle.
-            function ping() { try { chrome.runtime.sendMessage({ name: 'ark-keepalive' }).catch(() => {}); } catch (e) {} return Date.now(); }
+            // Use Chrome extensions' common message discriminator as well as Ark's name. Some
+            // backgrounds (including uBlock Origin Lite) dispatch `request.what.includes(...)`
+            // before deciding whether the message is theirs.
+            function ping() { try { chrome.runtime.sendMessage({ what: 'ark-keepalive', name: 'ark-keepalive' }).catch(() => {}); } catch (e) {} return Date.now(); }
             """.write(to: target.appending(path: "_ark_keepalive.js"), atomically: true, encoding: .utf8)
         }
         if var background = manifest["background"] as? [String: Any] {

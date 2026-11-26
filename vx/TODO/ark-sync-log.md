@@ -1528,6 +1528,10 @@ Follow-up: an isolated Mac Debug fixture constructed the menu around a simulated
 
 The Mac sidebar now opens a regular pin folder's nested pages on Command-click, using the existing Open All behavior; regular clicks still toggle the folder and Live Folders retain their existing click behavior. The Mac build passed. An isolated sidebar tour posted Command-click events and verified two nested pins opened while selection and expansion were preserved; its existing reorder and bulk-move checks also passed. Physical pointer input remains unverified. Report: `/private/tmp/ark-folder-command-20261127/report.txt`.
 
+### Search pin-home import — November 27, 2026
+
+Search's Spaces export records each pin's home URL. Ark's importer now also writes that address to `pinnedHomeURL`, so an imported pin can return to its home after navigation. The Mac build and isolated backup fixture passed, including the imported home URL, folder placement, profile favorites, unsafe-link filtering and cycle rejection. This is a data-level import check; a real Search export and file-picker flow remain unverified. Report: `/private/tmp/ark-search-pin-home-20261127/report.txt`.
+
 ### External extension messaging review — November 27, 2026
 
 Rechecked Browsa `a55c720` against Ark's current extension lifecycle. The reference checks allowed destination IDs in `sendMessage`, while its `connect` forwards without that explicit check; whether WebKit rejects an unlisted destination is not yet verified. Ark shares an extension controller across regular and ephemeral pages but keeps per-extension private-access permissions. Before enabling this missing compatibility feature, verify per-destination access for both methods, private-page behavior, changes to private access, unload and already-open pages. No bridge or parity claim was added.

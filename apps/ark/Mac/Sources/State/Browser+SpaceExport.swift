@@ -96,12 +96,13 @@ private struct SearchSpacesBackup: Decodable {
               profiles.reduce(0, { $0 + $1.spaces.count }) <= 500 else {
             throw SpaceLinkArchive.InvalidArchive.unsupportedVersion
         }
-        func link(_ value: Link, folders: [String: String] = [:]) -> [String: Any]? {
+        func link(_ value: Link, folders: [String: String] = [:], pinned: Bool = false) -> [String: Any]? {
             guard let url = URL(string: value.url),
                   let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
                   let host = url.host(), !host.isEmpty, url.user == nil, url.password == nil else { return nil }
             var result: [String: Any] = ["title": value.title, "url": url.absoluteString]
             if let folder = value.folder.flatMap({ folders[$0] }) { result["pinFolderID"] = folder }
+            if pinned { result["pinnedHomeURL"] = url.absoluteString }
             return result
         }
         var output: [[String: Any]] = []
@@ -140,7 +141,7 @@ private struct SearchSpacesBackup: Decodable {
                     folders.append(record)
                 }
                 let archive: [String: Any] = ["version": 1, "name": space.name,
-                    "pinned": space.pins.compactMap { link($0, folders: ids) },
+                    "pinned": space.pins.compactMap { link($0, folders: ids, pinned: true) },
                     "today": space.tabs.compactMap { link($0) }, "pinFolders": folders]
                 var entry: [String: Any] = ["links": archive, "colorIndex": max(-10000, min(10000, space.colour)), "order": order]
                 if let icon = space.icon, !icon.isEmpty, icon.count <= 100 { entry["symbol"] = icon }

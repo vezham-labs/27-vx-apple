@@ -2307,7 +2307,7 @@ struct SnapshotTour {
                 try browser.restoreAllSpacesBackup(Data(searchFixture.utf8))
                 let space = library.regularSpaces.first { !before.contains($0.id) && $0.name == "Search Space" }
                 let favorite = space?.websiteProfileID.map { id in library.favorites(for: id).contains { $0.url.absoluteString == "https://example.com/shared" } } ?? false
-                let restored = space.map { $0.symbol == "star.fill" && $0.pinned.count == 1 && $0.today.count == 1 && $0.pinFolders.count == 2 && $0.pinned.first?.pinFolderID == $0.pinFolders.first?.id } ?? false
+                let restored = space.map { $0.symbol == "star.fill" && $0.pinned.count == 1 && $0.today.count == 1 && $0.pinFolders.count == 2 && $0.pinned.first?.pinFolderID == $0.pinFolders.first?.id && $0.pinned.first?.pinnedHomeURL?.absoluteString == "https://example.com/pin" } ?? false
                 note("Search Spaces JSON restores profile favorite, folder, pin and open tab: \(restored && favorite)")
                 let feed = space?.pinFolders.first { $0.name == "Feed" }
                 let subscription = feed?.feed?.source.absoluteString == searchFeed && feed?.feed?.articles.isEmpty == true

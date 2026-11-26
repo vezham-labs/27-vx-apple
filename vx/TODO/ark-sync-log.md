@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Glance screen-permission cancellation — November 26, 2026
+
+An isolated Mac Debug fixture requested screen permission through the Glance delegate, verified the prompt was queued, and confirmed both closing Glance and invoking its navigation-commit callback cancel the request. Mac Nx build passed. The fixture did not invoke WebKit screen capture, display a system recording picker, or verify real navigation or promotion; Peek remains Partial. No simulator was started.
+
 ### Cross-profile synced pin move — November 26, 2026
 
 An isolated Mac Debug fixture used two coordinators and a local sync folder to move a pinned tab from a named-profile Space to a Default-profile Space. After sync, the same tab belonged to the destination and used a replacement WebView with the Default store and no old interaction state. Mac Nx build passed. iOS runtime and physical-device propagation remain unverified; no simulator was started. Correction: the prior two Link Preview notes incorrectly said Little Arc was Partial; the comparison rates Mac Little Arc Yes, and that rating did not change.

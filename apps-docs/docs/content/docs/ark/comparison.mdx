@@ -21,6 +21,8 @@ GitHub Pull Requests Live Folder requests restrict cookie-bearing redirects to H
 
 A local Mac sync fixture also verified that a remote profile change replaces the existing WebView with one using the new profile, and that a pinned tab moved by sync between different-profile Spaces receives a new WebView. Physical-device sync and iOS runtime behavior remain unverified.
 
+An isolated Mac Glance fixture verified that closing a preview or invoking its navigation-commit callback cancels a queued screen-permission request. Real WebKit screen sharing and promotion during a request remain unverified.
+
 The newest fetched feature branches do not advance those pinned `main` heads. Search's many-tab
 branch is retained as a future measurement reference, while its declarative-content branch records
 a concrete Chrome-extension gap: Ark has no persisted declarative rule/injection bridge yet.

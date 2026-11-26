@@ -74,6 +74,88 @@ private struct SpacesBackup: Codable {
     }
 }
 
+/// Search's portable JSON contains links and local organization, never website data.
+private struct SearchSpacesBackup: Decodable {
+    struct Link: Decodable { let title: String; let url: String; let folder: String? }
+    struct Folder: Decodable { let id: String; let name: String; let parent: String?; let feed: String? }
+    struct Space: Decodable {
+        let name: String
+        let colour: Int
+        let icon: String?
+        let pins: [Link]
+        let folders: [Folder]
+        let tabs: [Link]
+    }
+    struct Profile: Decodable { let name: String; let everySpace: [Link]; let spaces: [Space] }
+    let format: String
+    let version: Int
+    let profiles: [Profile]
+
+    func arkBackup() throws -> SpacesBackup {
+        guard format == "search-spaces", version == 1, profiles.count <= 100,
+              profiles.reduce(0, { $0 + $1.spaces.count }) <= 500 else {
+            throw SpaceLinkArchive.InvalidArchive.unsupportedVersion
+        }
+        func link(_ value: Link, folders: [String: String] = [:]) -> [String: Any]? {
+            guard let url = URL(string: value.url),
+                  let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
+                  let host = url.host(), !host.isEmpty, url.user == nil, url.password == nil else { return nil }
+            var result: [String: Any] = ["title": value.title, "url": url.absoluteString]
+            if let folder = value.folder.flatMap({ folders[$0] }) { result["pinFolderID"] = folder }
+            return result
+        }
+        var output: [[String: Any]] = []
+        var order = 0
+        for profile in profiles {
+            guard WebsiteProfile(name: profile.name) != nil, profile.everySpace.count <= 5000 else {
+                throw SpaceLinkArchive.InvalidArchive.invalidLink
+            }
+            var spaces: [[String: Any]] = []
+            for space in profile.spaces {
+                guard space.folders.count <= 5000, space.pins.count + space.tabs.count <= 5000 else {
+                    throw SpaceLinkArchive.InvalidArchive.tooLarge
+                }
+                var ids: [String: String] = [:]
+                for folder in space.folders {
+                    guard !folder.id.isEmpty, ids[folder.id] == nil else { throw SpaceLinkArchive.InvalidArchive.invalidLink }
+                    ids[folder.id] = UUID().uuidString
+                }
+                let parents = Dictionary(uniqueKeysWithValues: space.folders.map { ($0.id, $0.parent) })
+                var folders: [[String: Any]] = []
+                for folder in space.folders {
+                    var visited: Set<String> = [folder.id]
+                    var parent = folder.parent
+                    while let current = parent, ids[current] != nil {
+                        guard visited.insert(current).inserted else { throw SpaceLinkArchive.InvalidArchive.invalidLink }
+                        parent = parents[current] ?? nil
+                    }
+                    guard let folderID = ids[folder.id] else { throw SpaceLinkArchive.InvalidArchive.invalidLink }
+                    var record: [String: Any] = ["id": folderID, "name": folder.name, "isCollapsed": false]
+                    if let id = folder.parent.flatMap({ ids[$0] }) { record["parentID"] = id }
+                    if let feed = folder.feed, let url = URL(string: feed),
+                       let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
+                       url.host()?.isEmpty == false, url.user == nil, url.password == nil {
+                        record["feed"] = ["source": url.absoluteString, "title": folder.name, "articles": []]
+                    }
+                    folders.append(record)
+                }
+                let archive: [String: Any] = ["version": 1, "name": space.name,
+                    "pinned": space.pins.compactMap { link($0, folders: ids) },
+                    "today": space.tabs.compactMap { link($0) }, "pinFolders": folders]
+                var entry: [String: Any] = ["links": archive, "colorIndex": max(-10000, min(10000, space.colour)), "order": order]
+                if let icon = space.icon, !icon.isEmpty, icon.count <= 100 { entry["symbol"] = icon }
+                spaces.append(entry)
+                order += 1
+            }
+            output.append(["name": profile.name, "favorites": profile.everySpace.compactMap { link($0) }, "spaces": spaces])
+        }
+        let data = try JSONSerialization.data(withJSONObject: ["format": "ark-spaces", "version": 1, "profiles": output])
+        let backup = try JSONDecoder().decode(SpacesBackup.self, from: data)
+        try backup.validate()
+        return backup
+    }
+}
+
 private enum SpacesBackupExportError: LocalizedError {
     case missingProfile(String)
 
@@ -147,7 +229,13 @@ extension Browser {
 
     func restoreAllSpacesBackup(_ data: Data) throws {
                 guard data.count <= 10 * 1024 * 1024 else { throw SpaceLinkArchive.InvalidArchive.tooLarge }
-                let backup = try JSONDecoder().decode(SpacesBackup.self, from: data)
+                let decoder = JSONDecoder()
+                let backup: SpacesBackup
+                if let search = try? decoder.decode(SearchSpacesBackup.self, from: data), search.format == "search-spaces" {
+                    backup = try search.arkBackup()
+                } else {
+                    backup = try decoder.decode(SpacesBackup.self, from: data)
+                }
                 try backup.validate()
                 var profiles = library.settings.websiteProfiles
                 var plans: [(SpacesBackup.Profile, UUID?)] = []

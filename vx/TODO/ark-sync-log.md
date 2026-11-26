@@ -1,5 +1,27 @@
 # Ark upstream sync log
 
+### Paste and Go investigation — November 26, 2026
+
+Search `c6e7a984` adds a contextual Paste and Go action. A local Ark field-editor experiment built, but the isolated command-field audit reported no active field editor and could not exercise its menu or navigation. The experiment was removed to preserve the existing address field. Paste and Go remains unimplemented; diagnosing field focus and verifying the real context menu remain open.
+
+### Search Spaces import — November 26, 2026
+
+Ark's all-Spaces backup importer now accepts Search `search-spaces` version 1 JSON. It maps profiles to new isolated Ark profiles, shared favorites, Space names, icons and colors, folders and feed URLs, pinned links and open tabs; unsafe non-web or credentialed URLs are skipped. Cached feed items, Search gradients and open-tab groups are not transferred. Duplicate or cyclic folder IDs are rejected before mutating the library. The Nx Mac build passed, and an isolated existing backup audit verified a representative profile, favorite, folder, pin and open-tab import alongside its existing Ark backup checks. The native file-picker route, real Search-exported files, feed activation and broader malformed data still need focused runtime verification.
+
+Follow-up: the Mac build and isolated backup audit passed with a two-profile Search-shaped fixture. The imported profiles retained separate favorites, a JavaScript URL was skipped, and grouped tabs remained open as ordinary tabs. A cyclic folder fixture was rejected without changing the Space or profile count. This is fixture evidence, not a real Search-exported file or native file-picker round trip; feed activation and other malformed cases remain unverified.
+
+A further Mac build and isolated audit verified that a Search-shaped Live Folder keeps its feed URL and nested parent, starts paused, and discards cached items. The reference checkout has no built Search app, so this remains a synthetic fixture rather than a Search-generated export. At that point, fetching after activation and the native import panel still needed verification.
+
+The next isolated Mac audit used a loopback RSS feed: the imported subscription stayed paused until activated, then fetched the expected article. The Nx Mac build and audit passed. This does not verify a Search-generated file or the native file-picker import.
+
+An isolated Swift harness extracted Search `66c43586f2f3874f22d48058772868f8d21adcb7`'s actual `SpacesExport` Codable declarations and JSON encoder and used them to produce a fixture. Ark's existing backup audit imported its favorite, folder, pin and open tab successfully; the Nx Mac build passed. This tests the reference encoder's output, not Search's full app gathering/export flow or Ark's native file-picker route. Harness and generated file: `/private/tmp/ark-search-encoder.swift` and `/private/tmp/ark-search-encoder-export.json`.
+
+### Mac capture file actions — November 26, 2026
+
+Added explicit Save Full Page Image, Save Page Area, and Save Page Element commands alongside the existing clipboard actions. Each uses the existing capture pipeline and a native PNG save sheet; cancelling does not write a file. The Nx Mac build passed. The save-sheet interactions, file contents and overwrite behavior still need a runtime round trip, including a private tab. Screenshots are not automatically added to Downloads, so Search `b2ce7eb3` and Browsa `a4c95ae5` are not fully adopted. No feature rating has changed.
+
+The isolated debug tour opened the full-page save sheet for a loopback fixture and captured a [preview](../../preview/ark/mac/features/capture-save-sheet.png). An attempt to drive the sheet programmatically exited with signal 11 before a file was written; its cause was not established. This confirms sheet presentation only, not normal Save or Cancel behavior. The temporary tour instrumentation was removed pending a reliable interaction check.
+
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
 ### Feature-first upstream intake — November 26, 2026

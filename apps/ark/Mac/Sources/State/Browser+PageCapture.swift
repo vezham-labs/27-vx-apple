@@ -1,5 +1,6 @@
 import AppKit
 import BrowserCore
+import UniformTypeIdentifiers
 import WebKit
 
 extension Browser {
@@ -31,7 +32,7 @@ extension Browser {
         }
     }
 
-    func copyFullPageImage(to clipboard: NSPasteboard = .general) {
+    func copyFullPageImage(to clipboard: NSPasteboard = .general, save: Bool = false) {
         guard !isCapturingPage, let tab = currentTab, let url = tab.url else { return }
         guard let webView = currentController?.page.view as? WKWebView, webView.window != nil else {
             showToast("Couldn’t capture this page")
@@ -56,21 +57,21 @@ extension Browser {
                 return
             }
 
-            copyCapture(png, isPrivate: tab.isPrivate, to: clipboard, confirmation: "Full page image copied")
+            finishCapture(png, save: save, window: webView.window, isPrivate: tab.isPrivate, to: clipboard, confirmation: "Full page image copied")
         }
     }
 
     @discardableResult
-    func selectPageArea(to clipboard: NSPasteboard = .general) -> RegionCaptureView? {
-        selectPageCapture(.area, to: clipboard)
+    func selectPageArea(to clipboard: NSPasteboard = .general, save: Bool = false) -> RegionCaptureView? {
+        selectPageCapture(.area, to: clipboard, save: save)
     }
 
     @discardableResult
-    func selectPageElement(to clipboard: NSPasteboard = .general) -> RegionCaptureView? {
-        selectPageCapture(.element, to: clipboard)
+    func selectPageElement(to clipboard: NSPasteboard = .general, save: Bool = false) -> RegionCaptureView? {
+        selectPageCapture(.element, to: clipboard, save: save)
     }
 
-    private func selectPageCapture(_ mode: RegionCaptureView.Mode, to clipboard: NSPasteboard) -> RegionCaptureView? {
+    private func selectPageCapture(_ mode: RegionCaptureView.Mode, to clipboard: NSPasteboard, save: Bool) -> RegionCaptureView? {
         guard !isCapturingPage, let tab = currentTab, let url = tab.url else { return nil }
         guard let webView = currentController?.page.view as? WKWebView,
               webView.window != nil, webView.superview != nil else {
@@ -115,13 +116,33 @@ extension Browser {
                     return
                 }
                 let confirmation = mode == .area ? "Page area copied" : "Page element copied"
-                copyCapture(png, isPrivate: tab.isPrivate, to: clipboard, confirmation: confirmation)
+                finishCapture(png, save: save, window: webView.window, isPrivate: tab.isPrivate, to: clipboard, confirmation: confirmation)
             }
         }
         if picker != nil {
             showToast(mode == .area ? "Drag to select an area · Esc to cancel" : "Click an element · Esc to cancel")
         }
         return picker
+    }
+
+    private func finishCapture(_ png: Data, save: Bool, window: NSWindow?, isPrivate: Bool, to clipboard: NSPasteboard, confirmation: String) {
+        guard save else {
+            copyCapture(png, isPrivate: isPrivate, to: clipboard, confirmation: confirmation)
+            return
+        }
+        guard let window else { showToast("Couldn’t save the page image"); return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.png]
+        panel.nameFieldStringValue = "Page Capture.png"
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try png.write(to: url, options: .atomic)
+                self?.showToast("Page image saved")
+            } catch {
+                self?.showToast("Couldn’t save the page image")
+            }
+        }
     }
 
     private func copyCapture(_ png: Data, isPrivate: Bool, to clipboard: NSPasteboard, confirmation: String) {

@@ -1608,6 +1608,68 @@ struct SnapshotTour {
         defer { defaults.set(previousPane, forKey: "settingsTab") }
         if ProcessInfo.processInfo.environment["ARK_SPACES_BACKUP_CHECK"] == "1" {
             let library = browser.library
+            if let path = ProcessInfo.processInfo.environment["ARK_SEARCH_ENCODER_FILE"] {
+                do {
+                    let before = Set(library.regularSpaces.map(\.id))
+                    try browser.restoreAllSpacesBackup(Data(contentsOf: URL(fileURLWithPath: path)))
+                    let space = library.regularSpaces.first { !before.contains($0.id) && $0.name == "Encoder Space" }
+                    let favorite = space?.websiteProfileID.map { id in library.favorites(for: id).contains { $0.title == "Actual Shared" } } ?? false
+                    let folder = space?.pinFolders.first { $0.name == "Actual Folder" }
+                    note("Search encoder output imports favorite, folder, pin and tab: \(favorite && folder != nil && space?.pinned.first?.pinFolderID == folder?.id && space?.today.first?.url?.absoluteString == "https://example.com/tab")")
+                } catch { note("Search encoder output import failed: \(error)") }
+            }
+            let searchFeed = ProcessInfo.processInfo.environment["ARK_SEARCH_FEED_CHECK"] == "1"
+                ? "http://127.0.0.1:47931/search-feed.xml" : "https://example.com/feed.xml"
+            let searchFixture = """
+                {"format":"search-spaces","version":1,"profiles":[{"name":"Search Audit","everySpace":[{"title":"Shared","url":"https://example.com/shared","listed":false}],"spaces":[{"name":"Search Space","colour":2,"icon":"star.fill","pins":[{"title":"Pinned","url":"https://example.com/pin","listed":true,"folder":"folder"}],"folders":[{"id":"folder","name":"Folder"},{"id":"feed","name":"Feed","parent":"folder","feed":"https://example.com/feed.xml","items":[{"title":"Old","url":"https://example.com/old"}]}],"tabs":[{"title":"Open","url":"https://example.com/open"}],"groups":[]}]}]}
+                """.replacingOccurrences(of: "https://example.com/feed.xml", with: searchFeed)
+            do {
+                let before = Set(library.regularSpaces.map(\.id))
+                try browser.restoreAllSpacesBackup(Data(searchFixture.utf8))
+                let space = library.regularSpaces.first { !before.contains($0.id) && $0.name == "Search Space" }
+                let favorite = space?.websiteProfileID.map { id in library.favorites(for: id).contains { $0.url.absoluteString == "https://example.com/shared" } } ?? false
+                let restored = space.map { $0.symbol == "star.fill" && $0.pinned.count == 1 && $0.today.count == 1 && $0.pinFolders.count == 2 && $0.pinned.first?.pinFolderID == $0.pinFolders.first?.id } ?? false
+                note("Search Spaces JSON restores profile favorite, folder, pin and open tab: \(restored && favorite)")
+                let feed = space?.pinFolders.first { $0.name == "Feed" }
+                let subscription = feed?.feed?.source.absoluteString == searchFeed && feed?.feed?.articles.isEmpty == true
+                let nested = feed?.parentID == space?.pinFolders.first(where: { $0.name == "Folder" })?.id
+                let paused: Bool
+                if let space, let feed {
+                    paused = (try? await space.refreshLiveFolder(feed.id, allowActivation: false)) == false
+                } else { paused = false }
+                note("Search live folder imports nested and paused without cached items: \(subscription && nested && paused)")
+                if ProcessInfo.processInfo.environment["ARK_SEARCH_FEED_CHECK"] == "1", let space, let feed {
+                    let activated = try await space.refreshLiveFolder(feed.id)
+                    let articles = space.pinFolders.first { $0.id == feed.id }?.feed?.articles ?? []
+                    note("Search imported feed fetches after activation: \(activated && articles.map(\.title) == ["Fixture Article"])")
+                }
+            } catch { note("Search Spaces JSON import failed: \(error)") }
+            let multipleSearchProfiles = """
+                {"format":"search-spaces","version":1,"exported":"2026-11-26T00:00:00Z","profiles":[
+                  {"name":"Personal","everySpace":[{"title":"One","url":"https://example.com/one","listed":false}],"spaces":[{"name":"Personal Space","colour":1,"pins":[{"title":"Unsafe","url":"javascript:alert(1)","listed":true}],"folders":[],"tabs":[],"groups":[]}]},
+                  {"name":"Club","everySpace":[{"title":"Two","url":"https://example.com/two","listed":false}],"spaces":[{"name":"Club Space","colour":2,"pins":[],"folders":[],"tabs":[{"title":"Open","url":"https://example.com/club","group":"G1"}],"groups":[{"id":"G1","name":"Research"}]}]}]}
+                """
+            do {
+                let before = Set(library.regularSpaces.map(\.id))
+                try browser.restoreAllSpacesBackup(Data(multipleSearchProfiles.utf8))
+                let added = library.regularSpaces.filter { !before.contains($0.id) }
+                let personal = added.first { $0.name == "Personal Space" }
+                let club = added.first { $0.name == "Club Space" }
+                let personalFavorites = personal?.websiteProfileID.map { library.favorites(for: $0).map(\.url.absoluteString) } ?? []
+                let clubFavorites = club?.websiteProfileID.map { library.favorites(for: $0).map(\.url.absoluteString) } ?? []
+                note("Search multiple profiles retain separate favorites and reject unsafe links: \(added.count == 2 && personal?.websiteProfileID != club?.websiteProfileID && personalFavorites == ["https://example.com/one"] && clubFavorites == ["https://example.com/two"] && personal?.pinned.isEmpty == true && club?.today.count == 1)")
+            } catch { note("Search multiple profiles import failed: \(error)") }
+            let cyclicSearch = """
+                {"format":"search-spaces","version":1,"profiles":[{"name":"Cycle","everySpace":[],"spaces":[{"name":"Cycle","colour":0,"pins":[],"folders":[{"id":"A","name":"A","parent":"B"},{"id":"B","name":"B","parent":"A"}],"tabs":[],"groups":[]}]}]}
+                """
+            let beforeCycleSpaces = library.regularSpaces.count
+            let beforeCycleProfiles = library.settings.websiteProfiles.count
+            do {
+                try browser.restoreAllSpacesBackup(Data(cyclicSearch.utf8))
+                note("Search cyclic folder import unexpectedly succeeded")
+            } catch {
+                note("Search cyclic folders rejected without changes: \(library.regularSpaces.count == beforeCycleSpaces && library.settings.websiteProfiles.count == beforeCycleProfiles)")
+            }
             let initialSpaceCount = library.regularSpaces.count
             browser.exportAllSpacesBackup()
             await pause(0.4)

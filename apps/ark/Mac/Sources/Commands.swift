@@ -51,6 +51,12 @@ struct BrowserCommands: Commands {
                 .disabled(!hasPage)
             Button("Copy Page Element…") { browser?.selectPageElement() }
                 .disabled(!hasPage)
+            Button("Save Full Page Image…") { browser?.copyFullPageImage(save: true) }
+                .disabled(!hasPage)
+            Button("Save Page Area…") { browser?.selectPageArea(save: true) }
+                .disabled(!hasPage)
+            Button("Save Page Element…") { browser?.selectPageElement(save: true) }
+                .disabled(!hasPage)
             Button("Export Space Links…") { browser?.exportSpaceLinks() }
                 .disabled(browser?.canExportSpaceLinks != true)
             Button("Export All Spaces as Bookmarks…") { browser?.exportAllSpacesBookmarks() }

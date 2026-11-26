@@ -1530,6 +1530,28 @@ struct SnapshotTour {
                 let replacement = library.controller(for: noteTab)
                 let store = (replacement.page.view as? WKWebView)?.configuration.websiteDataStore
                 note("remote profile sync replaced the WebView and selected the named store: \(space.websiteProfileID == profile.id && replacement !== original && store?.identifier == profile.id && noteTab.interactionState == nil)")
+
+                let destination = library.addSpace()
+                library.togglePinned(noteTab)
+                await library.syncNow()
+                var moved = BrowserSnapshot(spaces: library.regularSpaces.map(\.record), selectedSpaceID: space.id,
+                                            favorites: library.favorites(for: nil), archive: library.archive.map(\.record),
+                                            settings: library.settings, saved: nil, profileFavorites: library.favoritesByProfile)
+                _ = await peer.synchronize(moved)
+                if let sourceIndex = moved.spaces.firstIndex(where: { $0.id == space.id }),
+                   let targetIndex = moved.spaces.firstIndex(where: { $0.id == destination.id }),
+                   let pinIndex = moved.spaces[sourceIndex].pinned.firstIndex(where: { $0.id == noteTab.id }) {
+                    let pin = moved.spaces[sourceIndex].pinned.remove(at: pinIndex)
+                    moved.spaces[targetIndex].pinned.append(pin)
+                    _ = await peer.synchronize(moved)
+                    await library.syncNow()
+                    await pause(0.5)
+                    let movedPage = library.controller(for: noteTab)
+                    let movedStore = (movedPage.page.view as? WKWebView)?.configuration.websiteDataStore
+                    note("remote pin move replaced the page across Space profiles: \(library.space(containing: noteTab)?.id == destination.id && movedPage !== replacement && movedStore?.identifier == nil && noteTab.interactionState == nil)")
+                } else {
+                    note("remote pin move fixture could not prepare its Spaces")
+                }
             }
         } catch {
             note("sync settings fixture failed: \(error.localizedDescription)")

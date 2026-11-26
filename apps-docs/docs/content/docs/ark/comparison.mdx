@@ -19,6 +19,8 @@ A local Mac MV3 extension fixture verified pinned-tab creation, pin/unpin update
 
 GitHub Pull Requests Live Folder requests restrict cookie-bearing redirects to HTTPS GitHub and cap responses at 2 MB. Per-Space organization filters are available from the folder menu and operate on cached items. Shared-model checks and a Mac fixture verified filtering; signed-in GitHub and menu interaction remain unverified.
 
+A local Mac sync fixture also verified that a remote profile change replaces the existing WebView with one using the new profile, and that a pinned tab moved by sync between different-profile Spaces receives a new WebView. Physical-device sync and iOS runtime behavior remain unverified.
+
 The newest fetched feature branches do not advance those pinned `main` heads. Search's many-tab
 branch is retained as a future measurement reference, while its declarative-content branch records
 a concrete Chrome-extension gap: Ark has no persisted declarative rule/injection bridge yet.

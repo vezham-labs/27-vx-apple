@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Cross-profile synced pin move — November 26, 2026
+
+An isolated Mac Debug fixture used two coordinators and a local sync folder to move a pinned tab from a named-profile Space to a Default-profile Space. After sync, the same tab belonged to the destination and used a replacement WebView with the Default store and no old interaction state. Mac Nx build passed. iOS runtime and physical-device propagation remain unverified; no simulator was started. Correction: the prior two Link Preview notes incorrectly said Little Arc was Partial; the comparison rates Mac Little Arc Yes, and that rating did not change.
+
 ### Script-opened Link Preview close — November 26, 2026
 
 The isolated Mac Debug fixture opened an `about:blank` child from a Link Preview using `window.open`, then called `window.close()` in the child. The child closed and the opener stayed open; the fixture enabled automatic popup permission locally to make the scripted opening possible. The Mac Nx build passed. This does not establish compatibility with a real sign-in site's navigation or popup policy, and Little Arc remains Partial. No simulator was started.

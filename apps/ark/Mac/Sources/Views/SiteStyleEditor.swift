@@ -38,7 +38,7 @@ struct SiteStyleEditor: View {
                 .foregroundStyle(.secondary)
             if !hiddenElements.isEmpty {
                 HStack {
-                    Text("Hidden elements").font(.subheadline.weight(.medium))
+                    Text("Changed elements").font(.subheadline.weight(.medium))
                     Spacer()
                     Button("Restore All") {
                         do {
@@ -54,6 +54,8 @@ struct SiteStyleEditor: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(element.label).lineLimit(1)
+                                Text(element.shape == nil ? "Hidden" : "Moved or resized")
+                                    .font(.caption2).foregroundStyle(.secondary)
                                 if let note = element.note {
                                     Text(note).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                                 }

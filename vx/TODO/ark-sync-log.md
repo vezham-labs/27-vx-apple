@@ -1,5 +1,33 @@
 # Ark upstream sync log
 
+### Search element shaping review — November 26, 2026
+
+Reviewed Search `0909fdfe2795fe4ef13938523589a8ceb101f108` against Ark's Boost picker and shared `SiteStyles`. Search opts into drag/resize, stores shape alongside selector fingerprints, reapplies guarded CSS, and keeps private changes temporary. Ark has host-scoped CSS and guarded hide records, but its Mac picker currently only selects elements to hide and disallows private Boost editing. No shaping implementation was added in this review; the picker, structured geometry, guarded reapplication, undo and private behavior remain open.
+
+Started shared-model support: optional bounded geometry can now be saved with a fingerprinted element and converted into guarded CSS during application. Existing records without geometry continue to hide elements. The existing BrowserKit Swift test target passed. No picker invokes this yet; actual WebKit rendering, persistence round trip, undo, import validation and private behavior remain unverified, so the feature remains incomplete.
+
+Mac now exposes a separate element picker: drag to move, Option-drag to resize, with an Undo action restoring the previous record. It uses the existing host and page identity checks and is unavailable in private tabs. The Nx Mac build passed. Actual drag interaction, zoom and geometry accuracy, guarded rendering, persistence and undo are not yet verified; Search's private temporary shaping and edge-specific resizing remain unimplemented.
+
+The first local fixture exposed a failure for elements selected by ID: the existing selector helper omitted fingerprints for stable IDs. Shaping now explicitly requests a fingerprint without changing hide behavior. The Mac build and an isolated direct mouse-event fixture passed: a 40×20 drag stored and applied the corresponding CSS translation, and restoring the record removed it. This does not verify physical pointer input, resizing, zoom, persistence, Undo's toast action or private shaping.
+
+Follow-up Mac build and isolated fixture passed for Option-drag resizing a 100×60 element to 120×75 and for saving a shape to a temporary store and reading it with a new store instance. These use direct events and store calls; physical input, page reload application, zoom and the Undo toast action remain open.
+
+An HTTP-backed fixture confirmed the 120×75 geometry was reapplied after WebKit reloaded the page; the Mac build and earlier move/resize/store checks passed. Cross-host navigation, physical input, zoom and the Undo toast action remain unverified for shaping.
+
+Repeated shaping now preserves existing dimensions when moving and existing translation when resizing; moves add to the prior offset. The Mac build and isolated audit passed for moving a previously resized element and loading the same page under a different host without applying its shape. Physical input, zoom, Undo toast interaction and private shaping remain open.
+
+The Boost editor now labels shaped records as changed rather than hidden. A further Mac build and isolated audit invoked the Undo toast action after moving an already resized element; it restored the prior dimensions and removed the translation. This invokes the action directly rather than clicking its button. Physical input, zoom and private shaping remain open.
+
+At 2× WebKit page zoom, an isolated direct-event fixture confirmed that a 20×10-point drag records a 10×5 CSS-pixel move. The Mac build and earlier shape checks passed. Resize at zoom, physical pointer interaction, and private shaping remain open.
+
+At 2× zoom, a further direct-event check resized a previously moved 120×75 element to 130×80 CSS pixels and preserved its translation. The Mac build and preceding checks passed. Reload specifically after this zoomed resize, physical pointer interaction and private shaping remain open.
+
+The zoomed move and resize were retained after a subsequent page reload: the isolated fixture measured 130×80 at (10, 5). The Mac build and prior fixture checks passed. [Preview](../../preview/ark/mac/features/boost-shaped-element.png). Physical pointer interaction and private shaping remain open.
+
+Integration review restored the disabled state of the existing Hide menu item and validates imported shaped records before applying any imported style. Shaped records are no longer reported as hidden selectors. BrowserKit's existing Swift test target and the Mac build passed; invalid-shape import and real menu interaction still need focused runtime checks.
+
+An isolated Mac audit confirmed that an imported Boost containing a negative shape width is rejected without changing the existing CSS or saved shape. The Mac build and preceding move, resize, reload, zoom and host checks passed again. This covers one invalid input; real menu interaction and broader malformed files remain open.
+
 ### Closing the last tab — November 26, 2026
 
 Reviewed Search `fb2d1b3a9e002f307663f60954226d0ae04327d9`: it changes the default for Search's existing option to open a blank tab after closing the last ordinary tab beside pins. Ark's Mac build passed and an isolated check confirmed that Ark selects the existing pin instead. Search's configurable blank-tab behavior remains a gap; no default was changed in this audit.

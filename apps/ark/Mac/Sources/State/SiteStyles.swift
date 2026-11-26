@@ -149,6 +149,55 @@ extension Browser {
         return picker
     }
 
+    @discardableResult
+    func selectSiteElementToShape() -> RegionCaptureView? {
+        guard let host = editableSiteStyleHost, let tab = currentTab, let url = tab.url,
+              let view = currentController?.page.view as? WKWebView else { return nil }
+        let picker = RegionCaptureView.present(on: view, mode: .shape) { [weak self, weak view] result in
+            guard case .shape(let point, let delta, let resize) = result, let self, let view,
+                  currentTab === tab, tab.url == url else { return }
+            Task { [weak self] in
+                let selection = await PageCaptureImage.selection(at: point, in: view, requireFingerprint: true)
+                let rect = resize ? await PageCaptureImage.element(at: point, in: view) : nil
+                guard let self, currentTab === tab, tab.url == url, editableSiteStyleHost == host,
+                      library.existingController(for: tab)?.page.view === view,
+                      let selection, selection.fingerprint?.isEmpty == false else { return }
+                let scale = max(view.pageZoom, 0.01)
+                let dx = Double(delta.x / scale), dy = Double(delta.y / scale)
+                guard abs(dx) + abs(dy) >= 2 else { return }
+                let previous = library.siteStyles.hiddenElements(for: host).first { $0.selector == selection.selector }
+                let oldShape = previous?.shape
+                var element = HiddenSiteElement(selector: selection.selector, label: selection.label,
+                                                note: selection.note, fingerprint: selection.fingerprint, family: selection.family)
+                if resize, let rect {
+                    element.shape = .init(width: max(1, Double(rect.width / scale) + dx), height: max(1, Double(rect.height / scale) + dy),
+                                          dx: oldShape?.dx, dy: oldShape?.dy)
+                } else if !resize {
+                    element.shape = .init(width: oldShape?.width, height: oldShape?.height,
+                                          dx: (oldShape?.dx ?? 0) + dx, dy: (oldShape?.dy ?? 0) + dy)
+                }
+                else { showToast("Couldn’t resize this element"); return }
+                do {
+                    try library.siteStyles.shape(element, for: host)
+                    applySiteStyle(for: host)
+                    showToast(resize ? "Element resized" : "Element moved", actions: [ToastAction(title: "Undo") { [weak self] in
+                        guard let self else { return }
+                        do {
+                            try library.siteStyles.restore(element.selector, for: host)
+                            if let previous {
+                                if previous.shape == nil { try library.siteStyles.hide(previous, for: host) }
+                                else { try library.siteStyles.shape(previous, for: host) }
+                            }
+                            applySiteStyle(for: host)
+                        } catch { showToast("Couldn’t undo this change") }
+                    }])
+                } catch { showToast("Couldn’t save this change") }
+            }
+        }
+        if picker != nil { showToast("Drag an element to move · Option-drag to resize · Esc to cancel") }
+        return picker
+    }
+
     private func applySiteStyle(for host: String) {
         for controller in library.controllers.values where !controller.tab.isPrivate
             && !library.agents.isInAgentSpace(controller.tab) && SiteStyles.host(of: controller.tab.url) == host {

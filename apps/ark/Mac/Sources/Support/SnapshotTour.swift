@@ -222,6 +222,113 @@ struct SnapshotTour {
         }
         let first = base.appending(path: "atlas.html")
         let second = base.appending(path: "field-notes.html")
+        if ProcessInfo.processInfo.environment["ARK_BOOST_SHAPE_CHECK_ONLY"] == "1" {
+            let tab = browser.newTab(url: base.appending(path: "boost-shape.html"))
+            await pause(2)
+            guard let view = browser.currentController?.page.view as? WKWebView else { note("shape fixture missing web view"); return }
+            await pause(1)
+            let probe = await PageCaptureImage.selection(at: NSPoint(x: 30, y: 30), in: view)
+            note("shape selection probe: \(probe?.selector ?? "nil") fingerprint: \(probe?.fingerprint != nil), host: \(browser.editableSiteStyleHost ?? "nil")")
+            guard let picker = browser.selectSiteElementToShape(),
+                  let down = captureMouseEvent(.leftMouseDown, at: NSPoint(x: 30, y: 30), in: picker, window: window),
+                  let up = captureMouseEvent(.leftMouseUp, at: NSPoint(x: 70, y: 50), in: picker, window: window) else {
+                note("shape picker unavailable"); return
+            }
+            picker.mouseDown(with: down)
+            picker.mouseUp(with: up)
+            await pause(2)
+            let transform = (try? await view.evaluateJavaScript("getComputedStyle(document.querySelector('#box')).translate")) as? String
+            let host = SiteStyles.host(of: tab.url) ?? ""
+            let record = browser.library.siteStyles.hiddenElements(for: host).first
+            note("Boost drag stored and applied translation: \(record?.shape?.dx == 40 && record?.shape?.dy == 20 && transform == "40px 20px") (translate: \(transform ?? "nil"))")
+            if let record {
+                let storeFile = directory.appending(path: "shape-store/site-styles.json")
+                let store = SiteStyles(fileURL: storeFile)
+                do {
+                    try store.shape(record, for: host)
+                    let reloaded = SiteStyles(fileURL: storeFile)
+                    note("Boost shape persists across store reload: \(reloaded.hiddenElements(for: host).first?.shape == record.shape)")
+                    try store.set("body { color: red; }", for: host)
+                    var invalid = record
+                    invalid.shape = .init(width: -5)
+                    let badFile = SharedSiteStyle(host: host, css: "body { color: blue; }", font: .original, accent: nil, hiddenElements: [invalid])
+                    let rejected = try store.importData(JSONEncoder().encode(badFile)) == nil
+                    note("invalid imported shape leaves existing style unchanged: \(rejected && store[host] == "body { color: red; }" && store.hiddenElements(for: host).first?.shape == record.shape)")
+                } catch { note("Boost shape persistence failed: \(error)") }
+                try? browser.restoreSiteElement(record.selector, for: host)
+                await pause(1)
+                let restored = (try? await view.evaluateJavaScript("getComputedStyle(document.querySelector('#box')).translate")) as? String
+                note("Boost restore removes translation: \(restored == "none")")
+            }
+            if let resizePicker = browser.selectSiteElementToShape() {
+                let a = resizePicker.convert(NSPoint(x: 30, y: 30), to: nil)
+                let b = resizePicker.convert(NSPoint(x: 50, y: 45), to: nil)
+                if let down = NSEvent.mouseEvent(with: .leftMouseDown, location: a, modifierFlags: [.option], timestamp: 0,
+                                                  windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1),
+                   let up = NSEvent.mouseEvent(with: .leftMouseUp, location: b, modifierFlags: [.option], timestamp: 0,
+                                                windowNumber: window.windowNumber, context: nil, eventNumber: 2, clickCount: 1, pressure: 0) {
+                    resizePicker.mouseDown(with: down)
+                    resizePicker.mouseUp(with: up)
+                    await pause(2)
+                    let size = (try? await view.evaluateJavaScript("(() => { const r=document.querySelector('#box').getBoundingClientRect(); return [r.width,r.height] })()")) as? [Double]
+                    note("Boost Option-drag resizes page element: \(size == [120, 75]) (size: \(size ?? []))")
+                    view.reload()
+                    await pause(3)
+                    let afterReload = (try? await view.evaluateJavaScript("(() => { const r=document.querySelector('#box').getBoundingClientRect(); return [r.width,r.height] })()")) as? [Double]
+                    note("Boost shape reapplied after page reload: \(afterReload == [120, 75]) (size: \(afterReload ?? []))")
+                    if let movePicker = browser.selectSiteElementToShape(),
+                       let moveDown = captureMouseEvent(.leftMouseDown, at: NSPoint(x: 30, y: 30), in: movePicker, window: window),
+                       let moveUp = captureMouseEvent(.leftMouseUp, at: NSPoint(x: 40, y: 35), in: movePicker, window: window) {
+                        movePicker.mouseDown(with: moveDown); movePicker.mouseUp(with: moveUp)
+                        await pause(1)
+                        let shape = browser.library.siteStyles.hiddenElements(for: host).first?.shape
+                        note("Boost move preserves prior resize: \(shape?.width == 120 && shape?.height == 75 && shape?.dx == 10 && shape?.dy == 5)")
+                        if let undo = browser.toastActions.first(where: { $0.title == "Undo" }) {
+                            browser.runToastAction(undo)
+                            await pause(1)
+                            let undone = browser.library.siteStyles.hiddenElements(for: host).first?.shape
+                            let translation = (try? await view.evaluateJavaScript("getComputedStyle(document.querySelector('#box')).translate")) as? String
+                            note("Boost Undo restores previous resized shape: \(undone?.width == 120 && undone?.height == 75 && undone?.dx == nil && translation == "none")")
+                        } else { note("Boost Undo action unavailable") }
+                    } else { note("Boost repeat move picker unavailable") }
+                    view.pageZoom = 2
+                    await pause(0.5)
+                    if let zoomPicker = browser.selectSiteElementToShape(),
+                       let zoomDown = captureMouseEvent(.leftMouseDown, at: NSPoint(x: 30, y: 30), in: zoomPicker, window: window),
+                       let zoomUp = captureMouseEvent(.leftMouseUp, at: NSPoint(x: 50, y: 40), in: zoomPicker, window: window) {
+                        zoomPicker.mouseDown(with: zoomDown); zoomPicker.mouseUp(with: zoomUp)
+                        await pause(1)
+                        let shape = browser.library.siteStyles.hiddenElements(for: host).first?.shape
+                        note("Boost drag converts zoomed points to CSS pixels: \(shape?.dx == 10 && shape?.dy == 5)")
+                    } else { note("Boost zoom picker unavailable") }
+                    if let zoomResize = browser.selectSiteElementToShape() {
+                        let a = zoomResize.convert(NSPoint(x: 50, y: 40), to: nil)
+                        let b = zoomResize.convert(NSPoint(x: 70, y: 50), to: nil)
+                        if let down = NSEvent.mouseEvent(with: .leftMouseDown, location: a, modifierFlags: [.option], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1),
+                           let up = NSEvent.mouseEvent(with: .leftMouseUp, location: b, modifierFlags: [.option], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 2, clickCount: 1, pressure: 0) {
+                            zoomResize.mouseDown(with: down); zoomResize.mouseUp(with: up)
+                            await pause(1)
+                            let shape = browser.library.siteStyles.hiddenElements(for: host).first?.shape
+                            note("Boost resize converts zoomed dimensions correctly: \(shape?.width == 130 && shape?.height == 80 && shape?.dx == 10 && shape?.dy == 5) (shape: \(String(describing: shape)))")
+                        } else { zoomResize.cancelOperation(nil); note("Boost zoom resize events unavailable") }
+                    } else { note("Boost zoom resize picker unavailable") }
+                    view.pageZoom = 1
+                    view.reload()
+                    await pause(3)
+                    let zoomReload = (try? await view.evaluateJavaScript("(() => { const r=document.querySelector('#box').getBoundingClientRect(); return [r.width,r.height,r.x,r.y] })()")) as? [Double]
+                    note("Boost zoomed resize and move survive reload: \(zoomReload == [130, 80, 10, 5]) (bounds: \(zoomReload ?? []))")
+                    saveVisible("boost-shaped-element", in: window)
+                    if let otherURL = URL(string: "http://localhost:47931/boost-shape.html") {
+                        browser.newTab(url: otherURL)
+                        await pause(2)
+                        let other = browser.currentController?.page.view as? WKWebView
+                        let otherSize = (try? await other?.evaluateJavaScript("(() => { const r=document.querySelector('#box').getBoundingClientRect(); return [r.width,r.height] })()")) as? [Double]
+                        note("Boost shape does not cross hosts: \(otherSize == [100, 60]) (size: \(otherSize ?? []))")
+                    }
+                } else { resizePicker.cancelOperation(nil); note("resize events unavailable") }
+            } else { note("resize picker unavailable") }
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_LAST_TAB_CHECK_ONLY"] == "1" {
             let defaults = UserDefaults.standard
             let oldNew = defaults.object(forKey: Preferences.newTabAfterLastKey)

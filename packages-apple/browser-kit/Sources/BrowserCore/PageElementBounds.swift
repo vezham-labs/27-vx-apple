@@ -54,7 +54,7 @@ extension PageCaptureImage {
 
     /// Names the element under a native point and returns a unique CSS selector plus its size and position.
     @MainActor
-    public static func selection(at point: CGPoint, in webView: WKWebView) async -> PageElementSelection? {
+    public static func selection(at point: CGPoint, in webView: WKWebView, requireFingerprint: Bool = false) async -> PageElementSelection? {
         guard webView.bounds.contains(point) else { return nil }
         #if os(iOS)
         let scrollOffset = webView.scrollView.contentOffset
@@ -107,7 +107,7 @@ extension PageCaptureImage {
                 let relatedCount = 0;
                 try { relatedCount = related ? document.querySelectorAll(related).length : 0; } catch {}
                 return { selector, label: clip(label, 40), note,
-                    fingerprint: guarded ? fingerprint(element) : '', family: related, relatedCount: String(relatedCount) };
+                    fingerprint: (guarded || requireFingerprint) ? fingerprint(element) : '', family: related, relatedCount: String(relatedCount) };
             };
             if (element.id) {
                 const selector = '#' + CSS.escape(element.id);
@@ -142,7 +142,7 @@ extension PageCaptureImage {
             }
             return finish(parts.join(' > '), true);
             """, arguments: ["x": point.x, "y": point.y, "originX": origin.x, "originY": origin.y,
-                             "pageZoom": webView.pageZoom], in: nil, contentWorld: .world(name: "Ark Page Capture"))
+                             "pageZoom": webView.pageZoom, "requireFingerprint": requireFingerprint], in: nil, contentWorld: .world(name: "Ark Page Capture"))
         guard let value = result as? [String: String], let selector = value["selector"], !selector.isEmpty,
               let label = value["label"], let note = value["note"] else { return nil }
         return PageElementSelection(selector: selector, label: label, note: note,

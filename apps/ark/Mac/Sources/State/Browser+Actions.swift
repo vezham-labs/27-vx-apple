@@ -140,6 +140,7 @@ extension Browser {
         if let host = editableSiteStyleHost {
             out.append(BrowserCommand(id: "edit-site-style", title: "Edit Boosts…", subtitle: host, keywords: ["css", "site style", "customize"]))
             out.append(BrowserCommand(id: "hide-site-element", title: "Hide Page Element…", keywords: ["boost", "element", "customize"]))
+            out.append(BrowserCommand(id: "shape-site-element", title: "Move or Resize Page Element…", keywords: ["boost", "element", "customize"]))
         }
         if !splitCandidates.isEmpty {
             out.append(BrowserCommand(id: "split-view", title: "Split View With…", keywords: ["pane", "side by side", "stack"]))
@@ -246,6 +247,7 @@ extension Browser {
         case "github-pull-requests": refreshGitHubPullRequests()
         case "edit-site-style": editSiteStyle()
         case "hide-site-element": selectSiteElementToHide()
+        case "shape-site-element": selectSiteElementToShape()
         case "split-view": isSplitPickerPresented = true
         case "separate-split": separateSplit()
         case "clear-today": withAnimation(Motion.snappy) { clearToday() }

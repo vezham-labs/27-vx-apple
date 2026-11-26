@@ -90,6 +90,7 @@ extension Browser {
                 switch selection {
                 case .area(let area): rect = area
                 case .element(let point, _): rect = await PageCaptureImage.element(at: point, in: webView)
+                case .shape: rect = nil
                 }
                 guard currentTab === tab, tab.url == url, library.browsingProfile(for: tab) == profile, library.existingController(for: tab)?.page?.view === webView else { return }
                 let failure = mode == .area ? "Couldn’t capture this area" : "Couldn’t capture this element"

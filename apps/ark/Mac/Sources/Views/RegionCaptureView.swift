@@ -2,10 +2,11 @@ import AppKit
 
 /// A drag selection in viewport coordinates. WebKit's snapshot excludes the overlay.
 final class RegionCaptureView: NSView {
-    enum Mode { case area, element }
+    enum Mode { case area, element, shape }
     enum Selection {
         case area(NSRect)
         case element(NSPoint, allRelated: Bool)
+        case shape(NSPoint, delta: NSPoint, resize: Bool)
     }
 
     private var start: NSPoint?
@@ -38,8 +39,11 @@ final class RegionCaptureView: NSView {
         self.completion = completion
         super.init(frame: page.frame)
         autoresizingMask = [.width, .height]
-        setAccessibilityLabel(mode == .area ? "Drag to select a page area. Press Escape to cancel."
-                                             : "Click a page element to hide it. Option-click hides related elements. Press Escape to cancel.")
+        switch mode {
+        case .area: setAccessibilityLabel("Drag to select a page area. Press Escape to cancel.")
+        case .element: setAccessibilityLabel("Click a page element to hide it. Option-click hides related elements. Press Escape to cancel.")
+        case .shape: setAccessibilityLabel("Drag a page element to move it. Option-drag to resize it. Press Escape to cancel.")
+        }
     }
 
     required init?(coder: NSCoder) { nil }
@@ -115,6 +119,16 @@ final class RegionCaptureView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        if mode == .shape {
+            let end = convert(event.locationInWindow, from: nil)
+            let origin = start
+            let inside = visibleRect.contains(end)
+            dismiss()
+            if let origin, inside {
+                completion(.shape(origin, delta: NSPoint(x: end.x - origin.x, y: end.y - origin.y), resize: event.modifierFlags.contains(.option)))
+            }
+            return
+        }
         if mode == .element {
             let point = convert(event.locationInWindow, from: nil)
             let inside = visibleRect.contains(point)

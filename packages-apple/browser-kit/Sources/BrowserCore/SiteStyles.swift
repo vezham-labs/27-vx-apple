@@ -2,6 +2,22 @@ import Foundation
 import WebKit
 
 public struct HiddenSiteElement: Codable, Identifiable, Equatable, Sendable {
+    public struct Shape: Codable, Equatable, Sendable {
+        public var width: Double?
+        public var height: Double?
+        public var dx: Double?
+        public var dy: Double?
+
+        public init(width: Double? = nil, height: Double? = nil, dx: Double? = nil, dy: Double? = nil) {
+            self.width = width; self.height = height; self.dx = dx; self.dy = dy
+        }
+
+        fileprivate var valid: Bool {
+            [width, height].allSatisfy { $0.map { $0.isFinite && (1...20_000).contains($0) } ?? true }
+                && [dx, dy].allSatisfy { $0.map { $0.isFinite && (-20_000...20_000).contains($0) } ?? true }
+                && [width, height, dx, dy].contains { $0 != nil }
+        }
+    }
     public var selector: String
     public var label: String
     public var note: String?
@@ -11,6 +27,8 @@ public struct HiddenSiteElement: Codable, Identifiable, Equatable, Sendable {
     public var fingerprint: String?
     /// A stable class-based place to look when the original path moved.
     public var family: String?
+    /// Nil means hidden. A shape changes only the matched element's presentation.
+    public var shape: Shape?
     public var date: Date
 
     public var id: String { selector }
@@ -129,7 +147,7 @@ public final class SiteStyles {
     /// A user-selected sRGB accent for a site, stored as `#RRGGBB`.
     public func accent(for host: String) -> String? { accents[host] }
 
-    public func hiddenSelectors(for host: String) -> [String] { hiddenElements(for: host).map(\.selector) }
+    public func hiddenSelectors(for host: String) -> [String] { hiddenElements(for: host).filter { $0.shape == nil }.map(\.selector) }
 
     public func hasStyle(for host: String) -> Bool {
         styles[host] != nil || hidden[host] != nil || font(for: host) != .original || accent(for: host) != nil
@@ -174,7 +192,11 @@ public final class SiteStyles {
     public func importData(_ data: Data) throws -> String? {
         let file = try JSONDecoder().decode(SharedSiteStyle.self, from: data)
         guard file.arkBoost == 1,
-              let host = Self.host(of: URL(string: "https://" + file.host)), host == file.host else {
+              let host = Self.host(of: URL(string: "https://" + file.host)), host == file.host,
+              file.hiddenElements.allSatisfy({ element in
+                  guard let shape = element.shape else { return true }
+                  return shape.valid && !element.selector.isEmpty && element.fingerprint?.isEmpty == false
+              }) else {
             return nil
         }
         try set(file.css ?? "", for: host)
@@ -204,6 +226,16 @@ public final class SiteStyles {
         let elements = hiddenElements(for: host)
         guard !element.selector.isEmpty, !elements.contains(where: { $0.selector == element.selector }) else { return }
         try setHidden(elements + [element], for: host)
+    }
+
+    /// Save a bounded geometry change only for a fingerprinted element, avoiding unguarded moves.
+    public func shape(_ element: HiddenSiteElement, for host: String) throws {
+        guard !element.selector.isEmpty, element.fingerprint?.isEmpty == false,
+              element.shape?.valid == true else { throw CocoaError(.validationMissingMandatoryProperty) }
+        var elements = hiddenElements(for: host)
+        if let index = elements.firstIndex(where: { $0.selector == element.selector }) { elements[index] = element }
+        else { elements.append(element) }
+        try setHidden(elements, for: host)
     }
 
     public func restore(_ selector: String, for host: String) throws {
@@ -262,11 +294,19 @@ public final class SiteStyles {
         revision += 1
         let applyRevision = revision
         let hiddenElements = hiddenElements(for: host).filter { $0.selector != selectorToShow }
-        let selectors = hiddenElements.compactMap { ($0.fingerprint?.isEmpty ?? true) ? $0.selector : nil }
+        let selectors = hiddenElements.compactMap { ($0.fingerprint?.isEmpty ?? true) && $0.shape == nil ? $0.selector : nil }
         let guarded = hiddenElements.compactMap { element -> [String: String]? in
             guard let fingerprint = element.fingerprint, !fingerprint.isEmpty else { return nil }
+            var rule = "display: none !important"
+            if let shape = element.shape, shape.valid {
+                var parts: [String] = []
+                if let width = shape.width { parts.append("width: \(width.rounded())px !important; max-width: none !important; min-width: 0 !important; flex: none !important; box-sizing: border-box !important") }
+                if let height = shape.height { parts.append("height: \(height.rounded())px !important; max-height: none !important; min-height: 0 !important; box-sizing: border-box !important") }
+                if shape.dx != nil || shape.dy != nil { parts.append("translate: \((shape.dx ?? 0).rounded())px \((shape.dy ?? 0).rounded())px !important") }
+                rule = parts.joined(separator: "; ")
+            } else if element.shape != nil { return nil }
             return ["key": element.guardKey, "selector": element.selector, "fingerprint": fingerprint,
-                    "family": element.family ?? ""]
+                    "family": element.family ?? "", "rule": rule]
         }
         // WebKit can expose different wrappers for an adopted sheet on later calls.
         // Identify our sheet by its final rule and keep the save revision in the isolated world.
@@ -295,7 +335,7 @@ public final class SiteStyles {
                     try { sheet.insertRule(`${selector} { display: none !important; }`, sheet.cssRules.length); } catch {}
                 }
                 for (const item of guarded) {
-                    try { sheet.insertRule(`[data-ark-hidden~="${item.key}"] { display: none !important; }`, sheet.cssRules.length); } catch {}
+                    try { sheet.insertRule(`[data-ark-hidden~="${item.key}"] { ${item.rule}; }`, sheet.cssRules.length); } catch {}
                 }
                 if (showing) {
                     try { sheet.insertRule(`:is(${showing}):not(#ark-preview):not(#ark-preview):not(#ark-preview) { outline: 2px solid rgba(23, 23, 23, .9) !important; outline-offset: 2px !important; }`, sheet.cssRules.length); } catch {}

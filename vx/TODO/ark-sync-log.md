@@ -1492,6 +1492,8 @@ An isolated Debug attempt on November 27 served the local asset over loopback an
 
 The retry waited for navigation before injecting the video. The local 36-second asset played unmuted in WebKit and entered picture-in-picture after switching tabs. The Mac build passed; this does not verify the per-site preference or switching Spaces.
 
+The isolated Mac pinned-link tour was retried against two local pages returning HTTP 200. Scripted link clicks opened a Today tab or a cross-host Glance as configured while preserving the source pin; the close option returned to the previous tab. The app exited normally. Physical clicks and the exclusions for fragments, redirects, forms, and sign-in routes were not exercised. Report: `/private/tmp/ark-pin-link-pages-20261127/report.txt`. The Pinned tabs and folders rating remains Partial.
+
 Preview filtering follow-up: automatic PiP now skips video inside a link or an ancestor marked as a preview/thumbnail, following Search's `fb504002` heuristic. Manual PiP remains eligible. A mock-DOM run of the actual selection script verified preview and link exclusion plus ordinary and manual eligibility; the Mac build passed. Real sites, shadow DOM, and false-positive behavior remain unverified.
 
 The existing Debug tour now also runs the actual selection script inside a WebKit page against synthetic video objects: preview and short clips were excluded automatically but eligible manually, and an infinite-duration live candidate remained eligible. The Mac build and isolated check passed. This does not verify decoded video playback or native PiP presentation.

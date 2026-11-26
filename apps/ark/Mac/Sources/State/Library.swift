@@ -1326,7 +1326,12 @@ extension Library: EngineExtensionHost {
         window.currentSpace.today.insert(tab, at: 0)
         if pinned { togglePinned(tab) }
         let page = controller(for: tab).page
-        if active { window.select(tab) }
+        if active {
+            window.select(tab)
+            // WebKit needs a real tab object to return to the extension. Let the user fill that
+            // blank tab through Ark's command bar instead of creating a second tab on submit.
+            if url == nil && !pinned { window.showCommandBar(.editCurrent) }
+        }
         scheduleSave()
         return page
     }

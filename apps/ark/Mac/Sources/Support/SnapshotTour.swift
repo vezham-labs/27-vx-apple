@@ -259,6 +259,15 @@ struct SnapshotTour {
                     """
                 let result = try await extensionPage.evaluate(script, inWorld: "page") as? String
                 note("extension pin API result: \(result ?? "nil")")
+                let blankID = try await extensionPage.evaluate("const tab = await chrome.tabs.create({active: true}); globalThis.arkBlankID = tab.id; return tab.id;", inWorld: "page") as? NSNumber
+                let blankTab = browser.currentTab
+                let beforeCount = browser.currentSpace.allTabs.count
+                let openedEditor = blankID != nil && blankTab?.url == nil && browser.commandBar == .editCurrent
+                browser.perform(.open(first), mode: .editCurrent)
+                await pause(1)
+                let reused = browser.currentTab === blankTab && browser.currentSpace.allTabs.count == beforeCount && browser.currentTab?.url == first
+                note("extension blank tab opens editor and reuses tab: \(openedEditor && reused) (editor: \(openedEditor), reused: \(reused))")
+                _ = try await extensionPage.evaluate("await chrome.tabs.remove(globalThis.arkBlankID); return true;", inWorld: "page")
                 if let manualPage = browser.library.openExtensionTab(url: first, windowID: browser.id, active: false) {
                     await pause(1)
                     let watch = """

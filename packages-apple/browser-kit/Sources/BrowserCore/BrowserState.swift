@@ -493,24 +493,42 @@ public final class BrowserState {
 
         let existingSpaces = Dictionary(uniqueKeysWithValues: regularSpaces.map { ($0.id, $0) })
         let existingTabs = Dictionary(uniqueKeysWithValues: regularSpaces.flatMap(\.allTabs).map { ($0.id, $0) })
+        let oldTabProfiles = Dictionary(uniqueKeysWithValues: regularSpaces.flatMap { space in
+            space.allTabs.map { ($0.id, space.websiteProfileID) }
+        })
         var retainedTabIDs: Set<UUID> = []
 
-        func tab(_ record: TabRecord) -> BrowserTab {
+        func tab(_ record: TabRecord, profileID: UUID?) -> BrowserTab {
             retainedTabIDs.insert(record.id)
             let result = existingTabs[record.id] ?? BrowserTab(record)
-            if existingTabs[record.id] != nil, result.url != record.url { pool.resetSession(for: record.id) }
+            let profileChanged = existingTabs[record.id] != nil && oldTabProfiles[record.id, default: nil] != profileID
+            if existingTabs[record.id] != nil, result.url != record.url || profileChanged {
+                cancelPrompts(for: record.id)
+                cancelPageCapture(of: result)
+                pool.resetSession(for: record.id)
+                discardTabThumbnail(record.id)
+            }
             result.url = record.url
             result.title = record.title
             result.isPinned = record.isPinned
             result.pinnedHomeURL = record.isPinned ? record.pinnedHomeURL : nil
             result.lastActive = record.lastActive
-            result.interactionState = record.interactionState
+            result.interactionState = profileChanged ? nil : record.interactionState
             result.isPrivate = false
             result.favoriteID = record.favoriteID
             result.windowKey = record.windowKey
             result.customTitle = record.customTitle
             result.pinFolderID = record.isPinned ? record.pinFolderID : nil
-            result.websiteSessionProfileID = record.websiteSessionProfileID
+            result.websiteSessionProfileID = profileChanged ? nil : record.websiteSessionProfileID
+            if profileChanged {
+                result.loadError = nil
+                result.canGoBack = false
+                result.canGoForward = false
+                result.isLoading = false
+                result.isAwaitingFirstPaint = false
+                result.isChromeCompact = false
+                result.pageBackground = nil
+            }
             return result
         }
 
@@ -518,6 +536,13 @@ public final class BrowserState {
             let current = existingSpaces[record.id]
             let space = current ?? Space(id: record.id, name: record.name, symbol: record.symbol,
                                          colorIndex: record.colorIndex, isSyncLocalOnly: record.isSyncLocalOnly)
+            if current != nil, space.websiteProfileID != record.websiteProfileID, currentSpace === space {
+                readerArticle = nil
+                siteStyleHost = nil
+                isTabSwitcherPresented = false
+                isRecentTabPreviewsPresented = false
+                isNewTabSheetPresented = false
+            }
             space.name = record.name
             space.symbol = record.symbol
             space.colorIndex = record.colorIndex
@@ -526,8 +551,8 @@ public final class BrowserState {
             space.appearance = record.appearance
             space.websiteProfileID = record.websiteProfileID
             space.isSyncLocalOnly = record.isSyncLocalOnly
-            space.pinned = record.pinned.map(tab)
-            space.today = record.today.map(tab)
+            space.pinned = record.pinned.map { tab($0, profileID: record.websiteProfileID) }
+            space.today = record.today.map { tab($0, profileID: record.websiteProfileID) }
             space.selectedTabID = record.selectedTabID
             space.isSidebarOpen = record.isSidebarOpen
             space.restorePinFolders(record.pinFolders ?? [])

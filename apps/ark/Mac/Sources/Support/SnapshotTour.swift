@@ -1482,6 +1482,27 @@ struct SnapshotTour {
                 device.spaces.contains { space in space.tabs.contains { $0.url == remoteTab.url } }
             }
             note("shared-folder tab index arrived, survived another device sync, and cleared on opt-out: \(received && retained && withdrawn)")
+
+            if let profile = WebsiteProfile(name: "Sync profile fixture") {
+                let library = browser.library
+                let space = browser.currentSpace
+                let original = library.controller(for: noteTab)
+                var remote = peerSnapshot
+                remote.spaces = library.regularSpaces.map(\.record).map { record in
+                    var updated = record
+                    if updated.id == space.id { updated.websiteProfileID = profile.id }
+                    return updated
+                }
+                var remoteSettings = library.settings
+                remoteSettings.websiteProfiles.append(profile)
+                remote.settings = remoteSettings
+                _ = await peer.synchronize(remote)
+                await library.syncNow()
+                await pause(0.5)
+                let replacement = library.controller(for: noteTab)
+                let store = (replacement.page.view as? WKWebView)?.configuration.websiteDataStore
+                note("remote profile sync replaced the WebView and selected the named store: \(space.websiteProfileID == profile.id && replacement !== original && store?.identifier == profile.id && noteTab.interactionState == nil)")
+            }
         } catch {
             note("sync settings fixture failed: \(error.localizedDescription)")
         }

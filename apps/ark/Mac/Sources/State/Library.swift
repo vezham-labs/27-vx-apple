@@ -1223,39 +1223,52 @@ final class Library {
         let oldRegularSpaces = regularSpaces
         let existingSpaces = Dictionary(uniqueKeysWithValues: oldRegularSpaces.map { ($0.id, $0) })
         let existingTabs = Dictionary(uniqueKeysWithValues: regularSpaces.flatMap(\.allTabs).map { ($0.id, $0) })
+        let oldTabProfiles = Dictionary(uniqueKeysWithValues: oldRegularSpaces.flatMap { space in
+            space.allTabs.map { ($0.id, space.websiteProfileID) }
+        })
         var retainedTabIDs: Set<UUID> = []
 
-        func tab(_ record: TabRecord) -> BrowserTab {
+        func tab(_ record: TabRecord, profileID: UUID?) -> BrowserTab {
             retainedTabIDs.insert(record.id)
             let result = existingTabs[record.id] ?? BrowserTab(record)
-            if existingTabs[record.id] != nil, result.url != record.url { resetBrowsingSession(of: result) }
+            let profileChanged = existingTabs[record.id] != nil && oldTabProfiles[record.id, default: nil] != profileID
+            if existingTabs[record.id] != nil, result.url != record.url || profileChanged {
+                resetBrowsingSession(of: result)
+            }
             result.url = record.url
             result.title = record.title
             result.isPinned = record.isPinned
             result.pinnedHomeURL = record.isPinned ? record.pinnedHomeURL : nil
             result.lastActive = record.lastActive
-            result.interactionState = record.interactionState
+            result.interactionState = profileChanged ? nil : record.interactionState
             result.isPrivate = false
             result.favoriteID = record.favoriteID
             result.windowKey = record.windowKey
             result.customTitle = record.customTitle
-            result.websiteSessionProfileID = record.websiteSessionProfileID
+            result.websiteSessionProfileID = profileChanged ? nil : record.websiteSessionProfileID
             return result
         }
 
         let restored = snapshot.spaces.map { record -> Space in
             let space = existingSpaces[record.id] ?? Space(record)
+            if existingSpaces[record.id] != nil, space.websiteProfileID != record.websiteProfileID {
+                for window in windows where window.selectedSpaceID == space.id {
+                    window.closeGlance()
+                    window.reader = nil
+                    window.commandBar = nil
+                }
+            }
             space.name = record.name
             space.symbol = record.symbol
             space.colorIndex = record.colorIndex
             space.themeHue = record.themeHue
             space.themeShade = record.themeShade
             space.appearance = record.appearance
-            space.pinned = record.pinned.map(tab)
+            space.pinned = record.pinned.map { tab($0, profileID: record.websiteProfileID) }
             for (pinRecord, pin) in zip(record.pinned, space.pinned) {
                 space.setPinFolder(pinRecord.pinFolderID, for: pin)
             }
-            space.today = record.today.map(tab)
+            space.today = record.today.map { tab($0, profileID: record.websiteProfileID) }
             space.selectedTabID = record.selectedTabID
             space.isSidebarOpen = record.isSidebarOpen
             space.websiteProfileID = record.websiteProfileID
@@ -1271,6 +1284,7 @@ final class Library {
         for tab in existingTabs.values where !retainedTabIDs.contains(tab.id) { unload(tab.id) }
 
         spaces = restored + spaces.filter(\.isPrivate)
+        pageSwaps += 1
         for window in windows where !remoteIDs.contains(window.selectedSpaceID) { window.leaveSpace() }
         launchSpaceID = snapshot.selectedSpaceID.flatMap { id in restored.first { $0.id == id }?.id }
             ?? restored.first?.id ?? launchSpaceID

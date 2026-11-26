@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Synced profile session reset — November 26, 2026
+
+Applying a remote Space profile change previously reused existing WebViews when tab IDs and URLs stayed the same. Mac and iOS sync application now retire sessions and clear session state when a retained tab's old and destination Space profiles differ, including moves between Spaces. Profile-bound overlays close on an affected selected Space. Mac and generic iOS Nx builds passed. An isolated Mac Debug fixture used two coordinators and a local sync folder to change a Space profile, then verified the old WebView was replaced by one using the new named store and its old interaction state cleared. Cross-Space sync moves, asynchronous timing beyond that fixture, and iOS runtime remain unverified; no simulator was started and the comparison rating is unchanged.
+
 ### Upstream ledger correction — November 26, 2026
 
 Updated stale Browsa dispositions that still described GitHub Live Folders and owner filters as absent, and an older Boosts entry that claimed Mac parity. The entries now reflect the implemented command, profile-cookie flow, folder-menu filters, and manual accent, while preserving the signed-in, UI, and palette-engine gaps. Source review count and comparison ratings are unchanged; no runtime verification was performed.

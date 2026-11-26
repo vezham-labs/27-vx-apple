@@ -180,7 +180,13 @@ extension Browser {
                 var element = HiddenSiteElement(selector: selection.selector, label: selection.label,
                                                 note: selection.note, fingerprint: selection.fingerprint, family: selection.family)
                 if resize, let rect {
-                    element.shape = .init(width: max(1, Double(rect.width / scale) + dx), height: max(1, Double(rect.height / scale) + dy),
+                    let edge = min(12.0, max(3.0, min(rect.width, rect.height) / 4))
+                    let right = abs(point.x - rect.maxX) <= edge
+                    let bottom = abs(point.y - rect.maxY) <= edge
+                    let horizontal = right || !bottom
+                    let vertical = bottom || !right
+                    element.shape = .init(width: horizontal ? max(1, Double(rect.width / scale) + dx) : oldShape?.width,
+                                          height: vertical ? max(1, Double(rect.height / scale) + dy) : oldShape?.height,
                                           dx: oldShape?.dx, dy: oldShape?.dy)
                 } else if !resize {
                     element.shape = .init(width: oldShape?.width, height: oldShape?.height,
@@ -205,7 +211,7 @@ extension Browser {
                 } catch { showToast("Couldn’t save this change") }
             }
         }
-        if picker != nil { showToast("Drag an element to move · Option-drag to resize · Esc to cancel") }
+        if picker != nil { showToast("Drag to move · Option-drag an edge to resize · Esc to cancel") }
         return picker
     }
 

@@ -42,7 +42,7 @@ final class RegionCaptureView: NSView {
         switch mode {
         case .area: setAccessibilityLabel("Drag to select a page area. Press Escape to cancel.")
         case .element: setAccessibilityLabel("Click a page element to hide it. Option-click hides related elements. Press Escape to cancel.")
-        case .shape: setAccessibilityLabel("Drag a page element to move it. Option-drag to resize it. Press Escape to cancel.")
+        case .shape: setAccessibilityLabel("Drag a page element to move it. Option-drag its right or bottom edge to resize it. Press Escape to cancel.")
         }
     }
 

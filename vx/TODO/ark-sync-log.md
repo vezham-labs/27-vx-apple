@@ -1,5 +1,11 @@
 # Ark upstream sync log
 
+### Boost edge resizing — November 26, 2026
+
+Option-dragging near an element's right or bottom edge now resizes the corresponding axis; the corner and interior retain two-axis resizing. The Mac build and isolated direct-event checks passed for right-edge width and bottom-edge height changes after moving and resizing the element. Physical pointer and accessibility interaction remain unverified.
+
+The picker guidance and accessibility label now mention the right and bottom resize edges. The Mac build passed; VoiceOver interaction has not been checked.
+
 ### Private Boost shaping — November 26, 2026
 
 Mac shaping now uses an in-memory `SiteStyles` store per private tab, separate from regular Boosts. Private shapes reapply on that tab's navigation and are discarded on tab or Private Space closure. The Mac build passed. Private shaping, isolation, reload, Undo and cleanup still need runtime verification before this behavior is considered validated.
@@ -7,6 +13,8 @@ Mac shaping now uses an in-memory `SiteStyles` store per private tab, separate f
 The isolated Mac audit passed for a private-tab drag, regular-store isolation, reload reapplication, direct Undo action and store removal on tab close. Closing an entire Private Space and physical pointer interaction remain unverified.
 
 The Mac build and isolated audit also passed for closing an entire Private Space with two temporary stores: both were cleared. The stores were inserted directly for this cleanup check; multiple real private-tab drags and physical pointer interaction remain unverified.
+
+Follow-up isolated audit used the picker in two private tabs on the same host. The second tab's change did not affect the first, closing the first retained the second tab's store, and closing the Private Space cleared the remaining store. The Mac build passed. Input was delivered directly to the picker, not through a physical pointer.
 
 ### Search element shaping review — November 26, 2026
 

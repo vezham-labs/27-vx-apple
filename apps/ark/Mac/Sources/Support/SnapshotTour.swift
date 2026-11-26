@@ -249,13 +249,20 @@ struct SnapshotTour {
                 let undone = (try? await view.evaluateJavaScript("getComputedStyle(document.querySelector('#box')).translate")) as? String
                 note("private shape Undo removes change: \(undone == "none")")
             } else { note("private shape Undo unavailable") }
-            browser.close(tab)
-            note("private shape store removed on tab close: \(browser.library.privateSiteShapes[tab.id] == nil)")
-            let firstPrivate = browser.newTab(url: url, isPrivate: true)
             let secondPrivate = browser.newTab(url: url, isPrivate: true)
-            let storeOne = SiteStyles(fileURL: nil), storeTwo = SiteStyles(fileURL: nil)
-            browser.library.privateSiteShapes[firstPrivate.id] = storeOne
-            browser.library.privateSiteShapes[secondPrivate.id] = storeTwo
+            await pause(2)
+            if let secondView = browser.currentController?.page.view as? WKWebView,
+               let secondPicker = browser.selectSiteElementToShape(),
+               let secondDown = captureMouseEvent(.leftMouseDown, at: NSPoint(x: 30, y: 30), in: secondPicker, window: window),
+               let secondUp = captureMouseEvent(.leftMouseUp, at: NSPoint(x: 50, y: 40), in: secondPicker, window: window) {
+                secondPicker.mouseDown(with: secondDown); secondPicker.mouseUp(with: secondUp)
+                await pause(2)
+                let secondValue = (try? await secondView.evaluateJavaScript("getComputedStyle(document.querySelector('#box')).translate")) as? String
+                let firstValue = (try? await view.evaluateJavaScript("getComputedStyle(document.querySelector('#box')).translate")) as? String
+                note("private tabs keep separate shape changes: \(secondValue == "20px 10px" && firstValue == "none")")
+            } else { note("second private shape picker unavailable") }
+            browser.close(tab)
+            note("private shape store removed on tab close: \(browser.library.privateSiteShapes[tab.id] == nil && browser.library.privateSiteShapes[secondPrivate.id] != nil)")
             browser.library.closePrivateSpace()
             note("closing Private Space clears all temporary shape stores: \(browser.library.privateSiteShapes.isEmpty && browser.library.privateSpace == nil)")
             return
@@ -356,6 +363,18 @@ struct SnapshotTour {
                     let zoomReload = (try? await view.evaluateJavaScript("(() => { const r=document.querySelector('#box').getBoundingClientRect(); return [r.width,r.height,r.x,r.y] })()")) as? [Double]
                     note("Boost zoomed resize and move survive reload: \(zoomReload == [130, 80, 10, 5]) (bounds: \(zoomReload ?? []))")
                     saveVisible("boost-shaped-element", in: window)
+                    for (start, end, expectedWidth, expectedHeight, label) in [
+                        (NSPoint(x: 137, y: 30), NSPoint(x: 157, y: 45), 150.0, 80.0, "right"),
+                        (NSPoint(x: 40, y: 82), NSPoint(x: 60, y: 92), 150.0, 90.0, "bottom")
+                    ] {
+                        guard let edgePicker = browser.selectSiteElementToShape(),
+                              let down = NSEvent.mouseEvent(with: .leftMouseDown, location: edgePicker.convert(start, to: nil), modifierFlags: [.option], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1),
+                              let up = NSEvent.mouseEvent(with: .leftMouseUp, location: edgePicker.convert(end, to: nil), modifierFlags: [.option], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 2, clickCount: 1, pressure: 0) else { note("Boost \(label) edge picker unavailable"); continue }
+                        edgePicker.mouseDown(with: down); edgePicker.mouseUp(with: up)
+                        await pause(1)
+                        let shape = browser.library.siteStyles.hiddenElements(for: host).first?.shape
+                        note("Boost \(label) edge changes only its axis: \(shape?.width == expectedWidth && shape?.height == expectedHeight)")
+                    }
                     if let otherURL = URL(string: "http://localhost:47931/boost-shape.html") {
                         browser.newTab(url: otherURL)
                         await pause(2)

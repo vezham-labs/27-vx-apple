@@ -151,12 +151,12 @@ public actor HistoryStore: HistoryIndex {
 
     /// Recently visited pages on a host, for local app previews. Private stores remain in-memory
     /// and callers should avoid requesting these previews while in a private Space.
-    public func recentVisits(forHost host: String, limit: Int = 5) -> [HistoryEntry] {
+    public func recentVisits(forHost host: String, limit: Int = 5, includingSubdomains: Bool = true) -> [HistoryEntry] {
         let normalizedHost = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
         guard !normalizedHost.isEmpty, limit > 0 else { return [] }
         func matches(_ record: Record) -> Bool {
             guard record.visitCount > 0, let recordHost = record.url.host()?.lowercased() else { return false }
-            return recordHost == normalizedHost || recordHost.hasSuffix(".\(normalizedHost)")
+            return recordHost == normalizedHost || (includingSubdomains && recordHost.hasSuffix(".\(normalizedHost)"))
         }
 
         // The sidebar asks for five pages on hover. Sorting every visit for that

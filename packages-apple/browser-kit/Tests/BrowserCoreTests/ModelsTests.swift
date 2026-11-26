@@ -3,6 +3,18 @@ import Testing
 @testable import BrowserCore
 import Suggest
 
+@Test func recentHistoryCanLimitResultsToAnExactHost() async {
+    let history = HistoryStore(fileURL: nil)
+    let root = URL(string: "https://example.com/home")!
+    let subdomain = URL(string: "https://work.example.com/doc")!
+    await history.recordVisit(url: root, title: "Home", source: .typed)
+    await history.recordVisit(url: subdomain, title: "Work", source: .typed)
+    let exact = await history.recentVisits(forHost: "example.com", includingSubdomains: false)
+    let all = await history.recentVisits(forHost: "example.com", includingSubdomains: true)
+    #expect(exact.map(\.url) == [root])
+    #expect(Set(all.map(\.url)) == Set([root, subdomain]))
+}
+
 @Test @MainActor func recentTabsPreferTheSelectionAndLimitResults() {
     let pinned = BrowserTab(url: nil, title: "Pinned", isPinned: true, lastActive: Date(timeIntervalSince1970: 30))
     let selected = BrowserTab(url: nil, title: "Selected", lastActive: Date(timeIntervalSince1970: 10))

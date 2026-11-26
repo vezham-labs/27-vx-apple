@@ -718,14 +718,14 @@ struct FavoriteTile: View {
     /// can offer a local recent-page preview. Known workspace apps use their
     /// root host, so a redirect or `www` favourite also includes workspace
     /// subdomains.
-    private var appPreview: (name: String, host: String)? {
+    private var appPreview: (name: String, host: String, includingSubdomains: Bool)? {
         guard !browser.currentSpace.isPrivate, browser.currentSpace.id != Preferences.agentSpaceID,
               let host = favorite.url.host()?.lowercased(),
               favorite.url.scheme == "http" || favorite.url.scheme == "https" else { return nil }
-        if host == "notion.so" || host.hasSuffix(".notion.so") { return ("Notion", "notion.so") }
-        if host == "figma.com" || host.hasSuffix(".figma.com") { return ("Figma", "figma.com") }
-        if host == "linear.app" || host.hasSuffix(".linear.app") { return ("Linear", "linear.app") }
-        return (URLNormalizer.displayHost(favorite.url), host)
+        if host == "notion.so" || host.hasSuffix(".notion.so") { return ("Notion", "notion.so", true) }
+        if host == "figma.com" || host.hasSuffix(".figma.com") { return ("Figma", "figma.com", true) }
+        if host == "linear.app" || host.hasSuffix(".linear.app") { return ("Linear", "linear.app", true) }
+        return (URLNormalizer.displayHost(favorite.url), host, false)
     }
 
     private func updateAppPreview(hovered: Bool) {
@@ -743,7 +743,7 @@ struct FavoriteTile: View {
                 let spaceID = browser.selectedSpaceID
                 let profileID = browser.currentSpace.websiteProfileID
                 let history = browser.library.profileHistory.store(for: profileID)
-                let pages = await history.recentVisits(forHost: appPreview.host, limit: 5)
+                let pages = await history.recentVisits(forHost: appPreview.host, limit: 5, includingSubdomains: appPreview.includingSubdomains)
                 guard !Task.isCancelled else { return }
                 guard browser.selectedSpaceID == spaceID, browser.currentSpace.websiteProfileID == profileID else { return }
                 previewPages = pages

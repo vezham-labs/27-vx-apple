@@ -24,6 +24,14 @@ final class VideoPictureInPicture {
 
     func isFloating(_ id: UUID) -> Bool { tabID == id }
 
+    func registerWindow(_ browser: Browser) {
+        if lastVisibleSpaceIDs[browser.id] == nil { lastVisibleSpaceIDs[browser.id] = browser.currentSpace.id }
+    }
+
+    func unregisterWindow(_ browser: Browser) {
+        lastVisibleSpaceIDs[browser.id] = nil
+    }
+
     func visibleTabsChanged(in browser: Browser, from previous: [UUID], to current: [UUID]) {
         stopAwayWatch()
         if let tabID, current.contains(tabID) { stop() }

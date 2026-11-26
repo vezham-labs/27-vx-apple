@@ -218,6 +218,7 @@ final class Library {
     // MARK: Windows
 
     func register(_ window: Browser) {
+        videoPictureInPicture.registerWindow(window)
         windows.removeAll { $0 === window }
         windows.insert(window, at: 0)
         if !windowsByAge.contains(where: { $0 === window }) { windowsByAge.append(window) }
@@ -227,6 +228,7 @@ final class Library {
     func unregister(_ window: Browser) {
         // AppKit's close and SwiftUI's onDisappear both land here; the first one counts.
         guard windowsByAge.contains(where: { $0 === window }) else { return }
+        videoPictureInPicture.unregisterWindow(window)
         windows.removeAll { $0 === window }
         windowsByAge.removeAll { $0 === window }
         if let observer = window.closeObserver { NotificationCenter.default.removeObserver(observer) }

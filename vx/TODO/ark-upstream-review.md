@@ -409,3 +409,18 @@ These nine commits are present on the clean local `origin/main` ref at `659f74dc
 | `5cf636611c06793cd0974f20ead4f62317c29583` | Zen import: each open tab into its own space, and read from Zen's own file (idea 1116) | Reviewed and deferred: Zen/Firefox session import and mapping workspace names to Ark Spaces are outside the 42 Arc rows and the current Mac parity pass. Ark currently imports Arc, Chromium, and Safari data; no Zen-specific parser was copied. |
 | `659f74dc35c38c9a4b6bfa8c09fd3f9523d5d245` | Profiles in one window: no space name popping up on a profile switch (idea 1114) | Reviewed: Search quiets its profile-window join notification. Ark selects a Space directly in the existing window and uses that Space's name as the switch feedback; it has no matching cross-profile window-join path. No code or matrix change. |
 
+### Browsa 1.3.1 release batch
+
+These eight commits advance the reviewed Browsa head from `46fe04be` to `a39e03e`.
+
+| Commit | Change | Disposition |
+| --- | --- | --- |
+| `f7fb5ae` | Keep the Agent Stage offscreen | Already adapted in Ark's `AgentStage`; it returns offscreen after display changes and preserves mouse-event exclusion. Physical display-change behavior remains open. |
+| `b337f69` | Export all Spaces as bookmarks | Already adapted as Ark's all-Spaces HTML export, including profile-separated favourites, folders and Today links. File-panel interoperability remains open. |
+| `afc2c39` | Keep video in its Space; clarify certificate setting | Ark's automatic PiP setting is already explicit and per-site certificate exceptions are fingerprint-bound. Browsa's additional Space-only PiP preference is a behavioral option, not a 42-row gap; defer its UI decision to the Arc interaction pass. |
+| `a4c95ae` | Download drag, auto-open, screenshots in Downloads | Ark already provides finished-download file dragging and saved regular page captures in Downloads while excluding private captures. Finder/webpage drops and automatic reveal remain runtime checks. |
+| `332fd52` | Ctrl-Tab cycles recent tabs | Adapted for Mac: Ctrl-Tab now walks stable most-recent ordering until Control is released, with a setting to retain sidebar-order cycling. Existing Debug audit passed; physical key dispatch remains open. |
+| `6463465` | Context-menu downloads and private/export filtering | Ark already adopts the WebKit context-menu download callback. `SpaceLinkArchive` excludes private, non-web and credentialed links, and private captures are not listed in Downloads. Runtime WebKit menu verification remains open. |
+| `64ae49e` | Release notes | Documentation only. |
+| `a39e03e` | Feature list and website release metadata | Documentation/website metadata only. |
+

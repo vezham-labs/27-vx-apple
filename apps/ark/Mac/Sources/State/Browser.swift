@@ -30,6 +30,10 @@ final class Browser {
     /// The tab this window shows in each space it has visited. Two windows never show the same tab.
     private var tabSelection: [UUID: UUID] = [:]
     private var lastUsedTabIDs: [UUID: UUID] = [:]
+    /// A Ctrl-Tab walk is stable until Control is released, so passing through tabs does not
+    /// continually rewrite the most-recent ordering.
+    @ObservationIgnored private var recentTabCycle: RecentTabCycle?
+    @ObservationIgnored private var recentTabCycleMonitor: Any?
     var splitBySpace: [UUID: TabSplit]
     var isSplitPickerPresented = false
     var isRecentTabsPresented = false
@@ -553,6 +557,64 @@ final class Browser {
         select(tabs[(i + delta + tabs.count) % tabs.count])
     }
 
+    // MARK: Control-Tab
+
+    private struct RecentTabCycle {
+        var ids: [UUID]
+        var index = 0
+        /// The timestamps before this Ctrl-Tab walk began. Tabs merely passed through retain
+        /// their original place; the tab where the user releases Control becomes most recent.
+        var timestamps: [UUID: Date]
+    }
+
+    /// Ctrl-Tab normally walks the most recently used tabs, as it does in Arc and Safari.
+    /// The existing sidebar-order behavior remains available for people who prefer it.
+    func controlTab(_ delta: Int) {
+        guard Preferences.controlTabRecentOrder else {
+            selectAdjacentTab(delta)
+            return
+        }
+        cycleRecentTabs(delta)
+    }
+
+    private func cycleRecentTabs(_ delta: Int) {
+        if recentTabCycle != nil, !NSEvent.modifierFlags.contains(.control) { endRecentTabCycle() }
+        if recentTabCycle == nil {
+            let unavailable = Set(library.windows.filter { $0 !== self }.flatMap(\.visibleTabIDs))
+            var tabs = orderedTabs.filter { !unavailable.contains($0.id) }.sorted { $0.lastActive > $1.lastActive }
+            guard tabs.count > 1 else { return }
+            if let current = currentTab, let index = tabs.firstIndex(where: { $0.id == current.id }) {
+                tabs.insert(tabs.remove(at: index), at: 0)
+            }
+            recentTabCycle = .init(ids: tabs.map(\.id), timestamps: Dictionary(uniqueKeysWithValues: tabs.map { ($0.id, $0.lastActive) }))
+            recentTabCycleMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+                if !event.modifierFlags.contains(.control) { self?.endRecentTabCycle() }
+                return event
+            }
+        }
+        guard var cycle = recentTabCycle else { return }
+        let available = Dictionary(uniqueKeysWithValues: orderedTabs.map { ($0.id, $0) })
+        for _ in cycle.ids.indices {
+            cycle.index = (cycle.index + delta + cycle.ids.count) % cycle.ids.count
+            if let tab = available[cycle.ids[cycle.index]] {
+                recentTabCycle = cycle
+                select(tab)
+                return
+            }
+        }
+    }
+
+    private func endRecentTabCycle() {
+        if let recentTabCycleMonitor { NSEvent.removeMonitor(recentTabCycleMonitor) }
+        recentTabCycleMonitor = nil
+        guard let cycle = recentTabCycle else { return }
+        recentTabCycle = nil
+        let landed = currentTab?.id
+        for tab in orderedTabs where tab.id != landed {
+            if let timestamp = cycle.timestamps[tab.id] { tab.lastActive = timestamp }
+        }
+    }
+
     var lastUsedTab: BrowserTab? {
         let space = currentSpace
         guard let id = lastUsedTabIDs[space.id], tabSelection[space.id] != id else { return nil }
@@ -859,7 +921,9 @@ enum Preferences {
     }
     static let closeTabGoesBackKey = "closeTabGoesBack"
     static let newTabAfterLastKey = "newTabAfterLast"
+    static let controlTabRecentOrderKey = "controlTabRecentOrder"
     static var newTabAfterLast: Bool { d.object(forKey: newTabAfterLastKey) as? Bool ?? true }
+    static var controlTabRecentOrder: Bool { d.object(forKey: controlTabRecentOrderKey) as? Bool ?? true }
     static var closeTabGoesBack: Bool {
         get { d.bool(forKey: closeTabGoesBackKey) }
         set { d.set(newValue, forKey: closeTabGoesBackKey) }

@@ -183,9 +183,9 @@ struct BrowserCommands: Commands {
             Button("Separate Split Tabs") { browser?.separateSplit() }
                 .disabled(browser?.activeSplit == nil)
             Divider()
-            Button("Next Tab") { browser?.selectAdjacentTab(1) }
+            Button("Switch Tab") { browser?.controlTab(1) }
                 .keyboardShortcut(.tab, modifiers: .control)
-            Button("Previous Tab") { browser?.selectAdjacentTab(-1) }
+            Button("Switch Tab Backwards") { browser?.controlTab(-1) }
                 .keyboardShortcut(.tab, modifiers: [.control, .shift])
             Button("Next Tab") { browser?.selectAdjacentTab(1) }
                 .keyboardShortcut(keys.shortcut(.nextTab))

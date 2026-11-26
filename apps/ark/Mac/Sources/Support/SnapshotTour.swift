@@ -301,6 +301,24 @@ struct SnapshotTour {
             } catch { note("Ardia and Yab import fixture failed: \(error)") }
             return
         }
+        if ProcessInfo.processInfo.environment["ARK_CONTROL_TAB_CHECK_ONLY"] == "1" {
+            let defaults = UserDefaults.standard
+            let saved = defaults.object(forKey: Preferences.controlTabRecentOrderKey)
+            defer {
+                if let saved { defaults.set(saved, forKey: Preferences.controlTabRecentOrderKey) }
+                else { defaults.removeObject(forKey: Preferences.controlTabRecentOrderKey) }
+            }
+            defaults.set(true, forKey: Preferences.controlTabRecentOrderKey)
+            let firstTab = browser.newTab(url: first)
+            let secondTab = browser.newTab(url: second)
+            browser.select(firstTab)
+            browser.controlTab(1)
+            let goesBack = browser.currentTab === secondTab
+            browser.controlTab(-1)
+            let reverses = browser.currentTab === firstTab
+            note("Control-Tab cycles recent tabs and reverses within one held walk: \(goesBack && reverses)")
+            return
+        }
         if ProcessInfo.processInfo.environment["ARK_PRIVATE_SHAPE_CHECK_ONLY"] == "1" {
             let url = base.appending(path: "boost-shape.html")
             let tab = browser.newTab(url: url, isPrivate: true)

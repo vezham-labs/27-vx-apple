@@ -176,6 +176,7 @@ private struct GeneralSettings: View {
     @AppStorage(Preferences.pinnedLinkActionKey) private var pinnedLinkAction = Preferences.pinnedLinkAction.rawValue
     @AppStorage(Preferences.closeTabGoesBackKey) private var closeTabGoesBack = false
     @AppStorage(Preferences.newTabAfterLastKey) private var newTabAfterLast = true
+    @AppStorage(Preferences.controlTabRecentOrderKey) private var controlTabRecentOrder = true
     @AppStorage("linkPreviewModifier") private var linkPreviewModifier = LinkPreviewModifier.option.rawValue
     @AppStorage(ArkVideoFloat.flicksKey) private var miniPlayerFlicks = false
 
@@ -206,6 +207,9 @@ private struct GeneralSettings: View {
                 Text("When off, Ark selects the tab beside the one you closed.")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Open a new tab when the last tab closes beside pins", isOn: $newTabAfterLast)
+                Toggle("Ctrl-Tab switches to recently used tabs", isOn: $controlTabRecentOrder)
+                Text("Turn it off to move through tabs in sidebar order instead.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Float videos when switching tabs or apps", isOn: $automaticVideoPiP)
                 Toggle("Space and arrow keys control videos", isOn: $videoKeyControls)
                     .onChange(of: videoKeyControls) { _, enabled in

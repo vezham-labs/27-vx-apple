@@ -2,6 +2,10 @@
 
 Start each upstream review at the last synced commit. After applying and verifying a sync, add a log entry with the new upstream SHA, the Ark commit, and the changes adopted or skipped.
 
+### Profile favorites in bookmark export — November 26, 2026
+
+The all-Spaces HTML export now includes a separate Favorites folder for Default and each named profile, retaining order and filtering to credential-free HTTP(S) URLs. This fills a gap found while comparing Browsa `b337f69` and Search `7bc04c0`. The Mac Nx build and isolated fixture passed for Default favorites, escaping, and credential exclusion alongside the existing Space checks. Named-profile separation, the save dialog, and imports into other browsers remain runtime-unverified; Export Spaces stays Partial. No simulator was started.
+
 ### All-Spaces bookmarks export in progress — November 26, 2026
 
 Started adapting the all-Space bookmarks capability from Browsa `b337f69` / `6463465` and Search `7bc04c0`. Mac now has an HTML export entry in the File menu and command bar; it uses Ark's portable Space link filtering, excludes the agent Space, nests pin folders, and uses pinned home URLs. The Mac Nx build passed. The initial fixture checked live tabs before WebKit populated their URLs; a corrected isolated fixture using explicit tab records verified escaped Space/folder names, pinned and open links, and exclusion of private and credentialed URLs. Save-dialog behavior, multiple browser import, and complete round-trip remain unverified. The existing single-Space JSON path remains separate. Do not advance upstream baselines or the Export Spaces rating.

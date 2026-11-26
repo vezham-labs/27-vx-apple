@@ -23,7 +23,7 @@ A local Mac sync fixture also verified that a remote profile change replaces the
 
 An isolated Mac Glance fixture verified that closing a preview, invoking its navigation-commit callback, or promoting a fully loaded preview cancels a queued screen-permission request. The promotion retained its live page. Real WebKit screen sharing remains unverified.
 
-Mac can export all regular Spaces as an HTML bookmarks file, retaining pin folders and open links while excluding private, agent, non-web, and credentialed links. A local fixture verified sample folder structure, escaping, and private-link filtering; the save dialog and importing the file into other browsers remain unverified. The single-Space JSON format remains available.
+Mac can export all regular Spaces as an HTML bookmarks file, retaining pin folders and open links, with separate Favorites folders per profile. It excludes private, agent, non-web, and credentialed links. A local fixture verified sample folder structure, Default favorites, escaping, and private-link filtering; named-profile separation, the save dialog, and importing into other browsers remain unverified. The single-Space JSON format remains available.
 
 The Mac Boost picker shows an Option-hover related-element count. An isolated fixture posted hover and click events over three matching elements, verified the count, hide, and restore, and captured a [Mac preview](../../../../../preview/ark/mac/features/boost-related-count.png). Physical pointer and VoiceOver interaction remain unverified.
 

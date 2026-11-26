@@ -17,7 +17,24 @@ extension Browser {
             let url = pinned ? (entry.pinnedHomeURL ?? entry.url) : entry.url
             line(depth, "<DT><A HREF=\"\(escape(url.absoluteString))\">\(escape(entry.title.isEmpty ? url.absoluteString : entry.title))</A>")
         }
-        for space in library.regularSpaces where space.id != Preferences.agentSpaceID {
+        let exportSpaces = library.regularSpaces.filter { $0.id != Preferences.agentSpaceID }
+        let profiles: [(UUID?, String)] = [(nil, "Default")] + library.settings.websiteProfiles.map { ($0.id, $0.name) }
+        for (profileID, profile) in profiles {
+            let favorites = library.favorites(for: profileID).sorted { $0.order < $1.order }.filter { favorite in
+                guard let scheme = favorite.url.scheme?.lowercased(), ["http", "https"].contains(scheme),
+                      let host = favorite.url.host(), !host.isEmpty else { return false }
+                return favorite.url.user == nil && favorite.url.password == nil
+            }
+            guard !favorites.isEmpty else { continue }
+            line(1, "<DT><H3>\(escape("Favorites (\(profile))"))</H3>")
+            line(1, "<DL><p>")
+            for favorite in favorites {
+                let title = favorite.customName ?? (favorite.title.isEmpty ? favorite.url.absoluteString : favorite.title)
+                line(2, "<DT><A HREF=\"\(escape(favorite.url.absoluteString))\">\(escape(title))</A>")
+            }
+            line(1, "</DL><p>")
+        }
+        for space in exportSpaces {
             guard let archive = SpaceLinkArchive(space: space) else { continue }
             line(1, "<DT><H3>\(escape(archive.name))</H3>")
             line(1, "<DL><p>")

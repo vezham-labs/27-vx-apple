@@ -1581,10 +1581,17 @@ struct SnapshotTour {
         let unsafeTab = BrowserTab(url: URL(string: "https://user:secret@example.com/private")!)
         let privateTab = BrowserTab(url: URL(string: "https://example.com/private-fixture")!, isPrivate: true)
         exportSpace.today.append(contentsOf: [exportToday, unsafeTab, privateTab])
+        let originalFavorites = browser.library.favoritesByProfile
+        browser.library.favoritesByProfile[FavoriteProfileKey.default] = [
+            Favorite(url: URL(string: "https://example.com/favorite")!, title: "Favorite & test", order: 0),
+            Favorite(url: URL(string: "https://user:secret@example.com/favorite")!, title: "Unsafe", order: 1)
+        ]
         let bookmarks = browser.allSpacesBookmarksHTML()
+        browser.library.favoritesByProfile = originalFavorites
         let checks = [bookmarks.contains("Audit &amp; Space"), bookmarks.contains("Nested &lt;Pins&gt;"),
                       bookmarks.contains("pin?a=1&amp;b=2"), bookmarks.contains("https://example.com/open"),
-                      !bookmarks.contains("user:secret"), !bookmarks.contains("private-fixture")]
+                      !bookmarks.contains("user:secret"), !bookmarks.contains("private-fixture"),
+                      bookmarks.contains("Favorites (Default)"), bookmarks.contains("Favorite &amp; test")]
         note("All-Spaces bookmarks preserve folders and exclude private links: \(checks.allSatisfy { $0 }) (checks: \(checks))")
         browser.library.deleteSpace(exportSpace)
         let closePreview = browser.library.showLinkPreview(nil)

@@ -5,6 +5,7 @@ import CoreServices
 import CryptoKit
 import Security
 import BrowserEngine
+import BrowserCore
 
 /// One WKWebView, behind the engine-neutral `EnginePage`.
 @MainActor
@@ -601,6 +602,9 @@ public enum PageMenuItems {
 
 /// WKWebView with Ark's link menu wording: windows are tabs here.
 final class ArkWebView: WKWebView {
+    private weak var linkCopyTarget: AnyObject?
+    private var linkCopyAction: Selector?
+
     override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
         super.willOpenMenu(menu, with: event)
         var p = convert(event.locationInWindow, from: nil)
@@ -609,6 +613,19 @@ final class ArkWebView: WKWebView {
         if let items = PageMenuItems.provider?(self, p), !items.isEmpty {
             menu.insertItem(.separator(), at: 0)
             for item in items.reversed() { menu.insertItem(item, at: 0) }
+        }
+        if let index = menu.items.firstIndex(where: { $0.identifier?.rawValue == "WKMenuItemIdentifierCopyLink" }),
+           let clean = menu.items[index].copy() as? NSMenuItem {
+            let original = menu.items[index]
+            linkCopyTarget = original.target as AnyObject?
+            linkCopyAction = original.action
+            clean.title = "Copy Clean Link"
+            clean.identifier = NSUserInterfaceItemIdentifier("ArkCopyCleanLink")
+            clean.target = self
+            clean.action = #selector(copyCleanLink(_:))
+            clean.keyEquivalent = ""
+            clean.isAlternate = false
+            menu.insertItem(clean, at: index + 1)
         }
         for item in menu.items {
             switch item.identifier?.rawValue {
@@ -619,6 +636,30 @@ final class ArkWebView: WKWebView {
             default: break
             }
         }
+    }
+
+    @objc private func copyCleanLink(_ item: NSMenuItem) {
+        guard let linkCopyAction else { return }
+        let board = NSPasteboard.general
+        let previousChange = board.changeCount
+        NSApp.sendAction(linkCopyAction, to: linkCopyTarget, from: item)
+        Self.cleanCopiedLink(on: board, after: previousChange, attempts: 20)
+    }
+
+    private static func cleanCopiedLink(on board: NSPasteboard, after change: Int, attempts: Int) {
+        guard board.changeCount != change else {
+            if attempts > 0 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    cleanCopiedLink(on: board, after: change, attempts: attempts - 1)
+                }
+            }
+            return
+        }
+        guard let text = board.string(forType: .URL) ?? board.string(forType: .string),
+              let url = URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
+              let cleaned = LinkCleaner.clean(url) else { return }
+        board.clearContents()
+        board.setString(cleaned.absoluteString, forType: .string)
     }
 }
 

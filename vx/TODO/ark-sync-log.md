@@ -1518,6 +1518,10 @@ Reviewed 30 incoming Search commits in one architecture-sized pass. Search's ben
 
 The guarded-element observer now disconnects after the last guarded rule is restored and reconnects when a rule is added. An isolated Mac WebKit page verified that a target remains hidden after sibling reordering, restoring reveals it, the observer disconnects, and reapplying hides it with a new observation. Mac and generic iOS builds passed. This verifies that fixture, not real-site mutations, physical picker input, mobile runtime, or an end-to-end performance benchmark. Report: `/private/tmp/ark-boost-dynamic-20261127/report.txt`.
 
+### Copy Clean Link from a page — November 27, 2026
+
+Adapted Search `b666d1f`: Mac WebKit link menus now add a separate **Copy Clean Link** action. It asks WebKit to copy the selected link, then applies Ark's existing URL cleaner after the pasteboard changes; the normal Copy Link action remains available. The Mac build and existing BrowserKit suite passed (90 BrowserCore tests in 14 suites). A real WebKit context-menu selection and delayed pasteboard behavior remain unverified; the suite does not exercise the new menu action.
+
 ### Web App Preview workspace hosts — November 26, 2026
 
 Privacy follow-up, November 27: favorite history previews now also exclude Agent Space, in addition to private Spaces, so the agent context cannot surface regular-profile recent pages through a favorite. The Mac build passed; a live Agent Space hover check remains open.

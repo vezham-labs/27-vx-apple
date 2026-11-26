@@ -1420,6 +1420,23 @@ struct SnapshotTour {
         let previewed = browser.glance?.url == glanceURL && browser.currentTab?.id == source.id && source.isPinned && source.url == sourceURL
         note("pinned-link Glance check: \(previewed ? "opened cross-host link in Glance and kept pin at source" : "did not meet expected Glance/pin state")")
         browser.closeGlance()
+
+        browser.library.controller(for: source).load(targetURL, source: .typed)
+        for _ in 0..<50 where source.url != targetURL { await pause(0.1) }
+        let wandered = source.url == targetURL && source.canReturnToPinnedPage
+        browser.returnToPinnedPage(source)
+        for _ in 0..<50 where source.url != sourceURL { await pause(0.1) }
+        note("pinned-home navigation: \(wandered && source.url == sourceURL && !source.canReturnToPinnedPage)")
+
+        let sample = BrowserTab(url: URL(string: "http://example.com:8081/home#part"), isPinned: true)
+        sample.pinnedHomeURL = URL(string: "http://example.com:8080/home")
+        let differentPort = sample.canReturnToPinnedPage
+        sample.url = URL(string: "https://example.com:8080/home")
+        let differentScheme = sample.canReturnToPinnedPage
+        sample.url = URL(string: "http://example.com:8080/home#part")
+        let differentFragment = sample.canReturnToPinnedPage
+        sample.url = URL(string: "http://example.com:8080/home/")
+        note("pinned-home address distinctions: \(differentPort && differentScheme && differentFragment && !sample.canReturnToPinnedPage)")
     }
 
     /// Checks the opt-in close behavior using the previously selected Today tab.

@@ -65,6 +65,17 @@ public final class BrowserTab: Identifiable {
         if let url { return URLNormalizer.displayHost(url) }
         return "New Tab"
     }
+
+    /// Whether the pin has navigated away from its original address.
+    public var canReturnToPinnedPage: Bool {
+        guard isPinned, let home = pinnedHomeURL, let url else { return false }
+        func withoutTrailingSlash(_ url: URL) -> String {
+            var address = url.absoluteString
+            while address.hasSuffix("/") { address.removeLast() }
+            return address
+        }
+        return withoutTrailingSlash(home) != withoutTrailingSlash(url)
+    }
 }
 
 /// What a tab in a call is using, for the badge that leads back to it.

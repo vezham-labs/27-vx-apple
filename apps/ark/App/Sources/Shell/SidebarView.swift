@@ -259,8 +259,7 @@ struct TabMenu: View {
             MovePinMenu(tab: tab, space: browser.currentSpace, save: browser.scheduleSave)
         }
         if let url = tab.url {
-            if tab.isPinned, let home = tab.pinnedHomeURL,
-               URLNormalizer.key(for: home) != URLNormalizer.key(for: url) {
+            if tab.canReturnToPinnedPage {
                 Button("Back to Pinned Page", systemImage: "arrow.uturn.backward") {
                     browser.returnToPinnedPage(tab)
                 }

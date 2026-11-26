@@ -155,8 +155,7 @@ extension BrowserState {
 
     /// Return a pinned tab to the page it was pinned at.
     public func returnToPinnedPage(_ tab: BrowserTab) {
-        guard tab.isPinned, let home = tab.pinnedHomeURL, let current = tab.url,
-              URLNormalizer.key(for: home) != URLNormalizer.key(for: current) else { return }
+        guard tab.canReturnToPinnedPage, let home = tab.pinnedHomeURL else { return }
         select(tab)
         session(for: tab).load(home, source: .typed)
     }

@@ -354,8 +354,7 @@ struct TabRow: View {
     var body: some View {
         HStack(spacing: 10) {
             ZStack {
-                if tab.isPinned, let home = tab.pinnedHomeURL, let current = tab.url,
-                   URLNormalizer.key(for: home) != URLNormalizer.key(for: current) {
+                if tab.canReturnToPinnedPage {
                     Button { browser.returnToPinnedPage(tab) } label: {
                         ZStack {
                             TabIcon(tab: tab, size: 16).opacity(iconHovering ? 0 : 1)
@@ -657,8 +656,7 @@ struct TabMenu: View {
             }
         }
         if let url = tab.url {
-            if tab.isPinned, let home = tab.pinnedHomeURL,
-               URLNormalizer.key(for: home) != URLNormalizer.key(for: url) {
+            if tab.canReturnToPinnedPage {
                 Button("Back to Pinned Page", systemImage: "arrow.uturn.backward") {
                     browser.returnToPinnedPage(tab)
                 }
